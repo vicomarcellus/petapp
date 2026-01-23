@@ -94,15 +94,21 @@ vercel env add CRON_SECRET
 vercel --prod
 ```
 
-## Шаг 8: Настроить Cron Job
+## Шаг 8: Настроить Cron Job (внешний сервис)
 
-Cron уже настроен в `vercel.json` и запустится автоматически.
+Vercel Hobby план ограничивает cron до 1 раза в день. Используем бесплатный внешний сервис:
 
-Проверить работу:
+1. Зарегистрироваться на https://cron-job.org (бесплатно)
+2. Создать новое задание:
+   - **URL**: `https://your-app-name.vercel.app/api/check-reminders`
+   - **Schedule**: Every hour (или Every minute)
+   - **Method**: GET
+   - **Headers**: 
+     - Key: `Authorization`
+     - Value: `Bearer your-cron-secret`
+3. Сохранить
 
-1. Откройте **Deployments** → последний деплой → **Functions**
-2. Найдите `/api/check-reminders`
-3. Посмотрите логи
+Подробная инструкция в файле `EXTERNAL_CRON_SETUP.md`
 
 ## Шаг 9: Получить Chat ID
 
