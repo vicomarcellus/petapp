@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/check-reminders",
+      "schedule": "* * * * *"
+    }
+  ],
+  "env": {
+    "TELEGRAM_BOT_TOKEN": "@telegram_bot_token",
+    "CRON_SECRET": "@cron_secret"
+  }
+}
