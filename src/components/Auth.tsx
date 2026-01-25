@@ -133,8 +133,27 @@ export function Auth() {
             Открыть в Telegram
           </a>
 
+          <button
+            onClick={() => {
+              // Временный вход для тестирования
+              const testUser: User = {
+                id: Date.now(),
+                firstName: 'Тестовый',
+                lastName: 'Пользователь',
+                username: 'test_user',
+                authDate: Date.now(),
+              };
+              db.users.put(testUser);
+              localStorage.setItem('currentUser', JSON.stringify(testUser));
+              setCurrentUser(testUser);
+            }}
+            className="block w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-full text-center transition-colors"
+          >
+            Войти для тестирования (без Telegram)
+          </button>
+
           <p className="text-xs text-gray-500 text-center">
-            Приложение работает только внутри Telegram
+            Приложение работает лучше всего внутри Telegram
           </p>
         </div>
       </div>
