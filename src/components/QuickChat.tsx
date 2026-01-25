@@ -254,7 +254,19 @@ export const QuickChat = () => {
       silenceTimerRef.current = null;
     }
     
-    if (!input.trim() || loading || !currentPetId) return;
+    if (!input.trim()) return;
+    
+    if (!currentPetId) {
+      setIsError(true);
+      setFeedback('Сначала добавьте питомца в настройках');
+      setTimeout(() => {
+        setIsError(false);
+        setFeedback(null);
+      }, 3000);
+      return;
+    }
+    
+    if (loading) return;
 
     setLoading(true);
     setFeedback(null);
