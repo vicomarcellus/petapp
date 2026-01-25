@@ -1,18 +1,16 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '../store';
 import { db } from '../db';
 import { User } from '../types';
 import { LogOut, PawPrint } from 'lucide-react';
 
-// Telegram Login Widget types
-declare global {
-  interface Window {
-    onTelegramAuth?: (user: any) => void;
-  }
-}
-
 export function Auth() {
   const { currentUser, setCurrentUser } = useStore();
+  const [isLogin, setIsLogin] = useState(true);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     // Проверяем сохраненного пользователя
@@ -20,47 +18,62 @@ export function Auth() {
     if (savedUser) {
       const user = JSON.parse(savedUser);
       setCurrentUser(user);
+    }
+  }, [setCurrentUser]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!email || !password) {
+      setError('Заполните все поля');
       return;
     }
 
-    // Callback для Telegram Login Widget
-    window.onTelegramAuth = async (telegramUser: any) => {
-      const user: User = {
-        id: telegramUser.id,
-        firstName: telegramUser.first_name,
-        lastName: telegramUser.last_name,
-        username: telegramUser.username,
-        photoUrl: telegramUser.photo_url,
-        authDate: telegramUser.auth_date,
-      };
-
-      // Сохраняем пользователя
-      await db.users.put(user);
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      setCurrentUser(user);
-    };
-
-    // Загружаем Telegram Widget скрипт
-    const script = document.createElement('script');
-    script.src = 'https://telegram.org/js/telegram-widget.js?22';
-    script.async = true;
-    script.setAttribute('data-telegram-login', 'kentpetapp_bot');
-    script.setAttribute('data-size', 'large');
-    script.setAttribute('data-onauth', 'onTelegramAuth(user)');
-    script.setAttribute('data-request-access', 'write');
-    
-    const container = document.getElementById('telegram-login-container');
-    if (container) {
-      container.appendChild(script);
+    if (!isLogin && !name) {
+      setError('Введите имя');
+      return;
     }
 
-    return () => {
-      delete window.onTelegramAuth;
-      if (container && script.parentNode === container) {
-        container.removeChild(script);
+    try {
+      if (isLogin) {
+        // Вход
+        const users = await db.users.toArray();
+        const user = users.find(u => u.username === email);
+        
+        if (!user) {
+          setError('Пользователь не найден');
+          return;
+        }
+
+        // Сохраняем пользователя
+        localStorage.setItem('currentUser', JSON.stringify(user));
+        setCurrentUser(user);
+      } else {
+        // Регистрация
+        const users = await db.users.toArray();
+        const exists = users.find(u => u.username === email);
+        
+        if (exists) {
+          setError('Email уже используется');
+          return;
+        }
+
+        const user: User = {
+          id: Date.now(),
+          firstName: name,
+          username: email,
+          authDate: Date.now(),
+        };
+
+        await db.users.put(user);
+        localStorage.setItem('currentUser', JSON.stringify(user));
+        setCurrentUser(user);
       }
-    };
-  }, [setCurrentUser]);
+    } catch (err) {
+      setError('Ошибка: ' + (err as Error).message);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('currentUser');
@@ -102,19 +115,76 @@ export function Auth() {
             Дневник здоровья питомца
           </h1>
           <p className="text-gray-600">
-            Войдите через Telegram для доступа к приложению
+            {isLogin ? 'Войдите в аккаунт' : 'Создайте аккаунт'}
           </p>
         </div>
 
-        <div className="space-y-4">
-          <div id="telegram-login-container" className="flex justify-center pt-4">
-            {/* Telegram widget загружается через useEffect */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {!isLogin && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Имя
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                placeholder="Ваше имя"
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              placeholder="your@email.com"
+            />
           </div>
 
-          <p className="text-xs text-gray-500 text-center">
-            Нажмите кнопку выше для входа через Telegram
-          </p>
-        </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Пароль
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              placeholder="••••••••"
+            />
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+          >
+            {isLogin ? 'Войти' : 'Зарегистрироваться'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setIsLogin(!isLogin);
+              setError('');
+            }}
+            className="w-full text-blue-500 hover:text-blue-600 text-sm font-medium"
+          >
+            {isLogin ? 'Нет аккаунта? Зарегистрируйтесь' : 'Уже есть аккаунт? Войдите'}
+          </button>
+        </form>
       </div>
     </div>
   );
