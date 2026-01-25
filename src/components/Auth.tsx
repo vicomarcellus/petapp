@@ -4,10 +4,25 @@ import { db } from '../db';
 import { User } from '../types';
 import { LogOut, PawPrint } from 'lucide-react';
 
-// Telegram Login Widget types
+// Telegram WebApp types
 declare global {
   interface Window {
-    onTelegramAuth?: (user: any) => void;
+    Telegram?: {
+      WebApp?: {
+        initData: string;
+        initDataUnsafe: {
+          user?: {
+            id: number;
+            first_name: string;
+            last_name?: string;
+            username?: string;
+            photo_url?: string;
+          };
+        };
+        ready: () => void;
+        expand: () => void;
+      };
+    };
   }
 }
 
@@ -23,43 +38,29 @@ export function Auth() {
       return;
     }
 
-    // Callback для Telegram Login Widget
-    window.onTelegramAuth = async (telegramUser: any) => {
-      const user: User = {
-        id: telegramUser.id,
-        firstName: telegramUser.first_name,
-        lastName: telegramUser.last_name,
-        username: telegramUser.username,
-        photoUrl: telegramUser.photo_url,
-        authDate: telegramUser.auth_date,
-      };
+    // Проверяем, запущено ли приложение из Telegram
+    if (window.Telegram?.WebApp) {
+      const tg = window.Telegram.WebApp;
+      tg.ready();
+      tg.expand();
 
-      // Сохраняем пользователя
-      await db.users.put(user);
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      setCurrentUser(user);
-    };
+      const telegramUser = tg.initDataUnsafe.user;
+      if (telegramUser) {
+        const user: User = {
+          id: telegramUser.id,
+          firstName: telegramUser.first_name,
+          lastName: telegramUser.last_name,
+          username: telegramUser.username,
+          photoUrl: telegramUser.photo_url,
+          authDate: Date.now(),
+        };
 
-    // Загружаем Telegram Widget скрипт
-    const script = document.createElement('script');
-    script.src = 'https://telegram.org/js/telegram-widget.js?22';
-    script.async = true;
-    script.setAttribute('data-telegram-login', 'kentpetapp_bot');
-    script.setAttribute('data-size', 'large');
-    script.setAttribute('data-onauth', 'onTelegramAuth(user)');
-    script.setAttribute('data-request-access', 'write');
-    
-    const container = document.getElementById('telegram-login-container');
-    if (container) {
-      container.appendChild(script);
-    }
-
-    return () => {
-      delete window.onTelegramAuth;
-      if (container && script.parentNode === container) {
-        container.removeChild(script);
+        // Сохраняем пользователя
+        db.users.put(user);
+        localStorage.setItem('currentUser', JSON.stringify(user));
+        setCurrentUser(user);
       }
-    };
+    }
   }, [setCurrentUser]);
 
   const handleLogout = () => {
@@ -101,28 +102,39 @@ export function Auth() {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Дневник здоровья питомца
           </h1>
-          <p className="text-gray-600">
-            Войдите через Telegram, чтобы синхронизировать данные между устройствами
+          <p className="text-gray-600 mb-4">
+            Откройте приложение через Telegram для автоматического входа
           </p>
         </div>
 
         <div className="space-y-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="font-semibold text-blue-900 mb-2">Преимущества входа:</h3>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>✓ Доступ с любого устройства</li>
-              <li>✓ Автоматическая синхронизация</li>
-              <li>✓ Безопасное хранение данных</li>
-              <li>✓ Без регистрации и паролей</li>
-            </ul>
+            <h3 className="font-semibold text-blue-900 mb-2">Как войти:</h3>
+            <ol className="text-sm text-blue-800 space-y-2">
+              <li>1. Откройте Telegram</li>
+              <li>2. Найдите бота @kentpetapp_bot</li>
+              <li>3. Нажмите "Открыть приложение" или отправьте /start</li>
+              <li>4. Приложение откроется автоматически!</li>
+            </ol>
           </div>
 
-          <div id="telegram-login-container" className="flex justify-center pt-4">
-            {/* Telegram widget загружается через useEffect */}
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <p className="text-sm text-amber-800">
+              ⚠️ Для полноценной работы откройте приложение через Telegram бота
+            </p>
           </div>
+
+          <a
+            href="https://t.me/kentpetapp_bot"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-full text-center transition-colors"
+          >
+            Открыть в Telegram
+          </a>
 
           <p className="text-xs text-gray-500 text-center">
-            Нажимая кнопку входа, вы соглашаетесь с использованием Telegram для авторизации
+            Приложение работает только внутри Telegram
           </p>
         </div>
       </div>
