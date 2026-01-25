@@ -1,5 +1,15 @@
+export interface User {
+  id: number; // Telegram user ID
+  firstName: string;
+  lastName?: string;
+  username?: string;
+  photoUrl?: string;
+  authDate: number;
+}
+
 export interface Pet {
   id?: number;
+  userId: number; // Telegram user ID
   name: string;
   type: string; // 'cat', 'dog', 'bird', 'other' и т.д.
   photo?: string; // base64 или URL
@@ -13,6 +23,7 @@ export interface Pet {
 
 export interface MedicationEntry {
   id?: number;
+  userId: number; // Telegram user ID
   petId: number; // ID питомца
   date: string; // YYYY-MM-DD
   medication_name: string;
@@ -25,6 +36,7 @@ export interface MedicationEntry {
 
 export interface Medication {
   id?: number;
+  userId: number; // Telegram user ID
   petId: number; // ID питомца
   name: string;
   color: string;
@@ -33,6 +45,7 @@ export interface Medication {
 
 export interface MedicationTag {
   id?: number;
+  userId: number; // Telegram user ID
   petId: number; // ID питомца
   name: string;
   color: string;
@@ -40,6 +53,7 @@ export interface MedicationTag {
 
 export interface SymptomTag {
   id?: number;
+  userId: number; // Telegram user ID
   petId: number; // ID питомца
   name: string;
   color: string;
@@ -47,6 +61,7 @@ export interface SymptomTag {
 
 export interface DayEntry {
   id?: number;
+  userId: number; // Telegram user ID
   petId: number; // ID питомца
   date: string; // YYYY-MM-DD
   state_score: 1 | 2 | 3 | 4 | 5;

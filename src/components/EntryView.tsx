@@ -4,12 +4,13 @@ import { db } from '../db';
 import { useStore } from '../store';
 import { STATE_COLORS, STATE_LABELS, SYMPTOM_COLORS } from '../types';
 import { formatDisplayDate } from '../utils';
-import { ArrowLeft, Trash2, Plus, Pill, Edit3, X } from 'lucide-react';
+import { ArrowLeft, Trash2, Plus, Edit3, X } from 'lucide-react';
 import { QuickChat } from './QuickChat';
 import { MedicationManager } from './MedicationManager';
+import { addHistoryEntry } from '../services/history';
 
 export const EntryView = () => {
-  const { selectedDate, setView, currentPetId } = useStore();
+  const { selectedDate, setView, currentPetId, currentUser } = useStore();
   const [showStateSelector, setShowStateSelector] = useState(false);
   const [editingNote, setEditingNote] = useState(false);
   const [noteText, setNoteText] = useState('');
@@ -19,30 +20,39 @@ export const EntryView = () => {
 
   const entry = useLiveQuery(
     async () => {
-      if (!selectedDate || !currentPetId) return null;
-      return await db.dayEntries.where('date').equals(selectedDate).filter(e => e.petId === currentPetId).first();
+      if (!selectedDate || !currentPetId || !currentUser) return null;
+      return await db.dayEntries
+        .where('date').equals(selectedDate)
+        .filter(e => e.petId === currentPetId && e.userId === currentUser.id)
+        .first();
     },
-    [selectedDate, currentPetId]
+    [selectedDate, currentPetId, currentUser]
   );
 
   const medications = useLiveQuery(
     async () => {
-      if (!selectedDate || !currentPetId) return [];
+      if (!selectedDate || !currentPetId || !currentUser) return [];
       const entries = await db.medicationEntries.where('date').equals(selectedDate).toArray();
-      return entries.filter(e => e.petId === currentPetId).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+      return entries
+        .filter(e => e.petId === currentPetId && e.userId === currentUser.id)
+        .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
     },
-    [selectedDate, currentPetId]
+    [selectedDate, currentPetId, currentUser]
   );
 
   const symptomTags = useLiveQuery(
     async () => {
-      if (!currentPetId) return [];
-      return await db.symptomTags.where('petId').equals(currentPetId).toArray();
+      if (!currentPetId || !currentUser) return [];
+      return await db.symptomTags
+        .where('petId').equals(currentPetId)
+        .filter(t => t.userId === currentUser.id)
+        .toArray();
     },
-    [currentPetId]
+    [currentPetId, currentUser]
   );
 
   const handleStateChange = async (newScore: 1 | 2 | 3 | 4 | 5) => {
+    if (!currentUser) return;
     const oldScore = entry?.state_score;
     
     if (entry?.id) {
@@ -66,6 +76,7 @@ export const EntryView = () => {
     } else if (selectedDate && currentPetId) {
       // Создаем новую запись
       const id = await db.dayEntries.add({
+        userId: currentUser.id,
         date: selectedDate,
         petId: currentPetId,
         state_score: newScore,
@@ -91,7 +102,7 @@ export const EntryView = () => {
 
   const handleAddSymptom = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newSymptom.trim() || !selectedDate || !currentPetId) return;
+    if (!newSymptom.trim() || !selectedDate || !currentPetId || !currentUser) return;
 
     if (entry?.id) {
       // Обновляем существующую запись
@@ -103,11 +114,18 @@ export const EntryView = () => {
         });
 
         // Создаем тег симптома если его еще нет
-        const existingTag = await db.symptomTags.where('name').equals(newSymptom.trim()).filter(t => t.petId === currentPetId).first();
+        const existingTag = await db.symptomTags
+          .where('name').equals(newSymptom.trim())
+          .filter(t => t.petId === currentPetId && t.userId === currentUser.id)
+          .first();
         if (!existingTag) {
-          const allTags = await db.symptomTags.where('petId').equals(currentPetId).toArray();
+          const allTags = await db.symptomTags
+            .where('petId').equals(currentPetId)
+            .filter(t => t.userId === currentUser.id)
+            .toArray();
           const colorIndex = allTags.length % SYMPTOM_COLORS.length;
           await db.symptomTags.add({
+            userId: currentUser.id,
             name: newSymptom.trim(),
             petId: currentPetId,
             color: SYMPTOM_COLORS[colorIndex],
@@ -117,6 +135,7 @@ export const EntryView = () => {
     } else {
       // Создаем новую запись с симптомом
       await db.dayEntries.add({
+        userId: currentUser.id,
         date: selectedDate,
         petId: currentPetId,
         state_score: 3,
@@ -127,11 +146,18 @@ export const EntryView = () => {
       });
 
       // Создаем тег симптома
-      const existingTag = await db.symptomTags.where('name').equals(newSymptom.trim()).filter(t => t.petId === currentPetId).first();
+      const existingTag = await db.symptomTags
+        .where('name').equals(newSymptom.trim())
+        .filter(t => t.petId === currentPetId && t.userId === currentUser.id)
+        .first();
       if (!existingTag) {
-        const allTags = await db.symptomTags.where('petId').equals(currentPetId).toArray();
+        const allTags = await db.symptomTags
+          .where('petId').equals(currentPetId)
+          .filter(t => t.userId === currentUser.id)
+          .toArray();
         const colorIndex = allTags.length % SYMPTOM_COLORS.length;
         await db.symptomTags.add({
+          userId: currentUser.id,
           name: newSymptom.trim(),
           petId: currentPetId,
           color: SYMPTOM_COLORS[colorIndex],
@@ -156,7 +182,7 @@ export const EntryView = () => {
   };
 
   const handleSaveNote = async () => {
-    if (!noteText.trim() || !selectedDate || !currentPetId) return;
+    if (!noteText.trim() || !selectedDate || !currentPetId || !currentUser) return;
     
     if (entry?.id) {
       // Обновляем существующую запись
@@ -167,6 +193,7 @@ export const EntryView = () => {
     } else {
       // Создаем новую запись с заметкой
       await db.dayEntries.add({
+        userId: currentUser.id,
         date: selectedDate,
         petId: currentPetId,
         state_score: 3,

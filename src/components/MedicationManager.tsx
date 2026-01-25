@@ -13,7 +13,7 @@ interface Props {
 }
 
 export const MedicationManager = ({ date, editingMedId, onEditComplete }: Props) => {
-  const currentPetId = useStore(state => state.currentPetId);
+  const { currentPetId, currentUser } = useStore();
   const [medName, setMedName] = useState('');
   const [dosage, setDosage] = useState('');
   const [medTime, setMedTime] = useState('');
@@ -21,10 +21,13 @@ export const MedicationManager = ({ date, editingMedId, onEditComplete }: Props)
 
   const medications = useLiveQuery(
     async () => {
-      if (!currentPetId) return [];
-      return await db.medications.where('petId').equals(currentPetId).toArray();
+      if (!currentPetId || !currentUser) return [];
+      return await db.medications
+        .where('petId').equals(currentPetId)
+        .filter(m => m.userId === currentUser.id)
+        .toArray();
     },
-    [currentPetId]
+    [currentPetId, currentUser]
   );
 
   const editingMed = useLiveQuery(
@@ -46,17 +49,24 @@ export const MedicationManager = ({ date, editingMedId, onEditComplete }: Props)
   }, [editingMed]);
 
   const handleAddMedication = async () => {
-    if (!medName.trim() || !dosage.trim() || !currentPetId) return;
+    if (!medName.trim() || !dosage.trim() || !currentPetId || !currentUser) return;
 
     const now = new Date();
     const timeStr = medTime || format(now, 'HH:mm');
 
     // Получаем или создаем тег лекарства
-    let medTag = await db.medicationTags.where('name').equals(medName.trim()).filter(t => t.petId === currentPetId).first();
+    let medTag = await db.medicationTags
+      .where('name').equals(medName.trim())
+      .filter(t => t.petId === currentPetId && t.userId === currentUser.id)
+      .first();
     if (!medTag) {
-      const allTags = await db.medicationTags.where('petId').equals(currentPetId).toArray();
+      const allTags = await db.medicationTags
+        .where('petId').equals(currentPetId)
+        .filter(t => t.userId === currentUser.id)
+        .toArray();
       const colorIndex = allTags.length % MEDICATION_COLORS.length;
       const tagId = await db.medicationTags.add({
+        userId: currentUser.id,
         name: medName.trim(),
         petId: currentPetId,
         color: MEDICATION_COLORS[colorIndex],
@@ -76,6 +86,7 @@ export const MedicationManager = ({ date, editingMedId, onEditComplete }: Props)
       if (onEditComplete) onEditComplete();
     } else {
       const entry: MedicationEntry = {
+        userId: currentUser.id,
         date,
         petId: currentPetId,
         medication_name: medName.trim(),
@@ -90,6 +101,7 @@ export const MedicationManager = ({ date, editingMedId, onEditComplete }: Props)
       const existing = medications?.find(m => m.name === medName.trim());
       if (!existing) {
         await db.medications.add({
+          userId: currentUser.id,
           name: medName.trim(),
           petId: currentPetId,
           color: medColor,

@@ -129,7 +129,7 @@ export const Calendar = () => {
                     key={index}
                     onClick={() => handleDayClick(date)}
                     onMouseEnter={(e) => {
-                      if (dayMeds && dayMeds.length > 0) {
+                      if ((dayMeds && dayMeds.length > 0) || entry) {
                         setHoveredDate(dateStr);
                         const rect = e.currentTarget.getBoundingClientRect();
                         setTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top });
@@ -165,7 +165,7 @@ export const Calendar = () => {
             </div>
 
             {/* Tooltip */}
-            {hoveredDate && medsMap.get(hoveredDate) && (
+            {hoveredDate && (entriesMap.get(hoveredDate) || medsMap.get(hoveredDate)) && (
               <div
                 className="fixed z-50 bg-black text-white px-3 py-2 rounded-2xl text-xs shadow-2xl pointer-events-none"
                 style={{
@@ -175,18 +175,34 @@ export const Calendar = () => {
                   maxWidth: '200px',
                 }}
               >
-                <div className="font-semibold mb-1">Лекарства:</div>
-                {medsMap.get(hoveredDate)!.map((med, idx) => (
-                  <div key={idx} className="flex items-center gap-2 mb-0.5">
-                    <div
-                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: med.color }}
-                    />
-                    <span className="text-xs">
-                      {med.medication_name} {med.dosage} • {med.time}
-                    </span>
+                {entriesMap.get(hoveredDate) && (
+                  <div className="mb-2">
+                    <div className="font-semibold mb-1">
+                      Состояние: {entriesMap.get(hoveredDate)!.state_score}/5
+                    </div>
+                    {entriesMap.get(hoveredDate)!.symptoms && entriesMap.get(hoveredDate)!.symptoms.length > 0 && (
+                      <div className="text-xs text-gray-300">
+                        Симптомы: {entriesMap.get(hoveredDate)!.symptoms.join(', ')}
+                      </div>
+                    )}
                   </div>
-                ))}
+                )}
+                {medsMap.get(hoveredDate) && medsMap.get(hoveredDate)!.length > 0 && (
+                  <div>
+                    <div className="font-semibold mb-1">Лекарства:</div>
+                    {medsMap.get(hoveredDate)!.map((med, idx) => (
+                      <div key={idx} className="flex items-center gap-2 mb-0.5">
+                        <div
+                          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: med.color }}
+                        />
+                        <span className="text-xs">
+                          {med.medication_name} {med.dosage} • {med.time}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

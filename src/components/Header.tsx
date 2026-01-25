@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { useStore } from '../store';
-import { ChevronDown, BarChart3, ClipboardList, Settings, Calendar as CalendarIcon, Bell } from 'lucide-react';
+import { ChevronDown, BarChart3, ClipboardList, Settings, Calendar as CalendarIcon, Bell, LogOut, ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 
 interface HeaderProps {
@@ -19,20 +19,28 @@ const PET_EMOJIS: Record<string, string> = {
 };
 
 export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
-  const { setView, currentPetId, setCurrentPetId, view } = useStore();
+  const { setView, currentPetId, setCurrentPetId, view, currentUser, setCurrentUser } = useStore();
   const [showPetMenu, setShowPetMenu] = useState(false);
 
-  const pets = useLiveQuery(() => db.pets.toArray());
+  const pets = useLiveQuery(() => 
+    currentUser ? db.pets.where('userId').equals(currentUser.id).toArray() : []
+  );
   const currentPet = pets?.find(p => p.id === currentPetId);
 
   const handleSelectPet = async (petId: number) => {
-    const allPets = await db.pets.toArray();
+    if (!currentUser) return;
+    const allPets = await db.pets.where('userId').equals(currentUser.id).toArray();
     for (const pet of allPets) {
       await db.pets.update(pet.id!, { isActive: pet.id === petId });
     }
     
     setCurrentPetId(petId);
     setShowPetMenu(false);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('currentUser');
+    setCurrentUser(null);
   };
 
   const goToToday = () => {
@@ -61,51 +69,76 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
           </h1>
         </div>
         
-        {/* Pet Selector */}
-        {pets && pets.length > 0 && currentPet && (
-          <div className="relative">
-            <button
-              onClick={() => pets.length > 1 && setShowPetMenu(!showPetMenu)}
-              className={`flex items-center gap-2 px-4 py-2 bg-white rounded-full transition-all ${
-                pets.length > 1 ? 'hover:shadow-md cursor-pointer' : 'cursor-default'
-              }`}
-            >
-              <span className="text-2xl">{PET_EMOJIS[currentPet.type] || '🐾'}</span>
-              <span className="font-semibold text-black">{currentPet.name}</span>
-              {pets.length > 1 && (
-                <ChevronDown size={16} className={`text-gray-400 transition-transform ${showPetMenu ? 'rotate-180' : ''}`} />
-              )}
-            </button>
-
-            {showPetMenu && pets.length > 1 && (
-              <>
-                <div 
-                  className="fixed inset-0 z-40" 
-                  onClick={() => setShowPetMenu(false)}
+        <div className="flex items-center gap-3">
+          {/* User Info */}
+          {currentUser && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-full">
+              {currentUser.photoUrl && (
+                <img
+                  src={currentUser.photoUrl}
+                  alt={currentUser.firstName}
+                  className="w-6 h-6 rounded-full"
                 />
-                <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-2xl py-2 min-w-[220px] z-50 border border-gray-100">
-                  {pets.map((pet) => (
-                    <button
-                      key={pet.id}
-                      onClick={() => handleSelectPet(pet.id!)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-all ${
-                        pet.id === currentPetId ? 'bg-gray-50' : ''
-                      }`}
-                    >
-                      <span className="text-2xl">{PET_EMOJIS[pet.type] || '🐾'}</span>
-                      <span className="flex-1 text-left font-medium text-black">
-                        {pet.name}
-                      </span>
-                      {pet.id === currentPetId && (
-                        <div className="w-2 h-2 rounded-full bg-black" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        )}
+              )}
+              <span className="text-sm text-gray-700">
+                {currentUser.firstName}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                title="Выйти"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Pet Selector */}
+          {pets && pets.length > 0 && currentPet && (
+            <div className="relative">
+              <button
+                onClick={() => pets.length > 1 && setShowPetMenu(!showPetMenu)}
+                className={`flex items-center gap-2 px-4 py-2 bg-white rounded-full transition-all ${
+                  pets.length > 1 ? 'hover:shadow-md cursor-pointer' : 'cursor-default'
+                }`}
+              >
+                <span className="text-2xl">{PET_EMOJIS[currentPet.type] || '🐾'}</span>
+                <span className="font-semibold text-black">{currentPet.name}</span>
+                {pets.length > 1 && (
+                  <ChevronDown size={16} className={`text-gray-400 transition-transform ${showPetMenu ? 'rotate-180' : ''}`} />
+                )}
+              </button>
+
+              {showPetMenu && pets.length > 1 && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setShowPetMenu(false)}
+                  />
+                  <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-2xl py-2 min-w-[220px] z-50 border border-gray-100">
+                    {pets.map((pet) => (
+                      <button
+                        key={pet.id}
+                        onClick={() => handleSelectPet(pet.id!)}
+                        className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-all ${
+                          pet.id === currentPetId ? 'bg-gray-50' : ''
+                        }`}
+                      >
+                        <span className="text-2xl">{PET_EMOJIS[pet.type] || '🐾'}</span>
+                        <span className="flex-1 text-left font-medium text-black">
+                          {pet.name}
+                        </span>
+                        {pet.id === currentPetId && (
+                          <div className="w-2 h-2 rounded-full bg-black" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Navigation Menu */}

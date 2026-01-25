@@ -1,7 +1,8 @@
 import Dexie, { Table } from 'dexie';
-import { DayEntry, MedicationEntry, Medication, SymptomTag, MedicationTag, HistoryEntry, Pet } from './types';
+import { DayEntry, MedicationEntry, Medication, SymptomTag, MedicationTag, HistoryEntry, Pet, User } from './types';
 
 export class CatHealthDB extends Dexie {
+  users!: Table<User>;
   pets!: Table<Pet>;
   dayEntries!: Table<DayEntry>;
   medicationEntries!: Table<MedicationEntry>;
@@ -100,6 +101,18 @@ export class CatHealthDB extends Dexie {
           await trans.table(tableName).update(item.id, { petId: defaultPet });
         }
       }
+    });
+
+    // Version 8: добавлена таблица пользователей и userId во все таблицы
+    this.version(8).stores({
+      users: 'id, authDate',
+      pets: '++id, userId, name, type, created_at, isActive',
+      dayEntries: '++id, userId, petId, date, created_at, updated_at',
+      medicationEntries: '++id, userId, petId, date, timestamp, medication_name',
+      medications: '++id, userId, petId, name',
+      symptomTags: '++id, userId, petId, name',
+      medicationTags: '++id, userId, petId, name',
+      history: '++id, timestamp, entityType, date',
     });
   }
 }

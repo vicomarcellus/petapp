@@ -71,7 +71,7 @@ export const Analytics = () => {
   thisMonthMeds.forEach(med => {
     const key = med.medication_name;
     if (!medStats.has(key)) {
-      medStats.set(key, { count: 0, color: med.color });
+      medStats.set(key, { count: 0, color: med.color || '#3B82F6' });
     }
     medStats.get(key)!.count++;
   });
@@ -166,56 +166,62 @@ export const Analytics = () => {
                   })}
 
                   {/* График */}
+                  <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                    {chartData.map((point, i) => {
+                      if (point.score === null) return null;
+                      
+                      const nextPoint = chartData.slice(i + 1).find(p => p.score !== null);
+                      if (!nextPoint) return null;
+                      
+                      const nextIndex = chartData.indexOf(nextPoint);
+                      
+                      const x1 = (i / (chartData.length - 1)) * 100;
+                      const y1 = ((maxScore - point.score) / maxScore) * 100;
+                      const x2 = (nextIndex / (chartData.length - 1)) * 100;
+                      const y2 = ((maxScore - (nextPoint.score || 0)) / maxScore) * 100;
+                      
+                      return (
+                        <line
+                          key={`line-${i}`}
+                          x1={`${x1}%`}
+                          y1={`${y1}%`}
+                          x2={`${x2}%`}
+                          y2={`${y2}%`}
+                          stroke="black"
+                          strokeWidth="2"
+                        />
+                      );
+                    })}
+                  </svg>
+                  
                   {chartData.map((point, i) => {
                     if (point.score === null) return null;
                     
                     const x = (i / (chartData.length - 1)) * 100;
                     const y = ((maxScore - point.score) / maxScore) * chartHeight;
                     
-                    // Находим следующую точку для линии
-                    const nextPoint = chartData.slice(i + 1).find(p => p.score !== null);
-                    let line = null;
+                    const dateStr = format(point.date, 'yyyy-MM-dd');
+                    const entry = thisMonthEntries.find(e => e.date === dateStr);
                     
-                    if (nextPoint) {
-                      const nextIndex = chartData.indexOf(nextPoint);
-                      const x2 = (nextIndex / (chartData.length - 1)) * 100;
-                      const y2 = ((maxScore - nextPoint.score) / maxScore) * chartHeight;
-                      
-                      const length = Math.sqrt(Math.pow(x2 - x, 2) + Math.pow(y2 - y, 2));
-                      const angle = Math.atan2(y2 - y, x2 - x) * 180 / Math.PI;
-                      
-                      line = (
-                        <div
-                          key={`line-${i}`}
-                          className="absolute bg-black"
-                          style={{
-                            left: `${x}%`,
-                            top: `${y}px`,
-                            width: `${length}%`,
-                            height: '2px',
-                            transformOrigin: '0 0',
-                            transform: `rotate(${angle}deg)`,
-                          }}
-                        />
-                      );
+                    let tooltipText = `${format(point.date, 'd MMM', { locale: ru })}: ${STATE_LABELS[point.score]}`;
+                    if (entry?.symptoms && entry.symptoms.length > 0) {
+                      tooltipText += `\nСимптомы: ${entry.symptoms.join(', ')}`;
                     }
 
                     return (
-                      <div key={i}>
-                        {line}
-                        <div
-                          className="absolute rounded-full border-2 border-white"
-                          style={{
-                            left: `${x}%`,
-                            top: `${y}px`,
-                            width: '12px',
-                            height: '12px',
-                            backgroundColor: STATE_COLORS[point.score],
-                            transform: 'translate(-50%, -50%)',
-                          }}
-                          title={`${format(point.date, 'd MMM', { locale: ru })}: ${STATE_LABELS[point.score]}`}
-                        />
-                      </div>
+                      <div
+                        key={i}
+                        className="absolute rounded-full border-2 border-white"
+                        style={{
+                          left: `${x}%`,
+                          top: `${y}px`,
+                          width: '12px',
+                          height: '12px',
+                          backgroundColor: STATE_COLORS[point.score],
+                          transform: 'translate(-50%, -50%)',
+                        }}
+                        title={tooltipText}
+                      />
                     );
                   })}
                 </div>
@@ -283,16 +289,16 @@ export const Analytics = () => {
             <div className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wide">
               Шкала состояний
             </div>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="flex gap-3 flex-wrap">
               {[1, 2, 3, 4, 5].map(score => (
-                <div key={score} className="text-center">
+                <div key={score} className="flex items-center gap-2">
                   <div
-                    className="w-full aspect-square rounded-2xl flex items-center justify-center text-white font-bold text-lg mb-1"
+                    className="w-6 h-6 rounded-lg flex items-center justify-center text-white font-bold text-xs"
                     style={{ backgroundColor: STATE_COLORS[score] }}
                   >
                     {score}
                   </div>
-                  <div className="text-xs text-gray-600">{STATE_LABELS[score]}</div>
+                  <div className="text-sm text-gray-700">{STATE_LABELS[score]}</div>
                 </div>
               ))}
             </div>

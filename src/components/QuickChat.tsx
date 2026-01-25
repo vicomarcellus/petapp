@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Mic, MicOff, Loader2, TrendingUp, Sparkles, X } from 'lucide-react';
+import { Send, Mic, MicOff, Loader2, Sparkles, X } from 'lucide-react';
 import { parseEntryFromText } from '../services/ai';
 import { analyzeTrends, generateContextualHints } from '../services/aiAnalytics';
 import { db } from '../db';
@@ -16,13 +16,19 @@ export const QuickChat = () => {
   const [isError, setIsError] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
   const [showHints, setShowHints] = useState(false);
-  const [analyzingTrends, setAnalyzingTrends] = useState(false);
   const [hints, setHints] = useState<string[]>([]);
   const [navigateToDate, setNavigateToDate] = useState<string | null>(null); // Дата для кнопки перехода
   const recognitionRef = useRef<any>(null);
-  const { selectedDate, view, setSelectedDate, setView, currentPetId } = useStore();
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const currentTranscriptRef = useRef<string>('');
+  const { selectedDate, view, setSelectedDate, setView, currentPetId, currentUser } = useStore();
   const currentYear = useStore(state => state.currentYear);
   const currentMonth = useStore(state => state.currentMonth);
+
+  // Проверка авторизации
+  if (!currentUser) {
+    return null;
+  }
 
   // Получаем данные для контекстных подсказок
   const dayEntries = useLiveQuery(
@@ -75,14 +81,48 @@ export const QuickChat = () => {
 
       recognitionRef.current.onresult = (event: any) => {
         console.log('Speech recognition result:', event);
-        let transcript = '';
+        let interimTranscript = '';
+        let finalTranscript = '';
 
         for (let i = event.resultIndex; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+          } else {
+            interimTranscript += transcript;
+          }
         }
 
-        console.log('Transcript:', transcript);
-        setInput(transcript);
+        // Обновляем полный текст
+        const fullTranscript = (currentTranscriptRef.current + ' ' + finalTranscript + ' ' + interimTranscript).trim();
+        console.log('Full transcript:', fullTranscript, 'Final part:', finalTranscript, 'Interim:', interimTranscript);
+        
+        setInput(fullTranscript);
+        
+        // Сохраняем только финальную часть
+        if (finalTranscript) {
+          currentTranscriptRef.current = (currentTranscriptRef.current + ' ' + finalTranscript).trim();
+        }
+
+        // Сбрасываем таймер молчания при получении новых результатов
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+        }
+
+        // Запускаем новый таймер на 2 секунды - просто останавливаем запись
+        if (fullTranscript.trim()) {
+          silenceTimerRef.current = setTimeout(() => {
+            console.log('2 seconds of silence detected, stopping recording');
+            
+            if (recognitionRef.current) {
+              try {
+                recognitionRef.current.stop();
+              } catch (e) {
+                console.log('Recognition already stopped');
+              }
+            }
+          }, 2000);
+        }
       };
 
       recognitionRef.current.onerror = (event: any) => {
@@ -130,9 +170,17 @@ export const QuickChat = () => {
       };
 
       recognitionRef.current.onend = () => {
-        console.log('Speech recognition ended');
+        console.log('Speech recognition ended, isRecording:', isRecording);
+        
+        // Очищаем таймер молчания
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = null;
+        }
+        
         setIsRecording(false);
-        if (feedback === '🎤 Слушаю...') {
+        
+        if (feedback === '🎤 Слушаю...' || feedback === 'Слушаю...') {
           setFeedback(null);
         }
       };
@@ -141,6 +189,9 @@ export const QuickChat = () => {
     return () => {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
+      }
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
       }
     };
   }, [feedback]);
@@ -157,12 +208,22 @@ export const QuickChat = () => {
     }
 
     if (isRecording) {
-      console.log('Stopping recognition');
+      console.log('Stopping recognition manually');
       recognitionRef.current.stop();
       setIsRecording(false);
+      
+      // Очищаем таймер молчания
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
     } else {
       try {
         console.log('Starting recognition');
+        // Очищаем предыдущий текст
+        setInput('');
+        currentTranscriptRef.current = '';
+        
         // Запрашиваем разрешение на микрофон
         await navigator.mediaDevices.getUserMedia({ audio: true });
         recognitionRef.current.start();
@@ -180,6 +241,19 @@ export const QuickChat = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Останавливаем запись если она активна
+    if (isRecording && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsRecording(false);
+    }
+    
+    // Очищаем таймер
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    
     if (!input.trim() || loading || !currentPetId) return;
 
     setLoading(true);
@@ -345,6 +419,7 @@ export const QuickChat = () => {
             });
           } else {
             await db.dayEntries.add({
+              userId: currentUser.id,
               date: targetDate,
               petId: currentPetId,
               state_score: parsed.state_score,
@@ -363,6 +438,7 @@ export const QuickChat = () => {
             });
           } else {
             await db.dayEntries.add({
+              userId: currentUser.id,
               date: targetDate,
               petId: currentPetId,
               state_score: 3,
@@ -389,7 +465,10 @@ export const QuickChat = () => {
             const normalizedMedName = normalizeText(med.name);
             
             // Получаем или создаем тег лекарства (гибкий поиск)
-            const allMedTags = await db.medicationTags.where('petId').equals(currentPetId).toArray();
+            const allMedTags = await db.medicationTags
+              .where('petId').equals(currentPetId)
+              .filter(t => t.userId === currentUser.id)
+              .toArray();
             let medTag = allMedTags.find(tag => 
               normalizeText(tag.name) === normalizedMedName
             );
@@ -397,6 +476,7 @@ export const QuickChat = () => {
             if (!medTag) {
               const colorIndex = allMedTags.length % MEDICATION_COLORS.length;
               const tagId = await db.medicationTags.add({
+                userId: currentUser.id,
                 name: med.name,
                 petId: currentPetId,
                 color: MEDICATION_COLORS[colorIndex],
@@ -408,6 +488,7 @@ export const QuickChat = () => {
 
             // Добавляем лекарство
             await db.medicationEntries.add({
+              userId: currentUser.id,
               date: targetDate,
               petId: currentPetId,
               medication_name: medTag?.name || med.name, // Используем имя из тега для консистентности
@@ -418,13 +499,17 @@ export const QuickChat = () => {
             });
 
             // Сохраняем в справочник (гибкий поиск)
-            const allMeds = await db.medications.where('petId').equals(currentPetId).toArray();
+            const allMeds = await db.medications
+              .where('petId').equals(currentPetId)
+              .filter(m => m.userId === currentUser.id)
+              .toArray();
             const existing = allMeds.find(m => 
               normalizeText(m.name) === normalizedMedName
             );
             
             if (!existing) {
               await db.medications.add({
+                userId: currentUser.id,
                 name: medTag?.name || med.name,
                 petId: currentPetId,
                 color: medColor,
@@ -462,7 +547,10 @@ export const QuickChat = () => {
                     combined.push(newSymptom);
                     
                     // Создаем тег симптома если его еще нет (гибкий поиск)
-                    const allSymptomTags = await db.symptomTags.where('petId').equals(currentPetId).toArray();
+                    const allSymptomTags = await db.symptomTags
+                      .where('petId').equals(currentPetId)
+                      .filter(t => t.userId === currentUser.id)
+                      .toArray();
                     const existingTag = allSymptomTags.find(tag => 
                       normalizeText(tag.name) === normalizedNew
                     );
@@ -470,6 +558,7 @@ export const QuickChat = () => {
                     if (!existingTag) {
                       const colorIndex = allSymptomTags.length % SYMPTOM_COLORS.length;
                       await db.symptomTags.add({
+                        userId: currentUser.id,
                         name: newSymptom,
                         petId: currentPetId,
                         color: SYMPTOM_COLORS[colorIndex],
@@ -491,7 +580,10 @@ export const QuickChat = () => {
           // Создаем теги для новых симптомов
           if (parsed.symptoms && parsed.symptoms.length > 0) {
             for (const symptom of parsed.symptoms) {
-              const allSymptomTags = await db.symptomTags.where('petId').equals(currentPetId).toArray();
+              const allSymptomTags = await db.symptomTags
+                .where('petId').equals(currentPetId)
+                .filter(t => t.userId === currentUser.id)
+                .toArray();
               const normalizedSymptom = normalizeText(symptom);
               const existingTag = allSymptomTags.find(tag => 
                 normalizeText(tag.name) === normalizedSymptom
@@ -500,6 +592,7 @@ export const QuickChat = () => {
               if (!existingTag) {
                 const colorIndex = allSymptomTags.length % SYMPTOM_COLORS.length;
                 await db.symptomTags.add({
+                  userId: currentUser.id,
                   name: symptom,
                   petId: currentPetId,
                   color: SYMPTOM_COLORS[colorIndex],
@@ -509,6 +602,7 @@ export const QuickChat = () => {
           }
           
           const entry: DayEntry = {
+            userId: currentUser.id,
             date: parsed.date || targetDate,
             petId: currentPetId,
             state_score: parsed.state_score ?? 3,
@@ -569,7 +663,6 @@ export const QuickChat = () => {
       return;
     }
 
-    setAnalyzingTrends(true);
     setFeedback('Анализирую тренды...');
     setShowHints(false); // Скрываем подсказки
 
@@ -610,7 +703,7 @@ export const QuickChat = () => {
         setIsError(false);
       }, 5000);
     } finally {
-      setAnalyzingTrends(false);
+      // Анализ завершен
     }
   };
 
@@ -652,23 +745,23 @@ export const QuickChat = () => {
         </div>
       )}
       
-      {/* AI Response Bubble */}
+      {/* AI Response Bubble - Dark Theme */}
       {feedback && !isError && !showHints && (
         <div className="absolute bottom-28 left-0 right-0 px-6 z-50">
           <div className="max-w-3xl mx-auto">
-            <div className="bg-white rounded-3xl shadow-2xl p-4 animate-slideUp border border-gray-200">
+            <div className="bg-gray-900 rounded-3xl shadow-2xl p-4 animate-slideUp border border-gray-700">
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-lg">
                   <span className="text-white text-[10px] font-bold">AI</span>
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm font-medium text-gray-900 leading-relaxed whitespace-pre-line mb-2">
+                  <div className="text-sm font-medium text-gray-100 leading-relaxed whitespace-pre-line mb-2">
                     {feedback}
                   </div>
                   {navigateToDate && (
                     <button
                       onClick={handleNavigateToDate}
-                      className="text-xs font-medium text-blue-600 hover:text-blue-700 underline"
+                      className="text-xs font-medium text-blue-400 hover:text-blue-300 underline"
                     >
                       Открыть запись →
                     </button>

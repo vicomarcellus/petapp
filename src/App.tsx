@@ -6,17 +6,23 @@ import { Settings } from './components/Settings';
 import { ChangeHistory } from './components/ChangeHistory';
 import { Analytics } from './components/Analytics';
 import { MedicationSchedules } from './components/MedicationSchedules';
+import { Auth } from './components/Auth';
 import { useAutoBackup } from './hooks/useAutoBackup';
 import { usePetInit } from './hooks/usePetInit';
 
 function App() {
-  const { view } = useStore();
+  const { view, currentUser } = useStore();
   
   // Автоматические бэкапы
   useAutoBackup();
   
   // Инициализация текущего питомца
   usePetInit();
+
+  // Если пользователь не авторизован, показываем экран входа
+  if (!currentUser) {
+    return <Auth />;
+  }
 
   return (
     <div className="min-h-screen">

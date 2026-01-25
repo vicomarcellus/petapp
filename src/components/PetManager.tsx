@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { useStore } from '../store';
-import { Plus, Check, X, Edit3, Trash2 } from 'lucide-react';
-import { Pet } from '../types';
+import { Plus, Check, Trash2 } from 'lucide-react';
 
 const PET_TYPES = [
   { value: 'cat', label: '🐱 Кот', emoji: '🐱' },
@@ -15,19 +14,21 @@ const PET_TYPES = [
 ];
 
 export const PetManager = () => {
-  const { currentPetId, setCurrentPetId } = useStore();
+  const { currentPetId, setCurrentPetId, currentUser } = useStore();
   const [showAddForm, setShowAddForm] = useState(false);
-  const [editingPetId, setEditingPetId] = useState<number | null>(null);
   const [petName, setPetName] = useState('');
   const [petType, setPetType] = useState('cat');
 
-  const pets = useLiveQuery(() => db.pets.toArray());
+  const pets = useLiveQuery(() => 
+    currentUser ? db.pets.where('userId').equals(currentUser.id).toArray() : []
+  );
 
   const handleAddPet = async () => {
-    if (!petName.trim()) return;
+    if (!petName.trim() || !currentUser) return;
 
     try {
       const newPetId = await db.pets.add({
+        userId: currentUser.id,
         name: petName.trim(),
         type: petType,
         created_at: Date.now(),
@@ -49,8 +50,9 @@ export const PetManager = () => {
   };
 
   const handleSelectPet = async (petId: number) => {
-    // Снимаем isActive со всех питомцев
-    const allPets = await db.pets.toArray();
+    if (!currentUser) return;
+    // Снимаем isActive со всех питомцев пользователя
+    const allPets = await db.pets.where('userId').equals(currentUser.id).toArray();
     for (const pet of allPets) {
       await db.pets.update(pet.id!, { isActive: pet.id === petId });
     }
@@ -60,6 +62,7 @@ export const PetManager = () => {
 
   const handleDeletePet = async (petId: number) => {
     if (!confirm('Удалить питомца? Все данные о нем будут удалены!')) return;
+    if (!currentUser) return;
 
     try {
       // Удаляем все данные питомца
@@ -72,7 +75,7 @@ export const PetManager = () => {
 
       // Если удалили активного питомца, выбираем первого доступного
       if (currentPetId === petId) {
-        const remainingPets = await db.pets.toArray();
+        const remainingPets = await db.pets.where('userId').equals(currentUser.id).toArray();
         if (remainingPets.length > 0) {
           await handleSelectPet(remainingPets[0].id!);
         } else {
