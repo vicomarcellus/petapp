@@ -30,7 +30,14 @@ export async function parseEntryFromText(text: string, context?: {
   currentDate?: string; // YYYY-MM-DD
   currentMonth?: string; // YYYY-MM для календаря
 }): Promise<ParsedEntry> {
+  console.log('=== parseEntryFromText START ===');
+  console.log('Text:', text);
+  console.log('Context:', context);
+  console.log('API Key exists:', !!OPENAI_API_KEY);
+  console.log('API Key length:', OPENAI_API_KEY?.length);
+  
   if (!OPENAI_API_KEY) {
+    console.error('No OpenAI API key!');
     throw new Error('OpenAI API key не настроен');
   }
 
@@ -363,6 +370,13 @@ export async function parseEntryFromText(text: string, context?: {
 Верни ТОЛЬКО валидный JSON без дополнительного текста.`;
 
   try {
+    console.log('Making OpenAI API request...');
+    console.log('Request body:', {
+      model: 'gpt-4o-mini',
+      temperature: 0.3,
+      messagesCount: 2,
+    });
+    
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -380,17 +394,31 @@ export async function parseEntryFromText(text: string, context?: {
       }),
     });
 
+    console.log('Response status:', response.status);
+    console.log('Response ok:', response.ok);
+
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('OpenAI API error response:', errorText);
       throw new Error(`OpenAI API error: ${response.statusText}`);
     }
 
     const data = await response.json();
+    console.log('OpenAI response data:', data);
+    
     const content = data.choices[0].message.content;
+    console.log('Content to parse:', content);
+    
     const parsed = JSON.parse(content);
+    console.log('Parsed result:', parsed);
+    console.log('=== parseEntryFromText END ===');
 
     return parsed;
   } catch (error) {
-    console.error('Error parsing entry:', error);
+    console.error('=== parseEntryFromText ERROR ===');
+    console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Full error:', error);
     throw error;
   }
 }

@@ -242,6 +242,12 @@ export const QuickChat = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('=== QUICKCHAT SUBMIT START ===');
+    console.log('Input:', input);
+    console.log('Current Pet ID:', currentPetId);
+    console.log('Current User:', currentUser);
+    console.log('OpenAI API Key exists:', !!import.meta.env.VITE_OPENAI_API_KEY);
+    
     // Останавливаем запись если она активна
     if (isRecording && recognitionRef.current) {
       recognitionRef.current.stop();
@@ -254,9 +260,13 @@ export const QuickChat = () => {
       silenceTimerRef.current = null;
     }
     
-    if (!input.trim()) return;
+    if (!input.trim()) {
+      console.log('Empty input, returning');
+      return;
+    }
     
     if (!currentPetId) {
+      console.log('No pet ID, showing error');
       setIsError(true);
       setFeedback('Сначала добавьте питомца в настройках');
       setTimeout(() => {
@@ -266,13 +276,18 @@ export const QuickChat = () => {
       return;
     }
     
-    if (loading) return;
+    if (loading) {
+      console.log('Already loading, returning');
+      return;
+    }
 
+    console.log('Setting loading state...');
     setLoading(true);
     setFeedback(null);
     setShowHints(false); // Скрываем подсказки при отправке
 
     try {
+      console.log('Starting parseEntryFromText...');
       // Если мы на странице редактирования/просмотра, используем выбранную дату
       const targetDate = (view === 'add' || view === 'edit' || view === 'view') && selectedDate 
         ? selectedDate 
@@ -293,27 +308,27 @@ export const QuickChat = () => {
         currentMonth: `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}`, // YYYY-MM
       };
       
+      console.log('Context:', context);
+      console.log('Calling parseEntryFromText...');
       const parsed = await parseEntryFromText(input, context);
+      console.log('Parsed result:', parsed);
       
       let message = '';
       const action = parsed.action || 'add';
 
       // ОБРАБОТКА ОШИБОК
       if (action === 'error') {
-        setInput('');
         setFeedback(parsed.message || 'Не могу выполнить команду');
         setIsError(true);
         setTimeout(() => {
           setFeedback(null);
           setIsError(false);
         }, 5000);
-        setLoading(false);
-        return;
+        return; // setLoading и setInput в finally
       }
 
       // РЕЖИМ ЧАТА - AI отвечает на вопросы
       if (action === 'chat') {
-        setInput('');
         setFeedback(parsed.message || 'Чем могу помочь?');
         setIsError(false);
         
@@ -330,8 +345,7 @@ export const QuickChat = () => {
           setNavigateToDate(null);
         }, 10000); // Показываем дольше чтобы успеть нажать кнопку
         
-        setLoading(false);
-        return;
+        return; // setLoading и setInput в finally
       }
 
       // КОМАНДЫ УДАЛЕНИЯ
@@ -644,7 +658,6 @@ export const QuickChat = () => {
         }
       }
       
-      setInput('');
       setFeedback(message || 'Готово');
       setIsError(false);
       
@@ -652,14 +665,27 @@ export const QuickChat = () => {
       
       // НЕ перезагружаем страницу - данные обновятся автоматически через useLiveQuery
     } catch (err) {
-      setFeedback('Ошибка: ' + (err instanceof Error ? err.message : 'Неизвестная ошибка'));
+      console.error('=== QUICKCHAT ERROR ===');
+      console.error('Error type:', err instanceof Error ? err.constructor.name : typeof err);
+      console.error('Error message:', err instanceof Error ? err.message : String(err));
+      console.error('Full error:', err);
+      console.error('Stack:', err instanceof Error ? err.stack : 'No stack');
+      
+      const errorMessage = 'Ошибка: ' + (err instanceof Error ? err.message : 'Неизвестная ошибка');
+      console.log('Setting feedback:', errorMessage);
+      
+      setFeedback(errorMessage);
       setIsError(true);
       setTimeout(() => {
+        console.log('Clearing error feedback');
         setFeedback(null);
         setIsError(false);
       }, 3000);
     } finally {
+      console.log('=== QUICKCHAT SUBMIT END ===');
+      console.log('Resetting loading and input...');
       setLoading(false);
+      setInput('');
     }
   };
 
@@ -708,14 +734,16 @@ export const QuickChat = () => {
       setIsError(false);
       setTimeout(() => setFeedback(null), 15000); // Показываем дольше
     } catch (error) {
-      setFeedback('Ошибка анализа: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
+      console.error('QuickChat error:', error);
+      setFeedback('Ошибка: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
       setIsError(true);
       setTimeout(() => {
         setFeedback(null);
         setIsError(false);
       }, 5000);
     } finally {
-      // Анализ завершен
+      setLoading(false);
+      setInput('');
     }
   };
 
