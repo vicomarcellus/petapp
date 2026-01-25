@@ -2,15 +2,14 @@ import { useState, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { useStore } from '../store';
-import { Edit3, Check, X, Download, Upload, Save, AlertTriangle, Send } from 'lucide-react';
+import { Edit3, Check, X, Download, Upload, Save, AlertTriangle } from 'lucide-react';
 import { SYMPTOM_COLORS } from '../types';
 import { downloadBackup, uploadBackup, autoBackup, getLastAutoBackupDate } from '../services/backup';
 import { PetManager } from './PetManager';
 import { Header } from './Header';
-import { sendTestReminder } from '../services/medicationSchedule';
 
 export const Settings = () => {
-  const { setView, currentPetId } = useStore();
+  const { setView } = useStore();
   const [editingSymptom, setEditingSymptom] = useState<number | null>(null);
   const [editingMed, setEditingMed] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
@@ -18,59 +17,16 @@ export const Settings = () => {
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [telegramChatId, setTelegramChatId] = useState(localStorage.getItem('telegram_chat_id') || '');
-  const [testingTelegram, setTestingTelegram] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const symptomTags = useLiveQuery(() => db.symptomTags.toArray());
   const medicationTags = useLiveQuery(() => db.medicationTags.toArray());
   const lastBackupDate = getLastAutoBackupDate();
-  
-  const currentPet = useLiveQuery(
-    async () => {
-      if (!currentPetId) return null;
-      return await db.pets.get(currentPetId);
-    },
-    [currentPetId]
-  );
 
   const handleSaveTelegramChatId = () => {
     localStorage.setItem('telegram_chat_id', telegramChatId);
     setBackupStatus('Telegram chat ID сохранен');
     setTimeout(() => setBackupStatus(null), 3000);
-  };
-
-  const handleTestTelegram = async () => {
-    if (!telegramChatId) {
-      setBackupStatus('Введите chat ID');
-      setTimeout(() => setBackupStatus(null), 3000);
-      return;
-    }
-
-    if (!currentPet) {
-      setBackupStatus('Выберите питомца');
-      setTimeout(() => setBackupStatus(null), 3000);
-      return;
-    }
-
-    setTestingTelegram(true);
-    setBackupStatus('Отправка тестового уведомления...');
-
-    const result = await sendTestReminder(
-      currentPet.name,
-      'Тестовое лекарство',
-      '1 таблетка',
-      new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-    );
-
-    setTestingTelegram(false);
-
-    if (result.success) {
-      setBackupStatus('✅ Уведомление отправлено! Проверьте Telegram');
-    } else {
-      setBackupStatus(`❌ Ошибка: ${result.error}`);
-    }
-
-    setTimeout(() => setBackupStatus(null), 5000);
   };
 
   const handleSaveSymptom = async () => {
@@ -263,22 +219,12 @@ export const Settings = () => {
                   className="w-full px-4 py-2 bg-gray-50 rounded-full focus:bg-white focus:ring-2 focus:ring-black transition-all text-black placeholder-gray-400 outline-none text-sm"
                 />
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleSaveTelegramChatId}
-                  className="flex-1 px-4 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-all font-medium text-sm"
-                >
-                  Сохранить
-                </button>
-                <button
-                  onClick={handleTestTelegram}
-                  disabled={testingTelegram || !telegramChatId}
-                  className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-full hover:bg-gray-50 transition-all font-medium text-sm border border-gray-200 disabled:opacity-50"
-                >
-                  <Send size={14} />
-                  Тест
-                </button>
-              </div>
+              <button
+                onClick={handleSaveTelegramChatId}
+                className="w-full px-4 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-all font-medium text-sm"
+              >
+                Сохранить
+              </button>
               <div className="text-xs text-gray-500 space-y-1">
                 <p>Как получить chat ID:</p>
                 <ol className="list-decimal list-inside space-y-0.5 ml-2">
@@ -286,6 +232,7 @@ export const Settings = () => {
                   <li>Отправьте команду /start</li>
                   <li>Скопируйте ваш ID и вставьте выше</li>
                 </ol>
+                <p className="mt-2 text-yellow-600">Функция уведомлений будет добавлена позже</p>
               </div>
             </div>
           </div>
