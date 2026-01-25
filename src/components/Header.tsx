@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { useStore } from '../store';
-import { ChevronDown, BarChart3, ClipboardList, Settings, Calendar as CalendarIcon, Bell, LogOut, ArrowLeft } from 'lucide-react';
+import { ChevronDown, BarChart3, ClipboardList, Settings, Calendar as CalendarIcon, LogOut, ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 
 interface HeaderProps {
@@ -153,17 +153,6 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
         >
           <CalendarIcon size={16} />
           Календарь
-        </button>
-        <button
-          onClick={() => setView('schedules')}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-full transition-all font-medium text-sm whitespace-nowrap ${
-            view === 'schedules'
-              ? 'bg-black text-white hover:bg-gray-800'
-              : 'bg-white text-black hover:bg-gray-50'
-          }`}
-        >
-          <Bell size={16} />
-          Расписания
         </button>
         <button
           onClick={() => setView('analytics')}

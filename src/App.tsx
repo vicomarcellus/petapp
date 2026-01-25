@@ -5,7 +5,6 @@ import { ActivityLog } from './components/ActivityLog';
 import { Settings } from './components/Settings';
 import { ChangeHistory } from './components/ChangeHistory';
 import { Analytics } from './components/Analytics';
-import { MedicationSchedules } from './components/MedicationSchedules';
 import { Auth } from './components/Auth';
 import { useAutoBackup } from './hooks/useAutoBackup';
 import { usePetInit } from './hooks/usePetInit';
@@ -32,7 +31,6 @@ function App() {
       {view === 'settings' && <Settings />}
       {view === 'history' && <ChangeHistory />}
       {view === 'analytics' && <Analytics />}
-      {view === 'schedules' && <MedicationSchedules />}
     </div>
   );
 }

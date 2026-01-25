@@ -7,14 +7,14 @@ interface AppState {
   currentYear: number;
   currentMonth: number; // 0-11 (январь-декабрь)
   currentPetId: number | null; // ID текущего выбранного питомца
-  view: 'calendar' | 'add' | 'view' | 'edit' | 'log' | 'settings' | 'history' | 'analytics' | 'schedules';
+  view: 'calendar' | 'add' | 'view' | 'edit' | 'log' | 'settings' | 'history' | 'analytics';
   editingEntry: DayEntry | null;
   setCurrentUser: (user: User | null) => void;
   setSelectedDate: (date: string | null) => void;
   setCurrentYear: (year: number) => void;
   setCurrentMonth: (month: number) => void;
   setCurrentPetId: (petId: number | null) => void;
-  setView: (view: 'calendar' | 'add' | 'view' | 'edit' | 'log' | 'settings' | 'history' | 'analytics' | 'schedules') => void;
+  setView: (view: 'calendar' | 'add' | 'view' | 'edit' | 'log' | 'settings' | 'history' | 'analytics') => void;
   setEditingEntry: (entry: DayEntry | null) => void;
 }
 
