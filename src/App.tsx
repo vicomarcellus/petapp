@@ -8,9 +8,10 @@ import { Analytics } from './components/Analytics';
 import { Auth } from './components/Auth';
 import { useAutoBackup } from './hooks/useAutoBackup';
 import { usePetInit } from './hooks/usePetInit';
+import { useEffect } from 'react';
 
 function App() {
-  const { view, currentUser } = useStore();
+  const { view, currentUser, currentPetId, setView } = useStore();
   
   // Автоматические бэкапы
   useAutoBackup();
@@ -22,6 +23,13 @@ function App() {
   if (!currentUser) {
     return <Auth />;
   }
+
+  // Если нет питомца, показываем настройки для добавления
+  useEffect(() => {
+    if (currentUser && currentPetId === null) {
+      setView('settings');
+    }
+  }, [currentUser, currentPetId, setView]);
 
   return (
     <div className="min-h-screen">

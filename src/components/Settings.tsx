@@ -16,18 +16,11 @@ export const Settings = () => {
   const [editColor, setEditColor] = useState('');
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
-  const [telegramChatId, setTelegramChatId] = useState(localStorage.getItem('telegram_chat_id') || '');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const symptomTags = useLiveQuery(() => db.symptomTags.toArray());
   const medicationTags = useLiveQuery(() => db.medicationTags.toArray());
   const lastBackupDate = getLastAutoBackupDate();
-
-  const handleSaveTelegramChatId = () => {
-    localStorage.setItem('telegram_chat_id', telegramChatId);
-    setBackupStatus('Telegram chat ID сохранен');
-    setTimeout(() => setBackupStatus(null), 3000);
-  };
 
   const handleSaveSymptom = async () => {
     if (editingSymptom && editName.trim()) {
@@ -199,42 +192,6 @@ export const Settings = () => {
               Питомцы
             </h2>
             <PetManager />
-          </div>
-
-          {/* Telegram уведомления */}
-          <div>
-            <h2 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide px-1">
-              Telegram уведомления
-            </h2>
-            <div className="bg-white rounded-2xl p-4 space-y-3">
-              <div>
-                <label className="block text-xs text-gray-600 mb-2">
-                  Chat ID
-                </label>
-                <input
-                  type="text"
-                  value={telegramChatId}
-                  onChange={(e) => setTelegramChatId(e.target.value)}
-                  placeholder="Введите ваш Telegram chat ID"
-                  className="w-full px-4 py-2 bg-gray-50 rounded-full focus:bg-white focus:ring-2 focus:ring-black transition-all text-black placeholder-gray-400 outline-none text-sm"
-                />
-              </div>
-              <button
-                onClick={handleSaveTelegramChatId}
-                className="w-full px-4 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-all font-medium text-sm"
-              >
-                Сохранить
-              </button>
-              <div className="text-xs text-gray-500 space-y-1">
-                <p>Как получить chat ID:</p>
-                <ol className="list-decimal list-inside space-y-0.5 ml-2">
-                  <li>Откройте бота @userinfobot в Telegram</li>
-                  <li>Отправьте команду /start</li>
-                  <li>Скопируйте ваш ID и вставьте выше</li>
-                </ol>
-                <p className="mt-2 text-yellow-600">Функция уведомлений будет добавлена позже</p>
-              </div>
-            </div>
           </div>
 
           {/* Бэкапы */}

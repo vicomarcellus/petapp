@@ -33,17 +33,8 @@ export const usePetInit = () => {
         if (firstPet) {
           await db.pets.update(firstPet.id!, { isActive: true });
           setCurrentPetId(firstPet.id!);
-        } else {
-          // Создаем дефолтного питомца для нового пользователя
-          const newPetId = await db.pets.add({
-            userId: currentUser.id,
-            name: 'Мой питомец',
-            type: 'cat',
-            created_at: Date.now(),
-            isActive: true,
-          });
-          setCurrentPetId(newPetId as number);
         }
+        // НЕ создаем дефолтного питомца - пользователь сам добавит
       }
     };
 
