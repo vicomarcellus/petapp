@@ -95,6 +95,18 @@ export interface SymptomEntry {
   created_at: number;
 }
 
+export interface ChecklistTask {
+  id?: number;
+  userId: number; // Telegram user ID
+  petId: number; // ID питомца
+  date: string; // YYYY-MM-DD
+  time: string; // HH:mm
+  timestamp: number; // полный timestamp для сортировки и проверки просрочки
+  task: string; // Текст задачи
+  completed: boolean; // Выполнена ли задача
+  created_at: number;
+}
+
 export interface HistoryEntry {
   id?: number;
   timestamp: number;

@@ -1,5 +1,5 @@
 import Dexie, { Table } from 'dexie';
-import { DayEntry, MedicationEntry, Medication, SymptomTag, MedicationTag, HistoryEntry, Pet, User, StateEntry, SymptomEntry } from './types';
+import { DayEntry, MedicationEntry, Medication, SymptomTag, MedicationTag, HistoryEntry, Pet, User, StateEntry, SymptomEntry, ChecklistTask } from './types';
 
 export class CatHealthDB extends Dexie {
   users!: Table<User>;
@@ -12,6 +12,7 @@ export class CatHealthDB extends Dexie {
   symptomTags!: Table<SymptomTag>;
   medicationTags!: Table<MedicationTag>;
   history!: Table<HistoryEntry>;
+  checklistTasks!: Table<ChecklistTask>;
 
   constructor() {
     super('CatHealthDB');
@@ -179,6 +180,21 @@ export class CatHealthDB extends Dexie {
           }
         }
       }
+    });
+
+    // Version 11: добавлена таблица чеклиста задач
+    this.version(11).stores({
+      users: 'id, authDate',
+      pets: '++id, userId, name, type, created_at, isActive',
+      dayEntries: '++id, userId, petId, date, created_at, updated_at',
+      stateEntries: '++id, userId, petId, date, timestamp, time',
+      symptomEntries: '++id, userId, petId, date, timestamp, time',
+      medicationEntries: '++id, userId, petId, date, timestamp, medication_name',
+      medications: '++id, userId, petId, name',
+      symptomTags: '++id, userId, petId, name',
+      medicationTags: '++id, userId, petId, name',
+      history: '++id, timestamp, entityType, date',
+      checklistTasks: '++id, userId, petId, date, timestamp, completed',
     });
   }
 }

@@ -6,6 +6,7 @@ import { Settings } from './components/Settings';
 import { ChangeHistory } from './components/ChangeHistory';
 import { Analytics } from './components/Analytics';
 import { Auth } from './components/Auth';
+import { Checklist } from './components/Checklist';
 import { useAutoBackup } from './hooks/useAutoBackup';
 import { usePetInit } from './hooks/usePetInit';
 
@@ -32,6 +33,7 @@ function App() {
     <div className="min-h-screen">
       {view === 'calendar' && <Calendar />}
       {(view === 'add' || view === 'edit' || view === 'view') && <EntryView />}
+      {view === 'checklist' && <Checklist />}
       {view === 'log' && <ActivityLog />}
       {view === 'settings' && <Settings />}
       {view === 'history' && <ChangeHistory />}
