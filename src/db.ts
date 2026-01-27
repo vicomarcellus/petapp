@@ -1,11 +1,12 @@
 import Dexie, { Table } from 'dexie';
-import { DayEntry, MedicationEntry, Medication, SymptomTag, MedicationTag, HistoryEntry, Pet, User, StateEntry } from './types';
+import { DayEntry, MedicationEntry, Medication, SymptomTag, MedicationTag, HistoryEntry, Pet, User, StateEntry, SymptomEntry } from './types';
 
 export class CatHealthDB extends Dexie {
   users!: Table<User>;
   pets!: Table<Pet>;
   dayEntries!: Table<DayEntry>;
   stateEntries!: Table<StateEntry>;
+  symptomEntries!: Table<SymptomEntry>;
   medicationEntries!: Table<MedicationEntry>;
   medications!: Table<Medication>;
   symptomTags!: Table<SymptomTag>;
@@ -143,6 +144,39 @@ export class CatHealthDB extends Dexie {
             note: entry.note || undefined,
             created_at: entry.created_at,
           });
+        }
+      }
+    });
+
+    // Version 10: добавлена таблица записей симптомов с временем
+    this.version(10).stores({
+      users: 'id, authDate',
+      pets: '++id, userId, name, type, created_at, isActive',
+      dayEntries: '++id, userId, petId, date, created_at, updated_at',
+      stateEntries: '++id, userId, petId, date, timestamp, time',
+      symptomEntries: '++id, userId, petId, date, timestamp, time',
+      medicationEntries: '++id, userId, petId, date, timestamp, medication_name',
+      medications: '++id, userId, petId, name',
+      symptomTags: '++id, userId, petId, name',
+      medicationTags: '++id, userId, petId, name',
+      history: '++id, timestamp, entityType, date',
+    }).upgrade(async (trans) => {
+      // Мигрируем существующие симптомы из dayEntries в symptomEntries
+      const dayEntries = await trans.table('dayEntries').toArray();
+      for (const entry of dayEntries) {
+        if (entry.symptoms && entry.symptoms.length > 0) {
+          // Создаем записи симптомов на основе существующих
+          for (const symptom of entry.symptoms) {
+            await trans.table('symptomEntries').add({
+              userId: entry.userId,
+              petId: entry.petId,
+              date: entry.date,
+              time: '12:00', // Дефолтное время для старых записей
+              timestamp: entry.created_at,
+              symptom: symptom,
+              created_at: entry.created_at,
+            });
+          }
         }
       }
     });

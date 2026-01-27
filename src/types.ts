@@ -83,6 +83,18 @@ export interface StateEntry {
   created_at: number;
 }
 
+export interface SymptomEntry {
+  id?: number;
+  userId: number; // Telegram user ID
+  petId: number; // ID питомца
+  date: string; // YYYY-MM-DD
+  time: string; // HH:mm
+  timestamp: number; // полный timestamp для сортировки
+  symptom: string; // Название симптома
+  note?: string; // Опциональная заметка
+  created_at: number;
+}
+
 export interface HistoryEntry {
   id?: number;
   timestamp: number;

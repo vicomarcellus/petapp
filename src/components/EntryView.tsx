@@ -11,14 +11,25 @@ import { addHistoryEntry } from '../services/history';
 
 export const EntryView = () => {
   const { selectedDate, setView, currentPetId, currentUser } = useStore();
-  const [showStateForm, setShowStateForm] = useState(false);
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const [addType, setAddType] = useState<'state' | 'symptom' | 'medication' | null>(null);
+  
+  // State form
   const [stateScore, setStateScore] = useState<1 | 2 | 3 | 4 | 5>(3);
   const [stateTime, setStateTime] = useState('');
   const [stateNote, setStateNote] = useState('');
+  
+  // Symptom form
+  const [symptomName, setSymptomName] = useState('');
+  const [symptomTime, setSymptomTime] = useState('');
+  const [symptomNote, setSymptomNote] = useState('');
+  
+  // General note
   const [editingNote, setEditingNote] = useState(false);
   const [noteText, setNoteText] = useState('');
+  
+  // Medication
   const [editingMedId, setEditingMedId] = useState<number | null>(null);
-  const [newSymptom, setNewSymptom] = useState('');
   const [showMedForm, setShowMedForm] = useState(false);
 
   const entry = useLiveQuery(
@@ -36,6 +47,17 @@ export const EntryView = () => {
     async () => {
       if (!selectedDate || !currentPetId || !currentUser) return [];
       const entries = await db.stateEntries.where('date').equals(selectedDate).toArray();
+      return entries
+        .filter(e => e.petId === currentPetId && e.userId === currentUser.id)
+        .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    },
+    [selectedDate, currentPetId, currentUser]
+  );
+
+  const symptomEntries = useLiveQuery(
+    async () => {
+      if (!selectedDate || !currentPetId || !currentUser) return [];
+      const entries = await db.symptomEntries.where('date').equals(selectedDate).toArray();
       return entries
         .filter(e => e.petId === currentPetId && e.userId === currentUser.id)
         .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
@@ -143,7 +165,7 @@ export const EntryView = () => {
     });
 
     // Сбрасываем форму
-    setShowStateForm(false);
+    setAddType(null);
     setStateScore(3);
     setStateTime('');
     setStateNote('');
@@ -159,69 +181,76 @@ export const EntryView = () => {
 
   const handleAddSymptom = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newSymptom.trim() || !selectedDate || !currentPetId || !currentUser) return;
+    if (!symptomName.trim() || !symptomTime || !selectedDate || !currentPetId || !currentUser) return;
 
-    if (entry?.id) {
-      // Обновляем существующую запись
-      const currentSymptoms = entry.symptoms || [];
-      if (!currentSymptoms.includes(newSymptom.trim())) {
-        await db.dayEntries.update(entry.id, {
-          symptoms: [...currentSymptoms, newSymptom.trim()],
-          updated_at: Date.now(),
-        });
+    const [hours, minutes] = symptomTime.split(':');
+    const timestamp = new Date(selectedDate).setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
-        // Создаем тег симптома если его еще нет
-        const existingTag = await db.symptomTags
-          .where('name').equals(newSymptom.trim())
-          .filter(t => t.petId === currentPetId && t.userId === currentUser.id)
-          .first();
-        if (!existingTag) {
-          const allTags = await db.symptomTags
-            .where('petId').equals(currentPetId)
-            .filter(t => t.userId === currentUser.id)
-            .toArray();
-          const colorIndex = allTags.length % SYMPTOM_COLORS.length;
-          await db.symptomTags.add({
-            userId: currentUser.id,
-            name: newSymptom.trim(),
-            petId: currentPetId,
-            color: SYMPTOM_COLORS[colorIndex],
-          });
-        }
-      }
-    } else {
-      // Создаем новую запись с симптомом
+    // Добавляем запись симптома с временем
+    await db.symptomEntries.add({
+      userId: currentUser.id,
+      petId: currentPetId,
+      date: selectedDate,
+      time: symptomTime,
+      timestamp,
+      symptom: symptomName.trim(),
+      note: symptomNote || undefined,
+      created_at: Date.now(),
+    });
+
+    // Создаем или обновляем dayEntry для совместимости
+    if (!entry) {
       await db.dayEntries.add({
         userId: currentUser.id,
         date: selectedDate,
         petId: currentPetId,
         state_score: 3,
         note: '',
-        symptoms: [newSymptom.trim()],
+        symptoms: [symptomName.trim()],
         created_at: Date.now(),
         updated_at: Date.now(),
       });
-
-      // Создаем тег симптома
-      const existingTag = await db.symptomTags
-        .where('name').equals(newSymptom.trim())
-        .filter(t => t.petId === currentPetId && t.userId === currentUser.id)
-        .first();
-      if (!existingTag) {
-        const allTags = await db.symptomTags
-          .where('petId').equals(currentPetId)
-          .filter(t => t.userId === currentUser.id)
-          .toArray();
-        const colorIndex = allTags.length % SYMPTOM_COLORS.length;
-        await db.symptomTags.add({
-          userId: currentUser.id,
-          name: newSymptom.trim(),
-          petId: currentPetId,
-          color: SYMPTOM_COLORS[colorIndex],
+    } else {
+      // Добавляем симптом в список если его еще нет
+      const currentSymptoms = entry.symptoms || [];
+      if (!currentSymptoms.includes(symptomName.trim())) {
+        await db.dayEntries.update(entry.id!, {
+          symptoms: [...currentSymptoms, symptomName.trim()],
+          updated_at: Date.now(),
         });
       }
     }
-    setNewSymptom('');
+
+    // Создаем тег симптома если его еще нет
+    const existingTag = await db.symptomTags
+      .where('name').equals(symptomName.trim())
+      .filter(t => t.petId === currentPetId && t.userId === currentUser.id)
+      .first();
+    if (!existingTag) {
+      const allTags = await db.symptomTags
+        .where('petId').equals(currentPetId)
+        .filter(t => t.userId === currentUser.id)
+        .toArray();
+      const colorIndex = allTags.length % SYMPTOM_COLORS.length;
+      await db.symptomTags.add({
+        userId: currentUser.id,
+        name: symptomName.trim(),
+        petId: currentPetId,
+        color: SYMPTOM_COLORS[colorIndex],
+      });
+    }
+
+    // Сбрасываем форму
+    setAddType(null);
+    setSymptomName('');
+    setSymptomTime('');
+    setSymptomNote('');
+  };
+
+  const handleDeleteSymptom = async (id: number) => {
+    if (confirm('Удалить эту запись симптома?')) {
+      await db.symptomEntries.delete(id);
+    }
   };
 
   const getSymptomColor = (symptomName: string) => {
@@ -339,9 +368,23 @@ export const EntryView = () => {
 
   if (!selectedDate) return null;
 
-  // Если записи нет, показываем пустую форму (не создаем запись автоматически)
+  // Объединяем все записи в единую временную ленту
+  type TimelineItem = {
+    type: 'state' | 'symptom' | 'medication';
+    time: string;
+    timestamp: number;
+    data: any;
+  };
+
+  const timelineItems: TimelineItem[] = [
+    ...(stateEntries?.map(s => ({ type: 'state' as const, time: s.time, timestamp: s.timestamp, data: s })) || []),
+    ...(symptomEntries?.map(s => ({ type: 'symptom' as const, time: s.time, timestamp: s.timestamp, data: s })) || []),
+    ...(medications?.map(m => ({ type: 'medication' as const, time: m.time, timestamp: m.timestamp, data: m })) || []),
+  ].sort((a, b) => a.timestamp - b.timestamp);
+
+  // Собираем уникальные симптомы за день для блока сводки
   const symptoms = entry?.symptoms || [];
-  const hasEntry = !!entry;
+  const hasEntry = !!entry || timelineItems.length > 0;
 
   return (
     <div className="min-h-screen bg-[#F5F5F7] p-4 pb-32">
@@ -396,78 +439,68 @@ export const EntryView = () => {
             </div>
           )}
 
-          {/* Состояние - множественные записи */}
+          {/* Временная лента - все записи за день */}
           <div className="bg-white rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Записи состояния
+                Лог дня
               </div>
               <button
                 onClick={() => {
                   const now = new Date();
-                  setStateTime(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
-                  setShowStateForm(true);
+                  const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                  setStateTime(currentTime);
+                  setSymptomTime(currentTime);
+                  setShowAddMenu(!showAddMenu);
                 }}
-                className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                className="px-3 py-1.5 bg-black text-white rounded-full hover:bg-gray-800 transition-colors text-xs font-medium"
               >
                 + Добавить
               </button>
             </div>
-            
-            {stateEntries && stateEntries.length > 0 ? (
-              <div className="space-y-2">
-                {stateEntries.map((state) => (
-                  <div
-                    key={state.id}
-                    className="flex items-center gap-3 p-3 rounded-2xl bg-gray-50 hover:bg-gray-100 transition-all group"
+
+            {/* Меню выбора типа записи */}
+            {showAddMenu && !addType && (
+              <div className="mb-3 p-3 bg-gray-50 rounded-2xl">
+                <div className="text-xs font-semibold text-gray-500 mb-2">Что добавить?</div>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => setAddType('state')}
+                    className="p-3 bg-white rounded-xl hover:bg-blue-50 transition-all text-center border-2 border-transparent hover:border-blue-200"
                   >
-                    <div className="flex-shrink-0">
-                      <div className="text-sm font-bold text-gray-600 flex items-center gap-1">
-                        <Clock size={14} />
-                        {state.time}
-                      </div>
-                    </div>
-                    <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center shadow-md flex-shrink-0"
-                      style={{ 
-                        background: `linear-gradient(135deg, ${STATE_COLORS[state.state_score]}, ${STATE_COLORS[state.state_score]}dd)` 
-                      }}
-                    >
-                      <span className="text-xl font-bold text-white">
-                        {state.state_score}
-                      </span>
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-sm font-bold text-black">
-                        {STATE_LABELS[state.state_score]}
-                      </div>
-                      {state.note && (
-                        <div className="text-xs text-gray-600 mt-0.5">
-                          {state.note}
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleDeleteState(state.id!)}
-                      className="p-2 hover:bg-red-100 rounded-full transition-all text-red-600 opacity-0 group-hover:opacity-100"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-sm text-gray-400 text-center py-4">
-                Нет записей состояния
+                    <div className="text-2xl mb-1">😊</div>
+                    <div className="text-xs font-medium text-gray-700">Состояние</div>
+                  </button>
+                  <button
+                    onClick={() => setAddType('symptom')}
+                    className="p-3 bg-white rounded-xl hover:bg-red-50 transition-all text-center border-2 border-transparent hover:border-red-200"
+                  >
+                    <div className="text-2xl mb-1">🤒</div>
+                    <div className="text-xs font-medium text-gray-700">Симптом</div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowAddMenu(false);
+                      setShowMedForm(true);
+                    }}
+                    className="p-3 bg-white rounded-xl hover:bg-green-50 transition-all text-center border-2 border-transparent hover:border-green-200"
+                  >
+                    <div className="text-2xl mb-1">💊</div>
+                    <div className="text-xs font-medium text-gray-700">Лекарство</div>
+                  </button>
+                </div>
               </div>
             )}
 
-            {showStateForm && (
-              <div className="mt-3 p-4 bg-gray-50 rounded-2xl space-y-3">
+            {/* Форма добавления состояния */}
+            {addType === 'state' && (
+              <form onSubmit={handleAddState} className="mb-3 p-4 bg-gray-50 rounded-2xl space-y-3">
+                <div className="text-sm font-semibold text-gray-700">Добавить состояние</div>
                 <div className="grid grid-cols-5 gap-2">
                   {[1, 2, 3, 4, 5].map((score) => (
                     <button
                       key={score}
+                      type="button"
                       onClick={() => setStateScore(score as 1 | 2 | 3 | 4 | 5)}
                       className="group relative p-3 rounded-xl transition-all hover:scale-105"
                       style={{
@@ -489,7 +522,6 @@ export const EntryView = () => {
                     </button>
                   ))}
                 </div>
-                
                 <input
                   type="time"
                   value={stateTime}
@@ -497,7 +529,6 @@ export const EntryView = () => {
                   className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:border-black transition-all text-black outline-none text-sm"
                   required
                 />
-                
                 <input
                   type="text"
                   value={stateNote}
@@ -505,18 +536,19 @@ export const EntryView = () => {
                   placeholder="Заметка (опционально)..."
                   className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:border-black transition-all text-black placeholder-gray-400 outline-none text-sm"
                 />
-                
                 <div className="flex gap-2">
                   <button
-                    onClick={handleAddState}
+                    type="submit"
                     disabled={!stateTime}
                     className="flex-1 px-4 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-colors text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     Сохранить
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
-                      setShowStateForm(false);
+                      setAddType(null);
+                      setShowAddMenu(false);
                       setStateScore(3);
                       setStateTime('');
                       setStateNote('');
@@ -526,20 +558,177 @@ export const EntryView = () => {
                     Отмена
                   </button>
                 </div>
+              </form>
+            )}
+
+            {/* Форма добавления симптома */}
+            {addType === 'symptom' && (
+              <form onSubmit={handleAddSymptom} className="mb-3 p-4 bg-gray-50 rounded-2xl space-y-3">
+                <div className="text-sm font-semibold text-gray-700">Добавить симптом</div>
+                <input
+                  type="text"
+                  value={symptomName}
+                  onChange={(e) => setSymptomName(e.target.value)}
+                  placeholder="Название симптома..."
+                  className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:border-black transition-all text-black placeholder-gray-400 outline-none text-sm"
+                  required
+                  autoFocus
+                />
+                <input
+                  type="time"
+                  value={symptomTime}
+                  onChange={(e) => setSymptomTime(e.target.value)}
+                  className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:border-black transition-all text-black outline-none text-sm"
+                  required
+                />
+                <input
+                  type="text"
+                  value={symptomNote}
+                  onChange={(e) => setSymptomNote(e.target.value)}
+                  placeholder="Заметка (опционально)..."
+                  className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:border-black transition-all text-black placeholder-gray-400 outline-none text-sm"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={!symptomName.trim() || !symptomTime}
+                    className="flex-1 px-4 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-colors text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    Сохранить
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddType(null);
+                      setShowAddMenu(false);
+                      setSymptomName('');
+                      setSymptomTime('');
+                      setSymptomNote('');
+                    }}
+                    className="px-4 py-2 bg-gray-200 text-black rounded-full hover:bg-gray-300 transition-colors text-sm font-medium"
+                  >
+                    Отмена
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Временная лента */}
+            {timelineItems.length > 0 ? (
+              <div className="space-y-2">
+                {timelineItems.map((item, index) => (
+                  <div
+                    key={`${item.type}-${item.data.id}-${index}`}
+                    className="flex items-center gap-3 p-3 rounded-2xl bg-gray-50 hover:bg-gray-100 transition-all group"
+                  >
+                    <div className="flex-shrink-0">
+                      <div className="text-sm font-bold text-gray-600 flex items-center gap-1">
+                        <Clock size={14} />
+                        {item.time}
+                      </div>
+                    </div>
+
+                    {item.type === 'state' && (
+                      <>
+                        <div
+                          className="w-12 h-12 rounded-xl flex items-center justify-center shadow-md flex-shrink-0"
+                          style={{ 
+                            background: `linear-gradient(135deg, ${STATE_COLORS[item.data.state_score]}, ${STATE_COLORS[item.data.state_score]}dd)` 
+                          }}
+                        >
+                          <span className="text-xl font-bold text-white">
+                            {item.data.state_score}
+                          </span>
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-sm font-bold text-black">
+                            {STATE_LABELS[item.data.state_score]}
+                          </div>
+                          {item.data.note && (
+                            <div className="text-xs text-gray-600 mt-0.5">
+                              {item.data.note}
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleDeleteState(item.data.id!)}
+                          className="p-2 hover:bg-red-100 rounded-full transition-all text-red-600 opacity-0 group-hover:opacity-100"
+                        >
+                          <X size={16} />
+                        </button>
+                      </>
+                    )}
+
+                    {item.type === 'symptom' && (
+                      <>
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-2xl">
+                          🤒
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-sm font-bold text-black">
+                            {item.data.symptom}
+                          </div>
+                          {item.data.note && (
+                            <div className="text-xs text-gray-600 mt-0.5">
+                              {item.data.note}
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleDeleteSymptom(item.data.id!)}
+                          className="p-2 hover:bg-red-100 rounded-full transition-all text-red-600 opacity-0 group-hover:opacity-100"
+                        >
+                          <X size={16} />
+                        </button>
+                      </>
+                    )}
+
+                    {item.type === 'medication' && (
+                      <>
+                        <div
+                          className="w-1 h-10 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: item.data.color }}
+                        />
+                        <div className="flex-1">
+                          <div className="font-bold text-black text-sm">{item.data.medication_name}</div>
+                          <div className="text-xs font-semibold text-gray-600">
+                            {item.data.dosage}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleEditMed(item.data.id!)}
+                          className="p-2 hover:bg-blue-100 rounded-full transition-all text-blue-600 opacity-0 group-hover:opacity-100"
+                        >
+                          <Edit3 size={14} />
+                        </button>
+                        <button
+                          onClick={(e) => handleDeleteMed(item.data.id!, e)}
+                          className="p-2 hover:bg-red-100 rounded-full transition-all text-red-600 opacity-0 group-hover:opacity-100"
+                        >
+                          <X size={16} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-sm text-gray-400 text-center py-8">
+                Нет записей за этот день
               </div>
             )}
           </div>
 
-          {/* Симптомы */}
-          <div className="bg-white rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Симптомы
+          {/* Симптомы - сводка за день */}
+          {symptoms.length > 0 && (
+            <div className="bg-white rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  Симптомы за день
+                </div>
               </div>
-            </div>
 
-            {symptoms.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
+              <div className="flex flex-wrap gap-2">
                 {symptoms.map((symptom) => (
                   <span
                     key={symptom}
@@ -556,25 +745,8 @@ export const EntryView = () => {
                   </span>
                 ))}
               </div>
-            )}
-
-            <form onSubmit={handleAddSymptom} className="flex gap-2">
-              <input
-                type="text"
-                value={newSymptom}
-                onChange={(e) => setNewSymptom(e.target.value)}
-                placeholder="Добавить симптом..."
-                className="flex-1 px-4 py-2 bg-gray-50 border border-gray-200 rounded-full focus:bg-white focus:border-black transition-all text-black placeholder-gray-400 outline-none text-sm"
-              />
-              <button
-                type="submit"
-                disabled={!newSymptom.trim()}
-                className="px-4 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-colors text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <Plus size={16} />
-              </button>
-            </form>
-          </div>
+            </div>
+          )}
 
           {/* Заметка */}
           <div className="bg-white rounded-2xl p-4">
@@ -637,52 +809,41 @@ export const EntryView = () => {
             )}
           </div>
 
-          {/* Лекарства */}
-          <div className="bg-white rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Лекарства
+          {/* Лекарства - сводка за день */}
+          {medications && medications.length > 0 && (
+            <div className="bg-white rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  Лекарства за день
+                </div>
               </div>
-            </div>
 
-            {medications && medications.length > 0 && (
-              <div className="space-y-2 mb-3">
+              <div className="space-y-2">
                 {medications.map((med) => (
                   <div
                     key={med.id}
-                    className="flex items-center gap-3 p-3 rounded-2xl bg-gray-50 hover:bg-gray-100 transition-all group"
+                    className="flex items-center gap-3 p-2 rounded-xl bg-gray-50"
                   >
-                    <div className="flex-shrink-0">
-                      <div className="text-lg font-bold text-black">{med.time}</div>
+                    <div className="flex-shrink-0 text-xs font-bold text-gray-600">
+                      {med.time}
                     </div>
                     <div
-                      className="w-1 h-10 rounded-full flex-shrink-0"
+                      className="w-1 h-8 rounded-full flex-shrink-0"
                       style={{ backgroundColor: med.color }}
                     />
                     <div className="flex-1">
                       <div className="font-bold text-black text-sm">{med.medication_name}</div>
-                      <div className="text-xs font-semibold text-gray-600">
-                        {med.dosage}
-                      </div>
+                      <div className="text-xs text-gray-600">{med.dosage}</div>
                     </div>
-                    <button
-                      onClick={() => handleEditMed(med.id!)}
-                      className="p-2 hover:bg-blue-100 rounded-full transition-all text-blue-600"
-                    >
-                      <Edit3 size={14} />
-                    </button>
-                    <button
-                      onClick={(e) => handleDeleteMed(med.id!, e)}
-                      className="p-2 hover:bg-red-100 rounded-full transition-all text-red-600"
-                    >
-                      <X size={16} />
-                    </button>
                   </div>
                 ))}
               </div>
-            )}
+            </div>
+          )}
 
-            {showMedForm ? (
+          {/* Форма добавления лекарства */}
+          {showMedForm && (
+            <div className="bg-white rounded-2xl p-4">
               <MedicationManager 
                 date={selectedDate} 
                 editingMedId={editingMedId} 
@@ -691,15 +852,8 @@ export const EntryView = () => {
                   setShowMedForm(false);
                 }} 
               />
-            ) : (
-              <button
-                onClick={() => setShowMedForm(true)}
-                className="w-full p-3 border-2 border-dashed border-gray-300 rounded-2xl hover:border-gray-400 hover:bg-gray-50 transition-all text-gray-500 hover:text-gray-700 text-sm font-medium"
-              >
-                + Добавить лекарство
-              </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
