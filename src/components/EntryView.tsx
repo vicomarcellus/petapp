@@ -18,11 +18,13 @@ export const EntryView = () => {
   const [stateScore, setStateScore] = useState<1 | 2 | 3 | 4 | 5>(3);
   const [stateTime, setStateTime] = useState('');
   const [stateNote, setStateNote] = useState('');
+  const [editingStateId, setEditingStateId] = useState<number | null>(null);
   
   // Symptom form
   const [symptomName, setSymptomName] = useState('');
   const [symptomTime, setSymptomTime] = useState('');
   const [symptomNote, setSymptomNote] = useState('');
+  const [editingSymptomId, setEditingSymptomId] = useState<number | null>(null);
   
   // Medication form
   const [medName, setMedName] = useState('');
@@ -156,36 +158,56 @@ export const EntryView = () => {
     const [hours, minutes] = stateTime.split(':');
     const timestamp = new Date(selectedDate).setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
-    const id = await db.stateEntries.add({
-      userId: currentUser.id,
-      petId: currentPetId,
-      date: selectedDate,
-      time: stateTime,
-      timestamp,
-      state_score: stateScore,
-      note: stateNote || undefined,
-      created_at: Date.now(),
-    });
+    if (editingStateId) {
+      // Обновляем существующую запись
+      await db.stateEntries.update(editingStateId, {
+        time: stateTime,
+        timestamp,
+        state_score: stateScore,
+        note: stateNote || undefined,
+      });
+    } else {
+      // Создаем новую запись
+      const id = await db.stateEntries.add({
+        userId: currentUser.id,
+        petId: currentPetId,
+        date: selectedDate,
+        time: stateTime,
+        timestamp,
+        state_score: stateScore,
+        note: stateNote || undefined,
+        created_at: Date.now(),
+      });
+
+      // Логируем создание
+      await addHistoryEntry({
+        action: 'create',
+        entityType: 'state',
+        entityId: id as number,
+        date: selectedDate,
+        description: `Состояние ${stateTime}: ${stateScore}/5 (${STATE_LABELS[stateScore]})`,
+        newValue: { state_score: stateScore, time: stateTime },
+        source: 'manual',
+      });
+    }
 
     // Обновляем среднее состояние дня
     await updateDayEntryAverage();
 
-    // Логируем создание
-    await addHistoryEntry({
-      action: 'create',
-      entityType: 'state',
-      entityId: id as number,
-      date: selectedDate,
-      description: `Состояние ${stateTime}: ${stateScore}/5 (${STATE_LABELS[stateScore]})`,
-      newValue: { state_score: stateScore, time: stateTime },
-      source: 'manual',
-    });
-
     // Сбрасываем форму
     setAddType(null);
+    setEditingStateId(null);
     setStateScore(3);
     setStateTime('');
     setStateNote('');
+  };
+
+  const handleEditState = (state: any) => {
+    setEditingStateId(state.id);
+    setStateScore(state.state_score);
+    setStateTime(state.time);
+    setStateNote(state.note || '');
+    setAddType('state');
   };
 
   const handleDeleteState = async (id: number) => {
@@ -203,65 +225,84 @@ export const EntryView = () => {
     const [hours, minutes] = symptomTime.split(':');
     const timestamp = new Date(selectedDate).setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
-    // Добавляем запись симптома с временем
-    await db.symptomEntries.add({
-      userId: currentUser.id,
-      petId: currentPetId,
-      date: selectedDate,
-      time: symptomTime,
-      timestamp,
-      symptom: symptomName.trim(),
-      note: symptomNote || undefined,
-      created_at: Date.now(),
-    });
-
-    // Создаем или обновляем dayEntry для совместимости
-    if (!entry) {
-      await db.dayEntries.add({
-        userId: currentUser.id,
-        date: selectedDate,
-        petId: currentPetId,
-        state_score: 3,
-        note: '',
-        symptoms: [symptomName.trim()],
-        created_at: Date.now(),
-        updated_at: Date.now(),
+    if (editingSymptomId) {
+      // Обновляем существующую запись
+      await db.symptomEntries.update(editingSymptomId, {
+        time: symptomTime,
+        timestamp,
+        symptom: symptomName.trim(),
+        note: symptomNote || undefined,
       });
     } else {
-      // Добавляем симптом в список если его еще нет
-      const currentSymptoms = entry.symptoms || [];
-      if (!currentSymptoms.includes(symptomName.trim())) {
-        await db.dayEntries.update(entry.id!, {
-          symptoms: [...currentSymptoms, symptomName.trim()],
+      // Добавляем новую запись симптома с временем
+      await db.symptomEntries.add({
+        userId: currentUser.id,
+        petId: currentPetId,
+        date: selectedDate,
+        time: symptomTime,
+        timestamp,
+        symptom: symptomName.trim(),
+        note: symptomNote || undefined,
+        created_at: Date.now(),
+      });
+
+      // Создаем или обновляем dayEntry для совместимости
+      if (!entry) {
+        await db.dayEntries.add({
+          userId: currentUser.id,
+          date: selectedDate,
+          petId: currentPetId,
+          state_score: 3,
+          note: '',
+          symptoms: [symptomName.trim()],
+          created_at: Date.now(),
           updated_at: Date.now(),
+        });
+      } else {
+        // Добавляем симптом в список если его еще нет
+        const currentSymptoms = entry.symptoms || [];
+        if (!currentSymptoms.includes(symptomName.trim())) {
+          await db.dayEntries.update(entry.id!, {
+            symptoms: [...currentSymptoms, symptomName.trim()],
+            updated_at: Date.now(),
+          });
+        }
+      }
+
+      // Создаем тег симптома если его еще нет
+      const existingTag = await db.symptomTags
+        .where('name').equals(symptomName.trim())
+        .filter(t => t.petId === currentPetId && t.userId === currentUser.id)
+        .first();
+      if (!existingTag) {
+        const allTags = await db.symptomTags
+          .where('petId').equals(currentPetId)
+          .filter(t => t.userId === currentUser.id)
+          .toArray();
+        const colorIndex = allTags.length % SYMPTOM_COLORS.length;
+        await db.symptomTags.add({
+          userId: currentUser.id,
+          name: symptomName.trim(),
+          petId: currentPetId,
+          color: SYMPTOM_COLORS[colorIndex],
         });
       }
     }
 
-    // Создаем тег симптома если его еще нет
-    const existingTag = await db.symptomTags
-      .where('name').equals(symptomName.trim())
-      .filter(t => t.petId === currentPetId && t.userId === currentUser.id)
-      .first();
-    if (!existingTag) {
-      const allTags = await db.symptomTags
-        .where('petId').equals(currentPetId)
-        .filter(t => t.userId === currentUser.id)
-        .toArray();
-      const colorIndex = allTags.length % SYMPTOM_COLORS.length;
-      await db.symptomTags.add({
-        userId: currentUser.id,
-        name: symptomName.trim(),
-        petId: currentPetId,
-        color: SYMPTOM_COLORS[colorIndex],
-      });
-    }
-
     // Сбрасываем форму
     setAddType(null);
+    setEditingSymptomId(null);
     setSymptomName('');
     setSymptomTime('');
     setSymptomNote('');
+  };
+
+  const handleEditSymptom = (symptom: any) => {
+    setEditingSymptomId(symptom.id);
+    setSymptomName(symptom.symptom);
+    setSymptomTime(symptom.time);
+    setSymptomNote(symptom.note || '');
+    setAddType('symptom');
   };
 
   const handleDeleteSymptom = async (id: number) => {
@@ -578,7 +619,9 @@ export const EntryView = () => {
             {/* Форма добавления состояния */}
             {addType === 'state' && (
               <form onSubmit={handleAddState} className="mb-3 p-4 bg-gray-50 rounded-2xl space-y-3">
-                <div className="text-sm font-semibold text-gray-700">Добавить состояние</div>
+                <div className="text-sm font-semibold text-gray-700">
+                  {editingStateId ? 'Редактировать состояние' : 'Добавить состояние'}
+                </div>
                 <div className="grid grid-cols-5 gap-2">
                   {[1, 2, 3, 4, 5].map((score) => (
                     <button
@@ -632,6 +675,7 @@ export const EntryView = () => {
                     onClick={() => {
                       setAddType(null);
                       setShowAddMenu(false);
+                      setEditingStateId(null);
                       setStateScore(3);
                       setStateTime('');
                       setStateNote('');
@@ -647,7 +691,9 @@ export const EntryView = () => {
             {/* Форма добавления симптома */}
             {addType === 'symptom' && (
               <form onSubmit={handleAddSymptom} className="mb-3 p-4 bg-gray-50 rounded-2xl space-y-3">
-                <div className="text-sm font-semibold text-gray-700">Добавить симптом</div>
+                <div className="text-sm font-semibold text-gray-700">
+                  {editingSymptomId ? 'Редактировать симптом' : 'Добавить симптом'}
+                </div>
                 <input
                   type="text"
                   value={symptomName}
@@ -684,6 +730,7 @@ export const EntryView = () => {
                     onClick={() => {
                       setAddType(null);
                       setShowAddMenu(false);
+                      setEditingSymptomId(null);
                       setSymptomName('');
                       setSymptomTime('');
                       setSymptomNote('');
@@ -851,6 +898,12 @@ export const EntryView = () => {
                           )}
                         </div>
                         <button
+                          onClick={() => handleEditState(item.data)}
+                          className="p-2 hover:bg-blue-100 rounded-full transition-all text-blue-600 opacity-0 group-hover:opacity-100"
+                        >
+                          <Edit3 size={14} />
+                        </button>
+                        <button
                           onClick={() => handleDeleteState(item.data.id!)}
                           className="p-2 hover:bg-red-100 rounded-full transition-all text-red-600 opacity-0 group-hover:opacity-100"
                         >
@@ -874,6 +927,12 @@ export const EntryView = () => {
                             </div>
                           )}
                         </div>
+                        <button
+                          onClick={() => handleEditSymptom(item.data)}
+                          className="p-2 hover:bg-blue-100 rounded-full transition-all text-blue-600 opacity-0 group-hover:opacity-100"
+                        >
+                          <Edit3 size={14} />
+                        </button>
                         <button
                           onClick={() => handleDeleteSymptom(item.data.id!)}
                           className="p-2 hover:bg-red-100 rounded-full transition-all text-red-600 opacity-0 group-hover:opacity-100"
