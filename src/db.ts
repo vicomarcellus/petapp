@@ -1,10 +1,11 @@
 import Dexie, { Table } from 'dexie';
-import { DayEntry, MedicationEntry, Medication, SymptomTag, MedicationTag, HistoryEntry, Pet, User } from './types';
+import { DayEntry, MedicationEntry, Medication, SymptomTag, MedicationTag, HistoryEntry, Pet, User, StateEntry } from './types';
 
 export class CatHealthDB extends Dexie {
   users!: Table<User>;
   pets!: Table<Pet>;
   dayEntries!: Table<DayEntry>;
+  stateEntries!: Table<StateEntry>;
   medicationEntries!: Table<MedicationEntry>;
   medications!: Table<Medication>;
   symptomTags!: Table<SymptomTag>;
@@ -113,6 +114,37 @@ export class CatHealthDB extends Dexie {
       symptomTags: '++id, userId, petId, name',
       medicationTags: '++id, userId, petId, name',
       history: '++id, timestamp, entityType, date',
+    });
+
+    // Version 9: добавлена таблица записей состояния (множественные записи в день)
+    this.version(9).stores({
+      users: 'id, authDate',
+      pets: '++id, userId, name, type, created_at, isActive',
+      dayEntries: '++id, userId, petId, date, created_at, updated_at',
+      stateEntries: '++id, userId, petId, date, timestamp, time',
+      medicationEntries: '++id, userId, petId, date, timestamp, medication_name',
+      medications: '++id, userId, petId, name',
+      symptomTags: '++id, userId, petId, name',
+      medicationTags: '++id, userId, petId, name',
+      history: '++id, timestamp, entityType, date',
+    }).upgrade(async (trans) => {
+      // Мигрируем существующие записи состояния из dayEntries в stateEntries
+      const dayEntries = await trans.table('dayEntries').toArray();
+      for (const entry of dayEntries) {
+        if (entry.state_score) {
+          // Создаем запись состояния на основе существующей записи дня
+          await trans.table('stateEntries').add({
+            userId: entry.userId,
+            petId: entry.petId,
+            date: entry.date,
+            time: '12:00', // Дефолтное время для старых записей
+            timestamp: entry.created_at,
+            state_score: entry.state_score,
+            note: entry.note || undefined,
+            created_at: entry.created_at,
+          });
+        }
+      }
     });
   }
 }

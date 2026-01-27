@@ -23,6 +23,14 @@ export const Calendar = () => {
     [currentPetId]
   );
 
+  const stateEntries = useLiveQuery(
+    () => {
+      if (!currentPetId) return [];
+      return db.stateEntries.where('petId').equals(currentPetId).toArray();
+    },
+    [currentPetId]
+  );
+
   const medicationEntries = useLiveQuery(
     () => {
       if (!currentPetId) return [];
@@ -32,6 +40,16 @@ export const Calendar = () => {
   );
 
   const entriesMap = new Map(entries?.map(e => [e.date, e]) || []);
+  
+  // Создаем карту состояний по датам
+  const statesMap = new Map<string, typeof stateEntries>();
+  stateEntries?.forEach(state => {
+    if (!statesMap.has(state.date)) {
+      statesMap.set(state.date, []);
+    }
+    statesMap.get(state.date)!.push(state);
+  });
+  
   const medsMap = new Map<string, typeof medicationEntries>();
   medicationEntries?.forEach(med => {
     if (!medsMap.has(med.date)) {
@@ -56,7 +74,9 @@ export const Calendar = () => {
     const dateStr = formatDate(date);
     setSelectedDate(dateStr);
     const entry = entriesMap.get(dateStr);
-    setView(entry ? 'view' : 'add');
+    const states = statesMap.get(dateStr);
+    // Показываем view если есть запись дня или записи состояния
+    setView((entry || (states && states.length > 0)) ? 'view' : 'add');
   };
 
   const changeMonth = (delta: number) => {
@@ -73,11 +93,20 @@ export const Calendar = () => {
            entryDate.getFullYear() === currentYear;
   }) || [];
   
+  // Вычисляем среднюю оценку за месяц из dayEntries (которые уже содержат средние за день)
   const avgScore = thisMonthEntries.length > 0
     ? (thisMonthEntries.reduce((sum, e) => sum + e.state_score, 0) / thisMonthEntries.length).toFixed(1)
     : '0';
 
+  // Хорошие дни - это дни где среднее состояние >= 4
   const goodDays = thisMonthEntries.filter(e => e.state_score >= 4).length;
+
+  // Подсчитываем общее количество записей состояния за месяц
+  const thisMonthStateEntries = stateEntries?.filter(s => {
+    const stateDate = new Date(s.date);
+    return stateDate.getMonth() === currentDate.getMonth() && 
+           stateDate.getFullYear() === currentYear;
+  }) || [];
 
   return (
     <div className="min-h-screen bg-[#F5F5F7] p-3 md:p-4 pb-28">
@@ -120,16 +149,22 @@ export const Calendar = () => {
               {weeks.flat().map((date, index) => {
                 const dateStr = formatDate(date);
                 const entry = entriesMap.get(dateStr);
+                const dayStates = statesMap.get(dateStr);
                 const dayMeds = medsMap.get(dateStr);
                 const isCurrentMonth = isSameMonth(date, currentDate);
                 const isTodayDate = isToday(date);
+                
+                // Вычисляем среднюю оценку за день из всех записей состояния
+                const avgDayScore = dayStates && dayStates.length > 0
+                  ? Math.round(dayStates.reduce((sum, s) => sum + s.state_score, 0) / dayStates.length) as 1 | 2 | 3 | 4 | 5
+                  : entry?.state_score;
 
                 return (
                   <button
                     key={index}
                     onClick={() => handleDayClick(date)}
                     onMouseEnter={(e) => {
-                      if ((dayMeds && dayMeds.length > 0) || entry) {
+                      if ((dayMeds && dayMeds.length > 0) || entry || (dayStates && dayStates.length > 0)) {
                         setHoveredDate(dateStr);
                         const rect = e.currentTarget.getBoundingClientRect();
                         setTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top });
@@ -143,8 +178,8 @@ export const Calendar = () => {
                       ${isTodayDate ? 'border-gray-400' : 'border-transparent'}
                     `}
                     style={{
-                      backgroundColor: entry && isCurrentMonth
-                        ? STATE_COLORS[entry.state_score] + '15'
+                      backgroundColor: avgDayScore && isCurrentMonth
+                        ? STATE_COLORS[avgDayScore] + '15'
                         : '#F5F5F7',
                     }}
                   >
@@ -152,10 +187,10 @@ export const Calendar = () => {
                       <span className="text-base font-semibold text-gray-700">
                         {format(date, 'd')}
                       </span>
-                      {entry && isCurrentMonth && (
+                      {avgDayScore && isCurrentMonth && (
                         <div 
                           className="w-1 h-1 rounded-full"
-                          style={{ backgroundColor: STATE_COLORS[entry.state_score] }}
+                          style={{ backgroundColor: STATE_COLORS[avgDayScore] }}
                         />
                       )}
                     </div>
@@ -165,7 +200,7 @@ export const Calendar = () => {
             </div>
 
             {/* Tooltip */}
-            {hoveredDate && (entriesMap.get(hoveredDate) || medsMap.get(hoveredDate)) && (
+            {hoveredDate && (entriesMap.get(hoveredDate) || statesMap.get(hoveredDate) || medsMap.get(hoveredDate)) && (
               <div
                 className="fixed z-50 bg-black text-white px-3 py-2 rounded-2xl text-xs shadow-2xl pointer-events-none"
                 style={{
@@ -175,16 +210,24 @@ export const Calendar = () => {
                   maxWidth: '200px',
                 }}
               >
-                {entriesMap.get(hoveredDate) && (
+                {statesMap.get(hoveredDate) && statesMap.get(hoveredDate)!.length > 0 && (
                   <div className="mb-2">
                     <div className="font-semibold mb-1">
-                      Состояние: {entriesMap.get(hoveredDate)!.state_score}/5
+                      Состояние ({statesMap.get(hoveredDate)!.length} записей):
                     </div>
-                    {entriesMap.get(hoveredDate)!.symptoms && entriesMap.get(hoveredDate)!.symptoms.length > 0 && (
-                      <div className="text-xs text-gray-300">
-                        Симптомы: {entriesMap.get(hoveredDate)!.symptoms.join(', ')}
+                    {statesMap.get(hoveredDate)!.map((state, idx) => (
+                      <div key={idx} className="text-xs text-gray-300 mb-0.5">
+                        {state.time}: {state.state_score}/5
                       </div>
-                    )}
+                    ))}
+                  </div>
+                )}
+                {entriesMap.get(hoveredDate) && entriesMap.get(hoveredDate)!.symptoms && entriesMap.get(hoveredDate)!.symptoms.length > 0 && (
+                  <div className="mb-2">
+                    <div className="font-semibold mb-1">Симптомы:</div>
+                    <div className="text-xs text-gray-300">
+                      {entriesMap.get(hoveredDate)!.symptoms.join(', ')}
+                    </div>
                   </div>
                 )}
                 {medsMap.get(hoveredDate) && medsMap.get(hoveredDate)!.length > 0 && (
@@ -228,11 +271,11 @@ export const Calendar = () => {
             <div className="bg-white rounded-xl p-3">
               <div className="flex items-start gap-2">
                 <div className="w-8 h-8 bg-[#F5F5F7] rounded-2xl flex items-center justify-center text-black text-sm font-bold flex-shrink-0">
-                  {thisMonthEntries.length}
+                  {thisMonthStateEntries.length}
                 </div>
                 <div className="flex-1">
-                  <p className="text-gray-500 text-xs mb-0.5">Записей</p>
-                  <p className="text-2xl font-bold text-black">{thisMonthEntries.length}</p>
+                  <p className="text-gray-500 text-xs mb-0.5">Записей состояния</p>
+                  <p className="text-2xl font-bold text-black">{thisMonthStateEntries.length}</p>
                   <p className="text-gray-400 text-xs">В этом месяце</p>
                 </div>
               </div>

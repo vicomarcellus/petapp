@@ -4,14 +4,17 @@ import { db } from '../db';
 import { useStore } from '../store';
 import { STATE_COLORS, STATE_LABELS, SYMPTOM_COLORS } from '../types';
 import { formatDisplayDate } from '../utils';
-import { ArrowLeft, Trash2, Plus, Edit3, X } from 'lucide-react';
+import { ArrowLeft, Trash2, Plus, Edit3, X, Clock } from 'lucide-react';
 import { QuickChat } from './QuickChat';
 import { MedicationManager } from './MedicationManager';
 import { addHistoryEntry } from '../services/history';
 
 export const EntryView = () => {
   const { selectedDate, setView, currentPetId, currentUser } = useStore();
-  const [showStateSelector, setShowStateSelector] = useState(false);
+  const [showStateForm, setShowStateForm] = useState(false);
+  const [stateScore, setStateScore] = useState<1 | 2 | 3 | 4 | 5>(3);
+  const [stateTime, setStateTime] = useState('');
+  const [stateNote, setStateNote] = useState('');
   const [editingNote, setEditingNote] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [editingMedId, setEditingMedId] = useState<number | null>(null);
@@ -25,6 +28,17 @@ export const EntryView = () => {
         .where('date').equals(selectedDate)
         .filter(e => e.petId === currentPetId && e.userId === currentUser.id)
         .first();
+    },
+    [selectedDate, currentPetId, currentUser]
+  );
+
+  const stateEntries = useLiveQuery(
+    async () => {
+      if (!selectedDate || !currentPetId || !currentUser) return [];
+      const entries = await db.stateEntries.where('date').equals(selectedDate).toArray();
+      return entries
+        .filter(e => e.petId === currentPetId && e.userId === currentUser.id)
+        .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
     },
     [selectedDate, currentPetId, currentUser]
   );
@@ -51,53 +65,96 @@ export const EntryView = () => {
     [currentPetId, currentUser]
   );
 
-  const handleStateChange = async (newScore: 1 | 2 | 3 | 4 | 5) => {
-    if (!currentUser) return;
-    const oldScore = entry?.state_score;
-    
+  const updateDayEntryAverage = async () => {
+    if (!selectedDate || !currentPetId || !currentUser) return;
+
+    // Получаем все записи состояния за день
+    const states = await db.stateEntries
+      .where('date').equals(selectedDate)
+      .filter(s => s.petId === currentPetId && s.userId === currentUser.id)
+      .toArray();
+
+    if (states.length === 0) {
+      // Если нет записей состояния, удаляем или обнуляем state_score в dayEntry
+      if (entry?.id) {
+        await db.dayEntries.update(entry.id, {
+          state_score: 3, // дефолтное значение
+          updated_at: Date.now(),
+        });
+      }
+      return;
+    }
+
+    // Вычисляем среднее
+    const avgScore = Math.round(
+      states.reduce((sum, s) => sum + s.state_score, 0) / states.length
+    ) as 1 | 2 | 3 | 4 | 5;
+
+    // Создаем или обновляем dayEntry
     if (entry?.id) {
-      // Обновляем существующую запись
       await db.dayEntries.update(entry.id, {
-        state_score: newScore,
+        state_score: avgScore,
         updated_at: Date.now(),
       });
-      
-      // Логируем изменение
-      await addHistoryEntry({
-        action: 'update',
-        entityType: 'state',
-        entityId: entry.id,
-        date: selectedDate || undefined,
-        description: `Состояние изменено: ${oldScore}/5 → ${newScore}/5 (${STATE_LABELS[newScore]})`,
-        oldValue: { state_score: oldScore },
-        newValue: { state_score: newScore },
-        source: 'manual',
-      });
-    } else if (selectedDate && currentPetId) {
-      // Создаем новую запись
-      const id = await db.dayEntries.add({
+    } else {
+      await db.dayEntries.add({
         userId: currentUser.id,
         date: selectedDate,
         petId: currentPetId,
-        state_score: newScore,
+        state_score: avgScore,
         note: '',
         symptoms: [],
         created_at: Date.now(),
         updated_at: Date.now(),
       });
-      
-      // Логируем создание
-      await addHistoryEntry({
-        action: 'create',
-        entityType: 'state',
-        entityId: id as number,
-        date: selectedDate,
-        description: `Состояние установлено: ${newScore}/5 (${STATE_LABELS[newScore]})`,
-        newValue: { state_score: newScore },
-        source: 'manual',
-      });
     }
-    setShowStateSelector(false);
+  };
+
+  const handleAddState = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedDate || !currentPetId || !currentUser || !stateTime) return;
+
+    const [hours, minutes] = stateTime.split(':');
+    const timestamp = new Date(selectedDate).setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+    const id = await db.stateEntries.add({
+      userId: currentUser.id,
+      petId: currentPetId,
+      date: selectedDate,
+      time: stateTime,
+      timestamp,
+      state_score: stateScore,
+      note: stateNote || undefined,
+      created_at: Date.now(),
+    });
+
+    // Обновляем среднее состояние дня
+    await updateDayEntryAverage();
+
+    // Логируем создание
+    await addHistoryEntry({
+      action: 'create',
+      entityType: 'state',
+      entityId: id as number,
+      date: selectedDate,
+      description: `Состояние ${stateTime}: ${stateScore}/5 (${STATE_LABELS[stateScore]})`,
+      newValue: { state_score: stateScore, time: stateTime },
+      source: 'manual',
+    });
+
+    // Сбрасываем форму
+    setShowStateForm(false);
+    setStateScore(3);
+    setStateTime('');
+    setStateNote('');
+  };
+
+  const handleDeleteState = async (id: number) => {
+    if (confirm('Удалить эту запись состояния?')) {
+      await db.stateEntries.delete(id);
+      // Обновляем среднее состояние дня после удаления
+      await updateDayEntryAverage();
+    }
   };
 
   const handleAddSymptom = async (e: React.FormEvent) => {
@@ -221,12 +278,23 @@ export const EntryView = () => {
   const handleDelete = async () => {
     if (!entry?.id || !selectedDate) return;
     
-    if (confirm('Удалить эту запись?')) {
+    if (confirm('Удалить эту запись? Будут удалены все состояния, лекарства и симптомы за этот день.')) {
       try {
         const entryId = entry.id;
         const dateToDelete = selectedDate;
         
         console.log('Deleting entry:', entryId, 'for date:', dateToDelete);
+        
+        // Удаляем все записи состояния за этот день для текущего питомца
+        const states = await db.stateEntries.where('date').equals(dateToDelete).filter(s => s.petId === currentPetId).toArray();
+        console.log('Found state entries to delete:', states.length);
+        
+        for (const state of states) {
+          if (state.id) {
+            console.log('Deleting state entry:', state.id);
+            await db.stateEntries.delete(state.id);
+          }
+        }
         
         // Удаляем все лекарства за этот день для текущего питомца
         const meds = await db.medicationEntries.where('date').equals(dateToDelete).filter(m => m.petId === currentPetId).toArray();
@@ -246,6 +314,9 @@ export const EntryView = () => {
         // Проверяем что запись удалена
         const checkEntry = await db.dayEntries.get(entryId);
         console.log('Entry after deletion:', checkEntry);
+        
+        const checkStates = await db.stateEntries.where('date').equals(dateToDelete).filter(s => s.petId === currentPetId).toArray();
+        console.log('State entries after deletion:', checkStates.length);
         
         const checkMeds = await db.medicationEntries.where('date').equals(dateToDelete).filter(m => m.petId === currentPetId).toArray();
         console.log('Medications after deletion:', checkMeds.length);
@@ -296,21 +367,12 @@ export const EntryView = () => {
         </div>
 
         <div className="space-y-3">
-          {/* Состояние */}
-          <div className="bg-white rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Состояние
+          {/* Среднее состояние за день */}
+          {stateEntries && stateEntries.length > 0 && (
+            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-4 text-white">
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+                Среднее за день
               </div>
-              <button
-                onClick={() => setShowStateSelector(!showStateSelector)}
-                className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-              >
-                Изменить
-              </button>
-            </div>
-            
-            {!showStateSelector ? (
               <div className="flex items-center gap-3">
                 <div
                   className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg"
@@ -323,39 +385,147 @@ export const EntryView = () => {
                   </span>
                 </div>
                 <div>
-                  <div className="text-xl font-bold text-black">
+                  <div className="text-xl font-bold">
                     {STATE_LABELS[entry?.state_score || 3]}
                   </div>
-                  <div className="text-sm text-gray-500">
-                    Оценка состояния
+                  <div className="text-sm text-gray-400">
+                    Из {stateEntries.length} {stateEntries.length === 1 ? 'записи' : 'записей'}
                   </div>
                 </div>
               </div>
-            ) : (
-              <div className="grid grid-cols-5 gap-2">
-                {[1, 2, 3, 4, 5].map((score) => (
-                  <button
-                    key={score}
-                    onClick={() => handleStateChange(score as 1 | 2 | 3 | 4 | 5)}
-                    className="group relative p-4 rounded-xl transition-all hover:scale-110"
-                    style={{
-                      background: (entry?.state_score || 3) === score
-                        ? `linear-gradient(135deg, ${STATE_COLORS[score]}, ${STATE_COLORS[score]}dd)`
-                        : '#f5f5f5',
-                    }}
+            </div>
+          )}
+
+          {/* Состояние - множественные записи */}
+          <div className="bg-white rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                Записи состояния
+              </div>
+              <button
+                onClick={() => {
+                  const now = new Date();
+                  setStateTime(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
+                  setShowStateForm(true);
+                }}
+                className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+              >
+                + Добавить
+              </button>
+            </div>
+            
+            {stateEntries && stateEntries.length > 0 ? (
+              <div className="space-y-2">
+                {stateEntries.map((state) => (
+                  <div
+                    key={state.id}
+                    className="flex items-center gap-3 p-3 rounded-2xl bg-gray-50 hover:bg-gray-100 transition-all group"
                   >
-                    <div className={`text-2xl font-bold mb-1 ${
-                      (entry?.state_score || 3) === score ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'
-                    }`}>
-                      {score}
+                    <div className="flex-shrink-0">
+                      <div className="text-sm font-bold text-gray-600 flex items-center gap-1">
+                        <Clock size={14} />
+                        {state.time}
+                      </div>
                     </div>
-                    <div className={`text-xs font-medium ${
-                      (entry?.state_score || 3) === score ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'
-                    }`}>
-                      {STATE_LABELS[score]}
+                    <div
+                      className="w-12 h-12 rounded-xl flex items-center justify-center shadow-md flex-shrink-0"
+                      style={{ 
+                        background: `linear-gradient(135deg, ${STATE_COLORS[state.state_score]}, ${STATE_COLORS[state.state_score]}dd)` 
+                      }}
+                    >
+                      <span className="text-xl font-bold text-white">
+                        {state.state_score}
+                      </span>
                     </div>
-                  </button>
+                    <div className="flex-1">
+                      <div className="text-sm font-bold text-black">
+                        {STATE_LABELS[state.state_score]}
+                      </div>
+                      {state.note && (
+                        <div className="text-xs text-gray-600 mt-0.5">
+                          {state.note}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleDeleteState(state.id!)}
+                      className="p-2 hover:bg-red-100 rounded-full transition-all text-red-600 opacity-0 group-hover:opacity-100"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
                 ))}
+              </div>
+            ) : (
+              <div className="text-sm text-gray-400 text-center py-4">
+                Нет записей состояния
+              </div>
+            )}
+
+            {showStateForm && (
+              <div className="mt-3 p-4 bg-gray-50 rounded-2xl space-y-3">
+                <div className="grid grid-cols-5 gap-2">
+                  {[1, 2, 3, 4, 5].map((score) => (
+                    <button
+                      key={score}
+                      onClick={() => setStateScore(score as 1 | 2 | 3 | 4 | 5)}
+                      className="group relative p-3 rounded-xl transition-all hover:scale-105"
+                      style={{
+                        background: stateScore === score
+                          ? `linear-gradient(135deg, ${STATE_COLORS[score]}, ${STATE_COLORS[score]}dd)`
+                          : '#fff',
+                      }}
+                    >
+                      <div className={`text-xl font-bold mb-0.5 ${
+                        stateScore === score ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'
+                      }`}>
+                        {score}
+                      </div>
+                      <div className={`text-[10px] font-medium ${
+                        stateScore === score ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'
+                      }`}>
+                        {STATE_LABELS[score]}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                
+                <input
+                  type="time"
+                  value={stateTime}
+                  onChange={(e) => setStateTime(e.target.value)}
+                  className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:border-black transition-all text-black outline-none text-sm"
+                  required
+                />
+                
+                <input
+                  type="text"
+                  value={stateNote}
+                  onChange={(e) => setStateNote(e.target.value)}
+                  placeholder="Заметка (опционально)..."
+                  className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:border-black transition-all text-black placeholder-gray-400 outline-none text-sm"
+                />
+                
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleAddState}
+                    disabled={!stateTime}
+                    className="flex-1 px-4 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-colors text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    Сохранить
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowStateForm(false);
+                      setStateScore(3);
+                      setStateTime('');
+                      setStateNote('');
+                    }}
+                    className="px-4 py-2 bg-gray-200 text-black rounded-full hover:bg-gray-300 transition-colors text-sm font-medium"
+                  >
+                    Отмена
+                  </button>
+                </div>
               </div>
             )}
           </div>

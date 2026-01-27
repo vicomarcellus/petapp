@@ -71,6 +71,18 @@ export interface DayEntry {
   updated_at: number;
 }
 
+export interface StateEntry {
+  id?: number;
+  userId: number; // Telegram user ID
+  petId: number; // ID питомца
+  date: string; // YYYY-MM-DD
+  time: string; // HH:mm
+  timestamp: number; // полный timestamp для сортировки
+  state_score: 1 | 2 | 3 | 4 | 5;
+  note?: string; // Опциональная заметка к конкретному состоянию
+  created_at: number;
+}
+
 export interface HistoryEntry {
   id?: number;
   timestamp: number;
