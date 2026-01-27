@@ -312,7 +312,7 @@ export const Checklist = () => {
                   <select
                     value={timeUnit}
                     onChange={(e) => setTimeUnit(e.target.value as 'minutes' | 'hours')}
-                    className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-black transition-all text-black outline-none"
+                    className="px-4 py-3 pr-10 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-black transition-all text-black outline-none appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e')] bg-[length:20px] bg-[right_0.75rem_center] bg-no-repeat"
                   >
                     <option value="minutes">минут</option>
                     <option value="hours">часов</option>
