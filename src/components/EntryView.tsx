@@ -4,9 +4,8 @@ import { db } from '../db';
 import { useStore } from '../store';
 import { STATE_COLORS, STATE_LABELS, SYMPTOM_COLORS, MEDICATION_COLORS } from '../types';
 import { formatDisplayDate } from '../utils';
-import { ArrowLeft, Trash2, Plus, Edit3, X, Clock, Pill } from 'lucide-react';
+import { ArrowLeft, Trash2, Edit3, X, Clock, Pill } from 'lucide-react';
 import { QuickChat } from './QuickChat';
-import { MedicationManager } from './MedicationManager';
 import { addHistoryEntry } from '../services/history';
 
 export const EntryView = () => {
@@ -31,14 +30,11 @@ export const EntryView = () => {
   const [medDosage, setMedDosage] = useState('');
   const [medTime, setMedTime] = useState('');
   const [medColor, setMedColor] = useState(MEDICATION_COLORS[0]);
+  const [editingMedId, setEditingMedId] = useState<number | null>(null);
   
   // General note
   const [editingNote, setEditingNote] = useState(false);
   const [noteText, setNoteText] = useState('');
-  
-  // Old medication manager (for editing)
-  const [editingMedId, setEditingMedId] = useState<number | null>(null);
-  const [showMedForm, setShowMedForm] = useState(false);
 
   const entry = useLiveQuery(
     async () => {
@@ -315,6 +311,9 @@ export const EntryView = () => {
     e.preventDefault();
     if (!medName.trim() || !medDosage.trim() || !medTime || !selectedDate || !currentPetId || !currentUser) return;
 
+    // Заменяем точку на запятую в дозировке
+    const normalizedDosage = medDosage.replace('.', ',');
+
     const [hours, minutes] = medTime.split(':');
     const timestamp = new Date(selectedDate).setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
@@ -341,36 +340,57 @@ export const EntryView = () => {
 
     const finalColor = medTag?.color || medColor;
 
-    // Добавляем запись лекарства
-    await db.medicationEntries.add({
-      userId: currentUser.id,
-      petId: currentPetId,
-      date: selectedDate,
-      time: medTime,
-      timestamp,
-      medication_name: medName.trim(),
-      dosage: medDosage,
-      color: finalColor,
-    });
-
-    // Сохраняем в список лекарств если новое
-    const existing = savedMedications?.find(m => m.name === medName.trim());
-    if (!existing) {
-      await db.medications.add({
-        userId: currentUser.id,
-        name: medName.trim(),
-        petId: currentPetId,
+    if (editingMedId) {
+      // Обновляем существующую запись
+      await db.medicationEntries.update(editingMedId, {
+        medication_name: medName.trim(),
+        dosage: normalizedDosage,
+        time: medTime,
+        timestamp,
         color: finalColor,
-        default_dosage: medDosage,
       });
+    } else {
+      // Добавляем запись лекарства
+      await db.medicationEntries.add({
+        userId: currentUser.id,
+        petId: currentPetId,
+        date: selectedDate,
+        time: medTime,
+        timestamp,
+        medication_name: medName.trim(),
+        dosage: normalizedDosage,
+        color: finalColor,
+      });
+
+      // Сохраняем в список лекарств если новое
+      const existing = savedMedications?.find(m => m.name === medName.trim());
+      if (!existing) {
+        await db.medications.add({
+          userId: currentUser.id,
+          name: medName.trim(),
+          petId: currentPetId,
+          color: finalColor,
+          default_dosage: normalizedDosage,
+        });
+      }
     }
 
     // Сбрасываем форму
     setAddType(null);
+    setEditingMedId(null);
     setMedName('');
     setMedDosage('');
     setMedTime('');
     setMedColor(MEDICATION_COLORS[0]);
+  };
+
+  const handleEditMedication = (med: any) => {
+    setEditingMedId(med.id);
+    setMedName(med.medication_name);
+    setMedDosage(med.dosage);
+    setMedTime(med.time);
+    setMedColor(med.color || MEDICATION_COLORS[0]);
+    setAddType('medication');
   };
 
   const handleSelectSavedMed = (med: any) => {
@@ -423,11 +443,6 @@ export const EntryView = () => {
     if (confirm('Удалить это лекарство?')) {
       await db.medicationEntries.delete(id);
     }
-  };
-
-  const handleEditMed = (id: number) => {
-    setEditingMedId(id);
-    setShowMedForm(true);
   };
 
   const handleDelete = async () => {
@@ -746,7 +761,9 @@ export const EntryView = () => {
             {/* Форма добавления лекарства */}
             {addType === 'medication' && (
               <form onSubmit={handleAddMedication} className="mb-3 p-4 bg-gray-50 rounded-2xl space-y-3">
-                <div className="text-sm font-semibold text-gray-700">Добавить лекарство</div>
+                <div className="text-sm font-semibold text-gray-700">
+                  {editingMedId ? 'Редактировать лекарство' : 'Добавить лекарство'}
+                </div>
                 
                 {/* Быстрый выбор */}
                 {savedMedications && savedMedications.length > 0 && (
@@ -847,6 +864,7 @@ export const EntryView = () => {
                     onClick={() => {
                       setAddType(null);
                       setShowAddMenu(false);
+                      setEditingMedId(null);
                       setMedName('');
                       setMedDosage('');
                       setMedTime('');
@@ -944,10 +962,9 @@ export const EntryView = () => {
 
                     {item.type === 'medication' && (
                       <>
-                        <div
-                          className="w-1 h-10 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: item.data.color }}
-                        />
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-2xl">
+                          💊
+                        </div>
                         <div className="flex-1">
                           <div className="font-bold text-black text-sm">{item.data.medication_name}</div>
                           <div className="text-xs font-semibold text-gray-600">
@@ -955,7 +972,7 @@ export const EntryView = () => {
                           </div>
                         </div>
                         <button
-                          onClick={() => handleEditMed(item.data.id!)}
+                          onClick={() => handleEditMedication(item.data)}
                           className="p-2 hover:bg-blue-100 rounded-full transition-all text-blue-600 opacity-0 group-hover:opacity-100"
                         >
                           <Edit3 size={14} />
@@ -1097,20 +1114,6 @@ export const EntryView = () => {
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* Форма добавления лекарства */}
-          {showMedForm && (
-            <div className="bg-white rounded-2xl p-4">
-              <MedicationManager 
-                date={selectedDate} 
-                editingMedId={editingMedId} 
-                onEditComplete={() => {
-                  setEditingMedId(null);
-                  setShowMedForm(false);
-                }} 
-              />
             </div>
           )}
         </div>
