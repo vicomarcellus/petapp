@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { useStore } from '../store';
-import { ArrowLeft, Plus, X, Clock, Check } from 'lucide-react';
+import { ArrowLeft, Plus, X, Clock, Check, Bell } from 'lucide-react';
 import { formatDisplayDate } from '../utils';
 
 export const Checklist = () => {
@@ -11,6 +11,8 @@ export const Checklist = () => {
   const [taskText, setTaskText] = useState('');
   const [timeAmount, setTimeAmount] = useState('');
   const [timeUnit, setTimeUnit] = useState<'minutes' | 'hours'>('minutes');
+  const [currentTime, setCurrentTime] = useState(Date.now());
+  const [notificationTask, setNotificationTask] = useState<any>(null);
 
   const tasks = useLiveQuery(
     async () => {
@@ -23,6 +25,55 @@ export const Checklist = () => {
     },
     [currentPetId, currentUser]
   );
+
+  // Обновляем текущее время каждую секунду
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Проверяем задачи на срабатывание уведомлений
+  useEffect(() => {
+    if (!tasks) return;
+
+    const now = Date.now();
+    const dueTask = tasks.find(task => 
+      !task.completed && 
+      task.timestamp <= now && 
+      task.timestamp > now - 60000 // В течение последней минуты
+    );
+
+    if (dueTask && (!notificationTask || notificationTask.id !== dueTask.id)) {
+      setNotificationTask(dueTask);
+    }
+  }, [tasks, currentTime]);
+
+  // Функция форматирования времени до задачи
+  const formatTimeRemaining = (timestamp: number) => {
+    const diff = timestamp - currentTime;
+    
+    if (diff <= 0) {
+      return 'Сейчас!';
+    }
+
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) {
+      return `через ${days}д ${hours % 24}ч`;
+    } else if (hours > 0) {
+      return `через ${hours}ч ${minutes % 60}м`;
+    } else if (minutes > 0) {
+      return `через ${minutes}м`;
+    } else {
+      const seconds = Math.floor(diff / 1000);
+      return `через ${seconds}с`;
+    }
+  };
 
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,6 +129,13 @@ export const Checklist = () => {
     }
     return a.timestamp - b.timestamp;
   }) || [];
+
+  const handleCloseNotification = async () => {
+    if (notificationTask) {
+      await handleToggleTask(notificationTask.id, notificationTask.completed);
+    }
+    setNotificationTask(null);
+  };
 
   // Проверяем просроченные задачи
   const now = Date.now();
@@ -142,8 +200,14 @@ export const Checklist = () => {
                           isOverdue ? 'text-red-500 font-semibold' : 'text-gray-500'
                         }`}>
                           {task.time}
-                          {isOverdue && ' (просрочено)'}
                         </span>
+                        {!task.completed && (
+                          <span className={`text-xs font-semibold ${
+                            isOverdue ? 'text-red-500' : task.timestamp - now < 300000 ? 'text-orange-500' : 'text-blue-500'
+                          }`}>
+                            • {formatTimeRemaining(task.timestamp)}
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -235,6 +299,48 @@ export const Checklist = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Модалка уведомления о задаче */}
+      {notificationTask && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl animate-scaleIn">
+            <div className="flex items-center justify-center mb-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-red-500 rounded-full flex items-center justify-center animate-bounce">
+                <Bell size={32} className="text-white" />
+              </div>
+            </div>
+            
+            <h2 className="text-2xl font-bold text-center text-black mb-2">
+              Время пришло!
+            </h2>
+            
+            <div className="bg-gray-50 rounded-2xl p-4 mb-6">
+              <p className="text-lg font-semibold text-center text-gray-900">
+                {notificationTask.task}
+              </p>
+              <p className="text-sm text-center text-gray-500 mt-1">
+                Запланировано на {notificationTask.time}
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleCloseNotification}
+                className="flex-1 px-6 py-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors font-semibold flex items-center justify-center gap-2"
+              >
+                <Check size={20} />
+                Выполнено
+              </button>
+              <button
+                onClick={() => setNotificationTask(null)}
+                className="px-6 py-3 bg-gray-200 text-black rounded-full hover:bg-gray-300 transition-colors font-semibold"
+              >
+                Позже
+              </button>
+            </div>
           </div>
         </div>
       )}
