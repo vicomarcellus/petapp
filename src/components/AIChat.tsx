@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Send, Sparkles, X } from 'lucide-react';
 import { parseEntryFromText } from '../services/ai';
-import { DayEntry } from '../types';
 
 interface AIChatProps {
-  onEntryParsed: (entry: Partial<DayEntry>) => void;
+  onEntryParsed: (entry: any) => void; // Changed to any since this component is deprecated
   onClose: () => void;
 }
 
+// DEPRECATED: This component is no longer used. Use QuickChat instead.
 export const AIChat = ({ onEntryParsed, onClose }: AIChatProps) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);

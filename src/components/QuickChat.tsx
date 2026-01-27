@@ -8,6 +8,46 @@ import { DayEntry, MEDICATION_COLORS, SYMPTOM_COLORS } from '../types';
 import { useStore } from '../store';
 import { useLiveQuery } from 'dexie-react-hooks';
 
+// Функция для обновления среднего состояния в DayEntry
+async function updateDayEntryAverage(date: string, petId: number, userId: number) {
+  const stateEntries = await db.stateEntries
+    .where('date').equals(date)
+    .filter(e => e.petId === petId && e.userId === userId)
+    .toArray();
+  
+  if (stateEntries.length === 0) {
+    return;
+  }
+  
+  // Вычисляем среднее
+  const sum = stateEntries.reduce((acc, e) => acc + e.state_score, 0);
+  const average = Math.round(sum / stateEntries.length) as 1 | 2 | 3 | 4 | 5;
+  
+  // Обновляем или создаем DayEntry
+  const existingEntry = await db.dayEntries
+    .where('date').equals(date)
+    .filter(e => e.petId === petId && e.userId === userId)
+    .first();
+  
+  if (existingEntry) {
+    await db.dayEntries.update(existingEntry.id!, {
+      state_score: average,
+      updated_at: Date.now(),
+    });
+  } else {
+    await db.dayEntries.add({
+      userId,
+      petId,
+      date,
+      state_score: average,
+      note: '',
+      symptoms: [],
+      created_at: Date.now(),
+      updated_at: Date.now(),
+    });
+  }
+}
+
 export const QuickChat = () => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -57,8 +97,6 @@ export const QuickChat = () => {
     // Проверка поддержки Web Speech API
     const hasSupport = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
     setSpeechSupported(hasSupport);
-    
-    console.log('Speech Recognition supported:', hasSupport);
 
     if (hasSupport) {
       const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
@@ -74,13 +112,11 @@ export const QuickChat = () => {
       }
 
       recognitionRef.current.onstart = () => {
-        console.log('Speech recognition started');
         setIsRecording(true);
         setFeedback('Слушаю...');
       };
 
       recognitionRef.current.onresult = (event: any) => {
-        console.log('Speech recognition result:', event);
         let interimTranscript = '';
         let finalTranscript = '';
 
@@ -95,7 +131,6 @@ export const QuickChat = () => {
 
         // Обновляем полный текст
         const fullTranscript = (currentTranscriptRef.current + ' ' + finalTranscript + ' ' + interimTranscript).trim();
-        console.log('Full transcript:', fullTranscript, 'Final part:', finalTranscript, 'Interim:', interimTranscript);
         
         setInput(fullTranscript);
         
@@ -112,13 +147,11 @@ export const QuickChat = () => {
         // Запускаем новый таймер на 2 секунды - просто останавливаем запись
         if (fullTranscript.trim()) {
           silenceTimerRef.current = setTimeout(() => {
-            console.log('2 seconds of silence detected, stopping recording');
-            
             if (recognitionRef.current) {
               try {
                 recognitionRef.current.stop();
               } catch (e) {
-                console.log('Recognition already stopped');
+                // Игнорируем ошибку
               }
             }
           }, 2000);
@@ -170,8 +203,6 @@ export const QuickChat = () => {
       };
 
       recognitionRef.current.onend = () => {
-        console.log('Speech recognition ended, isRecording:', isRecording);
-        
         // Очищаем таймер молчания
         if (silenceTimerRef.current) {
           clearTimeout(silenceTimerRef.current);
@@ -208,7 +239,6 @@ export const QuickChat = () => {
     }
 
     if (isRecording) {
-      console.log('Stopping recognition manually');
       recognitionRef.current.stop();
       setIsRecording(false);
       
@@ -219,7 +249,6 @@ export const QuickChat = () => {
       }
     } else {
       try {
-        console.log('Starting recognition');
         // Очищаем предыдущий текст
         setInput('');
         currentTranscriptRef.current = '';
@@ -242,12 +271,6 @@ export const QuickChat = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('=== QUICKCHAT SUBMIT START ===');
-    console.log('Input:', input);
-    console.log('Current Pet ID:', currentPetId);
-    console.log('Current User:', currentUser);
-    console.log('OpenAI API Key exists:', !!import.meta.env.VITE_OPENAI_API_KEY);
-    
     // Останавливаем запись если она активна
     if (isRecording && recognitionRef.current) {
       recognitionRef.current.stop();
@@ -261,12 +284,10 @@ export const QuickChat = () => {
     }
     
     if (!input.trim()) {
-      console.log('Empty input, returning');
       return;
     }
     
     if (!currentPetId) {
-      console.log('No pet ID, showing error');
       setIsError(true);
       setFeedback('Сначала добавьте питомца в настройках');
       setTimeout(() => {
@@ -277,17 +298,14 @@ export const QuickChat = () => {
     }
     
     if (loading) {
-      console.log('Already loading, returning');
       return;
     }
 
-    console.log('Setting loading state...');
     setLoading(true);
     setFeedback(null);
     setShowHints(false); // Скрываем подсказки при отправке
 
     try {
-      console.log('Starting parseEntryFromText...');
       // Если мы на странице редактирования/просмотра, используем выбранную дату
       const targetDate = (view === 'add' || view === 'edit' || view === 'view') && selectedDate 
         ? selectedDate 
@@ -295,23 +313,23 @@ export const QuickChat = () => {
       
       const existingEntry = await db.dayEntries.where('date').equals(targetDate).filter(e => e.petId === currentPetId).first();
       const existingMeds = await db.medicationEntries.where('date').equals(targetDate).filter(m => m.petId === currentPetId).toArray();
+      const existingStates = await db.stateEntries.where('date').equals(targetDate).filter(s => s.petId === currentPetId && s.userId === currentUser.id).toArray();
+      const existingSymptoms = await db.symptomEntries.where('date').equals(targetDate).filter(s => s.petId === currentPetId && s.userId === currentUser.id).toArray();
       
       // Формируем контекст для AI с реальными данными
       const context = {
         hasEntry: !!existingEntry,
         currentState: existingEntry?.state_score,
         hasNote: !!(existingEntry?.note && existingEntry.note.length > 0),
-        existingSymptoms: existingEntry?.symptoms || [],
-        existingMedications: existingMeds.map(m => `${m.medication_name} ${m.dosage} в ${m.time}`), // Передаем с временем
+        existingSymptoms: existingSymptoms.map(s => `${s.symptom} в ${s.time}`),
+        existingMedications: existingMeds.map(m => `${m.medication_name} ${m.dosage} в ${m.time}`),
+        existingStates: existingStates.map(s => `${s.state_score}/5 в ${s.time}`),
         currentView: view,
         currentDate: targetDate,
         currentMonth: `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}`, // YYYY-MM
       };
       
-      console.log('Context:', context);
-      console.log('Calling parseEntryFromText...');
       const parsed = await parseEntryFromText(input, context);
-      console.log('Parsed result:', parsed);
       
       let message = '';
       const action = parsed.action || 'add';
@@ -350,31 +368,61 @@ export const QuickChat = () => {
 
       // КОМАНДЫ УДАЛЕНИЯ
       if (action === 'remove') {
-        if (parsed.target === 'symptom' && parsed.itemName && existingEntry) {
-          // Гибкий поиск симптома (игнорируем регистр, дефисы, пробелы)
-          const normalizeText = (text: string) => 
-            text.toLowerCase().replace(/[-\s]/g, '').trim();
-          
+        const normalizeText = (text: string) => 
+          text.toLowerCase().replace(/[-\s]/g, '').trim();
+        
+        if (parsed.target === 'symptom' && parsed.itemName) {
+          // Удаляем все записи симптома из SymptomEntry
           const searchTerm = normalizeText(parsed.itemName);
-          const foundSymptom = (existingEntry.symptoms || []).find(s => 
-            normalizeText(s).includes(searchTerm) || searchTerm.includes(normalizeText(s))
-          );
+          const symptoms = await db.symptomEntries
+            .where('date').equals(targetDate)
+            .filter(s => {
+              if (s.petId !== currentPetId || s.userId !== currentUser.id) return false;
+              const symptomName = normalizeText(s.symptom);
+              return symptomName.includes(searchTerm) || searchTerm.includes(symptomName);
+            })
+            .toArray();
           
-          if (foundSymptom) {
-            const updatedSymptoms = (existingEntry.symptoms || []).filter(s => s !== foundSymptom);
-            await db.dayEntries.update(existingEntry.id!, {
-              symptoms: updatedSymptoms,
-              updated_at: Date.now(),
-            });
-            message = `Симптом "${foundSymptom}" удален`;
+          if (symptoms.length > 0) {
+            for (const symptom of symptoms) {
+              if (symptom.id) await db.symptomEntries.delete(symptom.id);
+            }
+            message = `Симптом "${symptoms[0].symptom}" удален (${symptoms.length} ${symptoms.length === 1 ? 'запись' : 'записей'})`;
           } else {
             message = `Симптом "${parsed.itemName}" не найден`;
           }
+        } else if (parsed.target === 'state') {
+          // Удаляем конкретную запись состояния по времени или все
+          if (parsed.time) {
+            const stateEntry = await db.stateEntries
+              .where('date').equals(targetDate)
+              .filter(s => s.petId === currentPetId && s.userId === currentUser.id && s.time === parsed.time)
+              .first();
+            
+            if (stateEntry && stateEntry.id) {
+              await db.stateEntries.delete(stateEntry.id);
+              await updateDayEntryAverage(targetDate, currentPetId, currentUser.id);
+              message = `Состояние в ${parsed.time} удалено`;
+            } else {
+              message = `Состояние в ${parsed.time} не найдено`;
+            }
+          } else {
+            // Удаляем все записи состояния
+            const states = await db.stateEntries
+              .where('date').equals(targetDate)
+              .filter(s => s.petId === currentPetId && s.userId === currentUser.id)
+              .toArray();
+            
+            for (const state of states) {
+              if (state.id) await db.stateEntries.delete(state.id);
+            }
+            
+            // Обновляем среднее (или удаляем если записей нет)
+            await updateDayEntryAverage(targetDate, currentPetId, currentUser.id);
+            message = `Все записи состояния удалены (${states.length} ${states.length === 1 ? 'запись' : 'записей'})`;
+          }
         } else if (parsed.target === 'medication' && parsed.itemName) {
           // Гибкий поиск лекарства
-          const normalizeText = (text: string) => 
-            text.toLowerCase().replace(/[-\s]/g, '').trim();
-          
           const searchTerm = normalizeText(parsed.itemName);
           const meds = await db.medicationEntries
             .where('date').equals(targetDate)
@@ -389,21 +437,32 @@ export const QuickChat = () => {
             for (const med of meds) {
               if (med.id) await db.medicationEntries.delete(med.id);
             }
-            message = `Лекарство "${meds[0].medication_name}" удалено`;
+            message = `Лекарство "${meds[0].medication_name}" удалено (${meds.length} ${meds.length === 1 ? 'запись' : 'записей'})`;
           } else {
             message = `Лекарство "${parsed.itemName}" не найдено`;
           }
         } else if (parsed.target === 'entry') {
-          // Удаляем запись (возможно за другую дату)
+          // Удаляем всю запись за день
           const dateToDelete = parsed.date || targetDate;
           const entryToDelete = await db.dayEntries.where('date').equals(dateToDelete).filter(e => e.petId === currentPetId).first();
           
           if (entryToDelete) {
-            // Удаляем все лекарства за этот день для текущего питомца
+            // Удаляем все связанные данные
             const meds = await db.medicationEntries.where('date').equals(dateToDelete).filter(m => m.petId === currentPetId).toArray();
             for (const med of meds) {
               if (med.id) await db.medicationEntries.delete(med.id);
             }
+            
+            const states = await db.stateEntries.where('date').equals(dateToDelete).filter(s => s.petId === currentPetId && s.userId === currentUser.id).toArray();
+            for (const state of states) {
+              if (state.id) await db.stateEntries.delete(state.id);
+            }
+            
+            const symptoms = await db.symptomEntries.where('date').equals(dateToDelete).filter(s => s.petId === currentPetId && s.userId === currentUser.id).toArray();
+            for (const symptom of symptoms) {
+              if (symptom.id) await db.symptomEntries.delete(symptom.id);
+            }
+            
             await db.dayEntries.delete(entryToDelete.id!);
             message = `Запись за ${dateToDelete} удалена`;
           } else {
@@ -414,18 +473,37 @@ export const QuickChat = () => {
       
       // КОМАНДЫ ОЧИСТКИ
       else if (action === 'clear') {
-        if (parsed.target === 'symptom' && existingEntry) {
-          await db.dayEntries.update(existingEntry.id!, {
-            symptoms: [],
-            updated_at: Date.now(),
-          });
-          message = 'Все симптомы удалены';
+        if (parsed.target === 'symptom') {
+          // Удаляем все записи симптомов из SymptomEntry
+          const symptoms = await db.symptomEntries
+            .where('date').equals(targetDate)
+            .filter(s => s.petId === currentPetId && s.userId === currentUser.id)
+            .toArray();
+          
+          for (const symptom of symptoms) {
+            if (symptom.id) await db.symptomEntries.delete(symptom.id);
+          }
+          message = `Все симптомы удалены (${symptoms.length} ${symptoms.length === 1 ? 'запись' : 'записей'})`;
+        } else if (parsed.target === 'state') {
+          // Удаляем все записи состояния из StateEntry
+          const states = await db.stateEntries
+            .where('date').equals(targetDate)
+            .filter(s => s.petId === currentPetId && s.userId === currentUser.id)
+            .toArray();
+          
+          for (const state of states) {
+            if (state.id) await db.stateEntries.delete(state.id);
+          }
+          
+          // Обновляем среднее (или удаляем DayEntry если записей нет)
+          await updateDayEntryAverage(targetDate, currentPetId, currentUser.id);
+          message = `Все записи состояния удалены (${states.length} ${states.length === 1 ? 'запись' : 'записей'})`;
         } else if (parsed.target === 'medication') {
           const meds = await db.medicationEntries.where('date').equals(targetDate).filter(m => m.petId === currentPetId).toArray();
           for (const med of meds) {
             if (med.id) await db.medicationEntries.delete(med.id);
           }
-          message = 'Все лекарства удалены';
+          message = `Все лекарства удалены (${meds.length} ${meds.length === 1 ? 'запись' : 'записей'})`;
         } else if (parsed.target === 'note' && existingEntry) {
           await db.dayEntries.update(existingEntry.id!, {
             note: '',
@@ -484,9 +562,80 @@ export const QuickChat = () => {
         const normalizeText = (text: string) => 
           text.toLowerCase().replace(/[-\s]/g, '').trim();
         
+        // Обрабатываем записи состояния (новая структура)
+        if (parsed.states && parsed.states.length > 0) {
+          for (const state of parsed.states) {
+            // Парсим время для создания timestamp
+            const [hours, minutes] = state.time.split(':').map(Number);
+            const dateObj = new Date(targetDate);
+            dateObj.setHours(hours, minutes, 0, 0);
+            
+            await db.stateEntries.add({
+              userId: currentUser.id,
+              petId: currentPetId,
+              date: targetDate,
+              time: state.time,
+              timestamp: dateObj.getTime(),
+              state_score: state.score,
+              note: state.note,
+              created_at: Date.now(),
+            });
+          }
+          
+          // Обновляем среднее состояние в DayEntry
+          await updateDayEntryAverage(targetDate, currentPetId, currentUser.id);
+        }
+        
+        // Обрабатываем записи симптомов (новая структура)
+        if (parsed.symptoms && parsed.symptoms.length > 0) {
+          for (const symptom of parsed.symptoms) {
+            // Парсим время для создания timestamp
+            const [hours, minutes] = symptom.time.split(':').map(Number);
+            const dateObj = new Date(targetDate);
+            dateObj.setHours(hours, minutes, 0, 0);
+            
+            // Создаем или получаем тег симптома
+            const normalizedSymptomName = normalizeText(symptom.name);
+            const allSymptomTags = await db.symptomTags
+              .where('petId').equals(currentPetId)
+              .filter(t => t.userId === currentUser.id)
+              .toArray();
+            let symptomTag = allSymptomTags.find(tag => 
+              normalizeText(tag.name) === normalizedSymptomName
+            );
+            
+            if (!symptomTag) {
+              const colorIndex = allSymptomTags.length % SYMPTOM_COLORS.length;
+              const tagId = await db.symptomTags.add({
+                userId: currentUser.id,
+                name: symptom.name,
+                petId: currentPetId,
+                color: SYMPTOM_COLORS[colorIndex],
+              });
+              symptomTag = await db.symptomTags.get(tagId);
+            }
+            
+            await db.symptomEntries.add({
+              userId: currentUser.id,
+              petId: currentPetId,
+              date: targetDate,
+              time: symptom.time,
+              timestamp: dateObj.getTime(),
+              symptom: symptomTag?.name || symptom.name,
+              note: symptom.note,
+              created_at: Date.now(),
+            });
+          }
+        }
+        
         // Обрабатываем лекарства
         if (parsed.medications && parsed.medications.length > 0) {
           for (const med of parsed.medications) {
+            // Парсим время для создания timestamp
+            const [hours, minutes] = med.time.split(':').map(Number);
+            const dateObj = new Date(targetDate);
+            dateObj.setHours(hours, minutes, 0, 0);
+            
             // Нормализуем название для поиска
             const normalizedMedName = normalizeText(med.name);
             
@@ -517,10 +666,10 @@ export const QuickChat = () => {
               userId: currentUser.id,
               date: targetDate,
               petId: currentPetId,
-              medication_name: medTag?.name || med.name, // Используем имя из тега для консистентности
+              medication_name: medTag?.name || med.name,
               dosage: med.dosage,
               time: med.time,
-              timestamp: Date.now(),
+              timestamp: dateObj.getTime(),
               color: medColor,
             });
 
@@ -545,114 +694,72 @@ export const QuickChat = () => {
           }
         }
         
-        // Если запись существует, обновляем только те поля, которые были распознаны
-        if (existingEntry) {
-          const updatedEntry: DayEntry = {
-            ...existingEntry,
-            ...(parsed.state_score !== undefined && { state_score: parsed.state_score }),
-            ...(parsed.note !== undefined && { 
-              note: parsed.note.length > 20 
-                ? parsed.note
-                : existingEntry.note 
-                  ? `${existingEntry.note}. ${parsed.note}`
-                  : parsed.note 
-            }),
-            ...(parsed.symptoms !== undefined && { 
-              symptoms: await (async () => {
-                // Гибкое добавление симптомов (избегаем дубликатов)
-                const currentSymptoms = existingEntry.symptoms || [];
-                const newSymptoms = parsed.symptoms || [];
-                const combined = [...currentSymptoms];
-                
-                for (const newSymptom of newSymptoms) {
-                  const normalizedNew = normalizeText(newSymptom);
-                  const isDuplicate = currentSymptoms.some(existing => 
-                    normalizeText(existing) === normalizedNew
-                  );
-                  if (!isDuplicate) {
-                    combined.push(newSymptom);
-                    
-                    // Создаем тег симптома если его еще нет (гибкий поиск)
-                    const allSymptomTags = await db.symptomTags
-                      .where('petId').equals(currentPetId)
-                      .filter(t => t.userId === currentUser.id)
-                      .toArray();
-                    const existingTag = allSymptomTags.find(tag => 
-                      normalizeText(tag.name) === normalizedNew
-                    );
-                    
-                    if (!existingTag) {
-                      const colorIndex = allSymptomTags.length % SYMPTOM_COLORS.length;
-                      await db.symptomTags.add({
-                        userId: currentUser.id,
-                        name: newSymptom,
-                        petId: currentPetId,
-                        color: SYMPTOM_COLORS[colorIndex],
-                      });
-                    }
-                  }
-                }
-                
-                return combined;
-              })()
-            }),
-            updated_at: Date.now(),
-          };
-          
-          await db.dayEntries.update(existingEntry.id!, updatedEntry);
-        } else if (parsed.state_score || parsed.note || (parsed.symptoms && parsed.symptoms.length > 0)) {
-          // Создаем новую запись только если есть что-то кроме лекарств
-          
-          // Создаем теги для новых симптомов
-          if (parsed.symptoms && parsed.symptoms.length > 0) {
-            for (const symptom of parsed.symptoms) {
-              const allSymptomTags = await db.symptomTags
-                .where('petId').equals(currentPetId)
-                .filter(t => t.userId === currentUser.id)
-                .toArray();
-              const normalizedSymptom = normalizeText(symptom);
-              const existingTag = allSymptomTags.find(tag => 
-                normalizeText(tag.name) === normalizedSymptom
-              );
-              
-              if (!existingTag) {
-                const colorIndex = allSymptomTags.length % SYMPTOM_COLORS.length;
-                await db.symptomTags.add({
-                  userId: currentUser.id,
-                  name: symptom,
-                  petId: currentPetId,
-                  color: SYMPTOM_COLORS[colorIndex],
-                });
-              }
-            }
+        // Обрабатываем заметку (если есть)
+        if (parsed.note) {
+          if (existingEntry) {
+            const newNote = parsed.note.length > 20 
+              ? parsed.note
+              : existingEntry.note 
+                ? `${existingEntry.note}. ${parsed.note}`
+                : parsed.note;
+            
+            await db.dayEntries.update(existingEntry.id!, {
+              note: newNote,
+              updated_at: Date.now(),
+            });
+          } else {
+            // Создаем запись дня если её нет
+            await db.dayEntries.add({
+              userId: currentUser.id,
+              date: targetDate,
+              petId: currentPetId,
+              state_score: 3, // Дефолтное значение
+              note: parsed.note,
+              symptoms: [],
+              created_at: Date.now(),
+              updated_at: Date.now(),
+            });
           }
+        }
+        
+        // Обработка старого формата для обратной совместимости
+        if (parsed.state_score && !parsed.states) {
+          // Старый формат - создаем StateEntry с текущим временем
+          const now = new Date();
+          const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
           
-          const entry: DayEntry = {
+          await db.stateEntries.add({
             userId: currentUser.id,
-            date: parsed.date || targetDate,
             petId: currentPetId,
-            state_score: parsed.state_score ?? 3,
-            note: parsed.note ?? '',
-            symptoms: parsed.symptoms ?? [],
+            date: targetDate,
+            time: currentTime,
+            timestamp: now.getTime(),
+            state_score: parsed.state_score,
+            note: parsed.note,
             created_at: Date.now(),
-            updated_at: Date.now(),
-          };
+          });
           
-          await db.dayEntries.add(entry);
+          await updateDayEntryAverage(targetDate, currentPetId, currentUser.id);
         }
 
         // Формируем детальное сообщение для добавления
-        if (parsed.state_score) {
+        if (parsed.states && parsed.states.length > 0) {
+          const statesList = parsed.states.map(s => `${s.score}/5 в ${s.time}`).join(', ');
+          message += `${parsed.states.length === 1 ? 'Состояние' : 'Состояния'}: ${statesList}. `;
+        } else if (parsed.state_score) {
           message += `Состояние: ${parsed.state_score}/5. `;
         }
+        
         if (parsed.symptoms && parsed.symptoms.length > 0) {
-          const symptomsList = parsed.symptoms.map(s => `"${s}"`).join(', ');
+          const symptomsList = parsed.symptoms.map(s => `"${s.name}" в ${s.time}`).join(', ');
           message += `${parsed.symptoms.length === 1 ? 'Симптом' : 'Симптомы'}: ${symptomsList}. `;
         }
+        
         if (parsed.medications && parsed.medications.length > 0) {
-          const medsList = parsed.medications.map(m => `${m.name}${m.dosage ? ` (${m.dosage})` : ''}`).join(', ');
+          const medsList = parsed.medications.map(m => `${m.name} ${m.dosage} в ${m.time}`).join(', ');
           message += `${parsed.medications.length === 1 ? 'Лекарство' : 'Лекарства'}: ${medsList}. `;
         }
+        
         if (parsed.note && parsed.note.length <= 20) {
           message += `Заметка добавлена.`;
         }
@@ -665,25 +772,15 @@ export const QuickChat = () => {
       
       // НЕ перезагружаем страницу - данные обновятся автоматически через useLiveQuery
     } catch (err) {
-      console.error('=== QUICKCHAT ERROR ===');
-      console.error('Error type:', err instanceof Error ? err.constructor.name : typeof err);
-      console.error('Error message:', err instanceof Error ? err.message : String(err));
-      console.error('Full error:', err);
-      console.error('Stack:', err instanceof Error ? err.stack : 'No stack');
-      
       const errorMessage = 'Ошибка: ' + (err instanceof Error ? err.message : 'Неизвестная ошибка');
-      console.log('Setting feedback:', errorMessage);
       
       setFeedback(errorMessage);
       setIsError(true);
       setTimeout(() => {
-        console.log('Clearing error feedback');
         setFeedback(null);
         setIsError(false);
       }, 3000);
     } finally {
-      console.log('=== QUICKCHAT SUBMIT END ===');
-      console.log('Resetting loading and input...');
       setLoading(false);
       setInput('');
     }

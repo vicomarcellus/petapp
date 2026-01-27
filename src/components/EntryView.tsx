@@ -30,7 +30,6 @@ export const EntryView = () => {
   const [medName, setMedName] = useState('');
   const [medDosage, setMedDosage] = useState('');
   const [medTime, setMedTime] = useState('');
-  const [medColor, setMedColor] = useState(MEDICATION_COLORS[0]);
   const [editingMedId, setEditingMedId] = useState<number | null>(null);
   
   // General note
@@ -322,7 +321,7 @@ export const EntryView = () => {
     const [hours, minutes] = medTime.split(':');
     const timestamp = new Date(selectedDate).setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
-    // Получаем или создаем тег лекарства
+    // Получаем или создаем тег лекарства с автоматическим выбором цвета
     let medTag = await db.medicationTags
       .where('name').equals(medName.trim())
       .filter(t => t.petId === currentPetId && t.userId === currentUser.id)
@@ -343,7 +342,7 @@ export const EntryView = () => {
       medTag = await db.medicationTags.get(tagId);
     }
 
-    const finalColor = medTag?.color || medColor;
+    const finalColor = medTag?.color || MEDICATION_COLORS[0];
 
     if (editingMedId) {
       // Обновляем существующую запись
@@ -387,7 +386,6 @@ export const EntryView = () => {
     setMedName('');
     setMedDosage('');
     setMedTime('');
-    setMedColor(MEDICATION_COLORS[0]);
   };
 
   const handleEditMedication = (med: any) => {
@@ -395,7 +393,6 @@ export const EntryView = () => {
     setMedName(med.medication_name);
     setMedDosage(med.dosage);
     setMedTime(med.time);
-    setMedColor(med.color || MEDICATION_COLORS[0]);
     setAddType('medication');
     setShowModal(true);
   };
@@ -403,7 +400,6 @@ export const EntryView = () => {
   const handleSelectSavedMed = (med: any) => {
     setMedName(med.name);
     setMedDosage(med.default_dosage || '');
-    setMedColor(med.color);
   };
 
   const getSymptomColor = (symptomName: string) => {
@@ -460,51 +456,31 @@ export const EntryView = () => {
         const entryId = entry.id;
         const dateToDelete = selectedDate;
         
-        console.log('Deleting entry:', entryId, 'for date:', dateToDelete);
-        
         // Удаляем все записи состояния за этот день для текущего питомца
         const states = await db.stateEntries.where('date').equals(dateToDelete).filter(s => s.petId === currentPetId).toArray();
-        console.log('Found state entries to delete:', states.length);
         
         for (const state of states) {
           if (state.id) {
-            console.log('Deleting state entry:', state.id);
             await db.stateEntries.delete(state.id);
           }
         }
         
         // Удаляем все лекарства за этот день для текущего питомца
         const meds = await db.medicationEntries.where('date').equals(dateToDelete).filter(m => m.petId === currentPetId).toArray();
-        console.log('Found medications to delete:', meds.length);
         
         for (const med of meds) {
           if (med.id) {
-            console.log('Deleting medication:', med.id);
             await db.medicationEntries.delete(med.id);
           }
         }
         
         // Удаляем запись
-        console.log('Deleting day entry:', entryId);
         await db.dayEntries.delete(entryId);
-        
-        // Проверяем что запись удалена
-        const checkEntry = await db.dayEntries.get(entryId);
-        console.log('Entry after deletion:', checkEntry);
-        
-        const checkStates = await db.stateEntries.where('date').equals(dateToDelete).filter(s => s.petId === currentPetId).toArray();
-        console.log('State entries after deletion:', checkStates.length);
-        
-        const checkMeds = await db.medicationEntries.where('date').equals(dateToDelete).filter(m => m.petId === currentPetId).toArray();
-        console.log('Medications after deletion:', checkMeds.length);
-        
-        console.log('Deletion complete, reloading page');
         
         // Перезагружаем страницу чтобы обновить UI
         window.location.href = '/';
         
       } catch (error) {
-        console.error('Error deleting entry:', error);
         alert('Ошибка при удалении записи: ' + error);
       }
     }
@@ -911,28 +887,42 @@ export const EntryView = () => {
               {/* Форма состояния */}
               {addType === 'state' && (
                 <form onSubmit={handleAddState} className="space-y-4">
-                  <h2 className="text-xl font-bold text-black">
-                    {editingStateId ? 'Редактировать состояние' : 'Добавить состояние'}
-                  </h2>
+                  <div className="flex items-center gap-3">
+                    {!editingStateId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAddType(null);
+                          setShowAddMenu(true);
+                        }}
+                        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                      >
+                        <ArrowLeft size={20} className="text-gray-600" />
+                      </button>
+                    )}
+                    <h2 className="text-xl font-bold text-black flex-1">
+                      {editingStateId ? 'Редактировать состояние' : 'Добавить состояние'}
+                    </h2>
+                  </div>
                   <div className="grid grid-cols-5 gap-2">
                     {[1, 2, 3, 4, 5].map((score) => (
                       <button
                         key={score}
                         type="button"
                         onClick={() => setStateScore(score as 1 | 2 | 3 | 4 | 5)}
-                        className="group relative p-4 rounded-2xl transition-all hover:scale-105"
+                        className="group relative flex flex-col items-center justify-center p-3 rounded-2xl transition-all hover:scale-105"
                         style={{
                           background: stateScore === score
                             ? `linear-gradient(135deg, ${STATE_COLORS[score]}, ${STATE_COLORS[score]}dd)`
                             : '#f5f5f5',
                         }}
                       >
-                        <div className={`text-2xl font-bold mb-1 ${
+                        <div className={`text-3xl font-bold ${
                           stateScore === score ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'
                         }`}>
                           {score}
                         </div>
-                        <div className={`text-[10px] font-medium ${
+                        <div className={`text-[9px] font-medium text-center leading-tight mt-1 ${
                           stateScore === score ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'
                         }`}>
                           {STATE_LABELS[score]}
@@ -983,9 +973,23 @@ export const EntryView = () => {
               {/* Форма симптома */}
               {addType === 'symptom' && (
                 <form onSubmit={handleAddSymptom} className="space-y-4">
-                  <h2 className="text-xl font-bold text-black">
-                    {editingSymptomId ? 'Редактировать симптом' : 'Добавить симптом'}
-                  </h2>
+                  <div className="flex items-center gap-3">
+                    {!editingSymptomId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAddType(null);
+                          setShowAddMenu(true);
+                        }}
+                        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                      >
+                        <ArrowLeft size={20} className="text-gray-600" />
+                      </button>
+                    )}
+                    <h2 className="text-xl font-bold text-black flex-1">
+                      {editingSymptomId ? 'Редактировать симптом' : 'Добавить симптом'}
+                    </h2>
+                  </div>
                   <input
                     type="text"
                     value={symptomName}
@@ -1038,9 +1042,23 @@ export const EntryView = () => {
               {/* Форма лекарства */}
               {addType === 'medication' && (
                 <form onSubmit={handleAddMedication} className="space-y-4">
-                  <h2 className="text-xl font-bold text-black">
-                    {editingMedId ? 'Редактировать лекарство' : 'Добавить лекарство'}
-                  </h2>
+                  <div className="flex items-center gap-3">
+                    {!editingMedId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAddType(null);
+                          setShowAddMenu(true);
+                        }}
+                        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                      >
+                        <ArrowLeft size={20} className="text-gray-600" />
+                      </button>
+                    )}
+                    <h2 className="text-xl font-bold text-black flex-1">
+                      {editingMedId ? 'Редактировать лекарство' : 'Добавить лекарство'}
+                    </h2>
+                  </div>
                   
                   {savedMedications && savedMedications.length > 0 && !editingMedId && (
                     <div>
@@ -1108,25 +1126,6 @@ export const EntryView = () => {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-600 mb-2">
-                      Цвет
-                    </label>
-                    <div className="flex gap-2">
-                      {MEDICATION_COLORS.map((color) => (
-                        <button
-                          key={color}
-                          type="button"
-                          onClick={() => setMedColor(color)}
-                          className={`w-10 h-10 rounded-full transition-all ${
-                            medColor === color ? 'ring-4 ring-black scale-110' : 'hover:scale-105'
-                          }`}
-                          style={{ backgroundColor: color }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
                   <div className="flex gap-2">
                     <button
                       type="submit"
@@ -1144,7 +1143,6 @@ export const EntryView = () => {
                         setMedName('');
                         setMedDosage('');
                         setMedTime('');
-                        setMedColor(MEDICATION_COLORS[0]);
                       }}
                       className="px-6 py-3 bg-gray-100 text-black rounded-full hover:bg-gray-200 transition-colors font-semibold"
                     >
