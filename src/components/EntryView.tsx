@@ -12,6 +12,7 @@ export const EntryView = () => {
   const { selectedDate, setView, currentPetId, currentUser } = useStore();
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [addType, setAddType] = useState<'state' | 'symptom' | 'medication' | null>(null);
+  const [showModal, setShowModal] = useState(false);
   
   // State form
   const [stateScore, setStateScore] = useState<1 | 2 | 3 | 4 | 5>(3);
@@ -191,6 +192,7 @@ export const EntryView = () => {
     await updateDayEntryAverage();
 
     // Сбрасываем форму
+    setShowModal(false);
     setAddType(null);
     setEditingStateId(null);
     setStateScore(3);
@@ -204,6 +206,7 @@ export const EntryView = () => {
     setStateTime(state.time);
     setStateNote(state.note || '');
     setAddType('state');
+    setShowModal(true);
   };
 
   const handleDeleteState = async (id: number) => {
@@ -286,6 +289,7 @@ export const EntryView = () => {
     }
 
     // Сбрасываем форму
+    setShowModal(false);
     setAddType(null);
     setEditingSymptomId(null);
     setSymptomName('');
@@ -299,6 +303,7 @@ export const EntryView = () => {
     setSymptomTime(symptom.time);
     setSymptomNote(symptom.note || '');
     setAddType('symptom');
+    setShowModal(true);
   };
 
   const handleDeleteSymptom = async (id: number) => {
@@ -376,6 +381,7 @@ export const EntryView = () => {
     }
 
     // Сбрасываем форму
+    setShowModal(false);
     setAddType(null);
     setEditingMedId(null);
     setMedName('');
@@ -391,6 +397,7 @@ export const EntryView = () => {
     setMedTime(med.time);
     setMedColor(med.color || MEDICATION_COLORS[0]);
     setAddType('medication');
+    setShowModal(true);
   };
 
   const handleSelectSavedMed = (med: any) => {
@@ -593,290 +600,14 @@ export const EntryView = () => {
                   setStateTime(currentTime);
                   setSymptomTime(currentTime);
                   setMedTime(currentTime);
-                  setShowAddMenu(!showAddMenu);
+                  setShowAddMenu(true);
+                  setShowModal(true);
                 }}
                 className="px-3 py-1.5 bg-black text-white rounded-full hover:bg-gray-800 transition-colors text-xs font-medium"
               >
                 + Добавить
               </button>
             </div>
-
-            {/* Меню выбора типа записи */}
-            {showAddMenu && !addType && (
-              <div className="mb-3 p-3 bg-gray-50 rounded-2xl">
-                <div className="text-xs font-semibold text-gray-500 mb-2">Что добавить?</div>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    onClick={() => setAddType('state')}
-                    className="p-3 bg-white rounded-xl hover:bg-blue-50 transition-all text-center border-2 border-transparent hover:border-blue-200"
-                  >
-                    <div className="text-2xl mb-1">😊</div>
-                    <div className="text-xs font-medium text-gray-700">Состояние</div>
-                  </button>
-                  <button
-                    onClick={() => setAddType('symptom')}
-                    className="p-3 bg-white rounded-xl hover:bg-red-50 transition-all text-center border-2 border-transparent hover:border-red-200"
-                  >
-                    <div className="text-2xl mb-1">🤒</div>
-                    <div className="text-xs font-medium text-gray-700">Симптом</div>
-                  </button>
-                  <button
-                    onClick={() => setAddType('medication')}
-                    className="p-3 bg-white rounded-xl hover:bg-green-50 transition-all text-center border-2 border-transparent hover:border-green-200"
-                  >
-                    <div className="text-2xl mb-1">💊</div>
-                    <div className="text-xs font-medium text-gray-700">Лекарство</div>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Форма добавления состояния */}
-            {addType === 'state' && (
-              <form onSubmit={handleAddState} className="mb-3 p-4 bg-gray-50 rounded-2xl space-y-3">
-                <div className="text-sm font-semibold text-gray-700">
-                  {editingStateId ? 'Редактировать состояние' : 'Добавить состояние'}
-                </div>
-                <div className="grid grid-cols-5 gap-2">
-                  {[1, 2, 3, 4, 5].map((score) => (
-                    <button
-                      key={score}
-                      type="button"
-                      onClick={() => setStateScore(score as 1 | 2 | 3 | 4 | 5)}
-                      className="group relative p-3 rounded-xl transition-all hover:scale-105"
-                      style={{
-                        background: stateScore === score
-                          ? `linear-gradient(135deg, ${STATE_COLORS[score]}, ${STATE_COLORS[score]}dd)`
-                          : '#fff',
-                      }}
-                    >
-                      <div className={`text-xl font-bold mb-0.5 ${
-                        stateScore === score ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'
-                      }`}>
-                        {score}
-                      </div>
-                      <div className={`text-[10px] font-medium ${
-                        stateScore === score ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'
-                      }`}>
-                        {STATE_LABELS[score]}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-                <input
-                  type="time"
-                  value={stateTime}
-                  onChange={(e) => setStateTime(e.target.value)}
-                  className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:border-black transition-all text-black outline-none text-sm"
-                  required
-                />
-                <input
-                  type="text"
-                  value={stateNote}
-                  onChange={(e) => setStateNote(e.target.value)}
-                  placeholder="Заметка (опционально)..."
-                  className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:border-black transition-all text-black placeholder-gray-400 outline-none text-sm"
-                />
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    disabled={!stateTime}
-                    className="flex-1 px-4 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-colors text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
-                    Сохранить
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAddType(null);
-                      setShowAddMenu(false);
-                      setEditingStateId(null);
-                      setStateScore(3);
-                      setStateTime('');
-                      setStateNote('');
-                    }}
-                    className="px-4 py-2 bg-gray-200 text-black rounded-full hover:bg-gray-300 transition-colors text-sm font-medium"
-                  >
-                    Отмена
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* Форма добавления симптома */}
-            {addType === 'symptom' && (
-              <form onSubmit={handleAddSymptom} className="mb-3 p-4 bg-gray-50 rounded-2xl space-y-3">
-                <div className="text-sm font-semibold text-gray-700">
-                  {editingSymptomId ? 'Редактировать симптом' : 'Добавить симптом'}
-                </div>
-                <input
-                  type="text"
-                  value={symptomName}
-                  onChange={(e) => setSymptomName(e.target.value)}
-                  placeholder="Название симптома..."
-                  className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:border-black transition-all text-black placeholder-gray-400 outline-none text-sm"
-                  required
-                  autoFocus
-                />
-                <input
-                  type="time"
-                  value={symptomTime}
-                  onChange={(e) => setSymptomTime(e.target.value)}
-                  className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:border-black transition-all text-black outline-none text-sm"
-                  required
-                />
-                <input
-                  type="text"
-                  value={symptomNote}
-                  onChange={(e) => setSymptomNote(e.target.value)}
-                  placeholder="Заметка (опционально)..."
-                  className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:border-black transition-all text-black placeholder-gray-400 outline-none text-sm"
-                />
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    disabled={!symptomName.trim() || !symptomTime}
-                    className="flex-1 px-4 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-colors text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
-                    Сохранить
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAddType(null);
-                      setShowAddMenu(false);
-                      setEditingSymptomId(null);
-                      setSymptomName('');
-                      setSymptomTime('');
-                      setSymptomNote('');
-                    }}
-                    className="px-4 py-2 bg-gray-200 text-black rounded-full hover:bg-gray-300 transition-colors text-sm font-medium"
-                  >
-                    Отмена
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* Форма добавления лекарства */}
-            {addType === 'medication' && (
-              <form onSubmit={handleAddMedication} className="mb-3 p-4 bg-gray-50 rounded-2xl space-y-3">
-                <div className="text-sm font-semibold text-gray-700">
-                  {editingMedId ? 'Редактировать лекарство' : 'Добавить лекарство'}
-                </div>
-                
-                {/* Быстрый выбор */}
-                {savedMedications && savedMedications.length > 0 && (
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">
-                      Быстрый выбор
-                    </label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {savedMedications.map((med) => (
-                        <button
-                          key={med.id}
-                          type="button"
-                          onClick={() => handleSelectSavedMed(med)}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium text-white hover:opacity-80 transition-opacity"
-                          style={{ backgroundColor: med.color }}
-                        >
-                          <Pill size={12} />
-                          {med.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1">
-                      Название
-                    </label>
-                    <input
-                      type="text"
-                      value={medName}
-                      onChange={(e) => setMedName(e.target.value)}
-                      placeholder="Преднизолон"
-                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-black transition-all text-black placeholder-gray-400 outline-none text-sm"
-                      required
-                      autoFocus
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1">
-                      Дозировка
-                    </label>
-                    <input
-                      type="text"
-                      value={medDosage}
-                      onChange={(e) => setMedDosage(e.target.value)}
-                      placeholder="0.3 мг"
-                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-black transition-all text-black placeholder-gray-400 outline-none text-sm"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">
-                    Время
-                  </label>
-                  <input
-                    type="time"
-                    value={medTime}
-                    onChange={(e) => setMedTime(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-black transition-all text-black outline-none text-sm"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">
-                    Цвет
-                  </label>
-                  <div className="flex gap-1.5">
-                    {MEDICATION_COLORS.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => setMedColor(color)}
-                        className={`w-7 h-7 rounded-full transition-all ${
-                          medColor === color ? 'ring-2 ring-black scale-110' : ''
-                        }`}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    disabled={!medName.trim() || !medDosage.trim() || !medTime}
-                    className="flex-1 px-4 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-colors text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
-                    Сохранить
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAddType(null);
-                      setShowAddMenu(false);
-                      setEditingMedId(null);
-                      setMedName('');
-                      setMedDosage('');
-                      setMedTime('');
-                      setMedColor(MEDICATION_COLORS[0]);
-                    }}
-                    className="px-4 py-2 bg-gray-200 text-black rounded-full hover:bg-gray-300 transition-colors text-sm font-medium"
-                  >
-                    Отмена
-                  </button>
-                </div>
-              </form>
-            )}
 
             {/* Временная лента */}
             {timelineItems.length > 0 ? (
@@ -1123,6 +854,309 @@ export const EntryView = () => {
           )}
         </div>
       </div>
+
+      {/* Модальное окно */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              {/* Меню выбора типа */}
+              {showAddMenu && !addType && (
+                <div className="space-y-4">
+                  <h2 className="text-xl font-bold text-black">Что добавить?</h2>
+                  <div className="grid grid-cols-3 gap-3">
+                    <button
+                      onClick={() => {
+                        setAddType('state');
+                        setShowAddMenu(false);
+                      }}
+                      className="p-4 bg-gradient-to-br from-blue-50 to-white rounded-2xl hover:from-blue-100 hover:to-blue-50 transition-all text-center border-2 border-blue-100"
+                    >
+                      <div className="text-3xl mb-2">😊</div>
+                      <div className="text-sm font-semibold text-gray-700">Состояние</div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setAddType('symptom');
+                        setShowAddMenu(false);
+                      }}
+                      className="p-4 bg-gradient-to-br from-orange-50 to-white rounded-2xl hover:from-orange-100 hover:to-orange-50 transition-all text-center border-2 border-orange-100"
+                    >
+                      <div className="text-3xl mb-2">🤒</div>
+                      <div className="text-sm font-semibold text-gray-700">Симптом</div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setAddType('medication');
+                        setShowAddMenu(false);
+                      }}
+                      className="p-4 bg-gradient-to-br from-gray-50 to-white rounded-2xl hover:from-gray-100 hover:to-gray-50 transition-all text-center border-2 border-gray-200"
+                    >
+                      <div className="text-3xl mb-2">💊</div>
+                      <div className="text-sm font-semibold text-gray-700">Лекарство</div>
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowModal(false);
+                      setShowAddMenu(false);
+                    }}
+                    className="w-full px-4 py-3 bg-gray-100 text-black rounded-full hover:bg-gray-200 transition-colors font-medium"
+                  >
+                    Отмена
+                  </button>
+                </div>
+              )}
+
+              {/* Форма состояния */}
+              {addType === 'state' && (
+                <form onSubmit={handleAddState} className="space-y-4">
+                  <h2 className="text-xl font-bold text-black">
+                    {editingStateId ? 'Редактировать состояние' : 'Добавить состояние'}
+                  </h2>
+                  <div className="grid grid-cols-5 gap-2">
+                    {[1, 2, 3, 4, 5].map((score) => (
+                      <button
+                        key={score}
+                        type="button"
+                        onClick={() => setStateScore(score as 1 | 2 | 3 | 4 | 5)}
+                        className="group relative p-4 rounded-2xl transition-all hover:scale-105"
+                        style={{
+                          background: stateScore === score
+                            ? `linear-gradient(135deg, ${STATE_COLORS[score]}, ${STATE_COLORS[score]}dd)`
+                            : '#f5f5f5',
+                        }}
+                      >
+                        <div className={`text-2xl font-bold mb-1 ${
+                          stateScore === score ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'
+                        }`}>
+                          {score}
+                        </div>
+                        <div className={`text-[10px] font-medium ${
+                          stateScore === score ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'
+                        }`}>
+                          {STATE_LABELS[score]}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="time"
+                    value={stateTime}
+                    onChange={(e) => setStateTime(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-black transition-all text-black outline-none"
+                    required
+                  />
+                  <textarea
+                    value={stateNote}
+                    onChange={(e) => setStateNote(e.target.value)}
+                    placeholder="Заметка (опционально)..."
+                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-black transition-all text-black placeholder-gray-400 outline-none resize-none"
+                    rows={3}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={!stateTime}
+                      className="flex-1 px-4 py-3 bg-black text-white rounded-full hover:bg-gray-800 transition-colors font-semibold disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      Сохранить
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowModal(false);
+                        setAddType(null);
+                        setEditingStateId(null);
+                        setStateScore(3);
+                        setStateTime('');
+                        setStateNote('');
+                      }}
+                      className="px-6 py-3 bg-gray-100 text-black rounded-full hover:bg-gray-200 transition-colors font-semibold"
+                    >
+                      Отмена
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Форма симптома */}
+              {addType === 'symptom' && (
+                <form onSubmit={handleAddSymptom} className="space-y-4">
+                  <h2 className="text-xl font-bold text-black">
+                    {editingSymptomId ? 'Редактировать симптом' : 'Добавить симптом'}
+                  </h2>
+                  <input
+                    type="text"
+                    value={symptomName}
+                    onChange={(e) => setSymptomName(e.target.value)}
+                    placeholder="Название симптома..."
+                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-black transition-all text-black placeholder-gray-400 outline-none"
+                    required
+                    autoFocus
+                  />
+                  <input
+                    type="time"
+                    value={symptomTime}
+                    onChange={(e) => setSymptomTime(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-black transition-all text-black outline-none"
+                    required
+                  />
+                  <textarea
+                    value={symptomNote}
+                    onChange={(e) => setSymptomNote(e.target.value)}
+                    placeholder="Заметка (опционально)..."
+                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-black transition-all text-black placeholder-gray-400 outline-none resize-none"
+                    rows={3}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={!symptomName.trim() || !symptomTime}
+                      className="flex-1 px-4 py-3 bg-black text-white rounded-full hover:bg-gray-800 transition-colors font-semibold disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      Сохранить
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowModal(false);
+                        setAddType(null);
+                        setEditingSymptomId(null);
+                        setSymptomName('');
+                        setSymptomTime('');
+                        setSymptomNote('');
+                      }}
+                      className="px-6 py-3 bg-gray-100 text-black rounded-full hover:bg-gray-200 transition-colors font-semibold"
+                    >
+                      Отмена
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Форма лекарства */}
+              {addType === 'medication' && (
+                <form onSubmit={handleAddMedication} className="space-y-4">
+                  <h2 className="text-xl font-bold text-black">
+                    {editingMedId ? 'Редактировать лекарство' : 'Добавить лекарство'}
+                  </h2>
+                  
+                  {savedMedications && savedMedications.length > 0 && !editingMedId && (
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-600 mb-2">
+                        Быстрый выбор
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {savedMedications.map((med) => (
+                          <button
+                            key={med.id}
+                            type="button"
+                            onClick={() => handleSelectSavedMed(med)}
+                            className="flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium text-white hover:opacity-80 transition-opacity"
+                            style={{ backgroundColor: med.color }}
+                          >
+                            <Pill size={14} />
+                            {med.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-600 mb-2">
+                        Название
+                      </label>
+                      <input
+                        type="text"
+                        value={medName}
+                        onChange={(e) => setMedName(e.target.value)}
+                        placeholder="Преднизолон"
+                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-black transition-all text-black placeholder-gray-400 outline-none"
+                        required
+                        autoFocus
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-600 mb-2">
+                        Дозировка
+                      </label>
+                      <input
+                        type="text"
+                        value={medDosage}
+                        onChange={(e) => setMedDosage(e.target.value)}
+                        placeholder="0,3 мг"
+                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-black transition-all text-black placeholder-gray-400 outline-none"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-600 mb-2">
+                      Время
+                    </label>
+                    <input
+                      type="time"
+                      value={medTime}
+                      onChange={(e) => setMedTime(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-black transition-all text-black outline-none"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-600 mb-2">
+                      Цвет
+                    </label>
+                    <div className="flex gap-2">
+                      {MEDICATION_COLORS.map((color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() => setMedColor(color)}
+                          className={`w-10 h-10 rounded-full transition-all ${
+                            medColor === color ? 'ring-4 ring-black scale-110' : 'hover:scale-105'
+                          }`}
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={!medName.trim() || !medDosage.trim() || !medTime}
+                      className="flex-1 px-4 py-3 bg-black text-white rounded-full hover:bg-gray-800 transition-colors font-semibold disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      Сохранить
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowModal(false);
+                        setAddType(null);
+                        setEditingMedId(null);
+                        setMedName('');
+                        setMedDosage('');
+                        setMedTime('');
+                        setMedColor(MEDICATION_COLORS[0]);
+                      }}
+                      className="px-6 py-3 bg-gray-100 text-black rounded-full hover:bg-gray-200 transition-colors font-semibold"
+                    >
+                      Отмена
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <QuickChat />
     </div>
