@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { useStore } from '../store';
-import { ArrowLeft, Plus, X, Clock, Check, Bell } from 'lucide-react';
+import { ArrowLeft, Plus, X, Clock, Check, Bell, Edit3 } from 'lucide-react';
 import { formatDisplayDate } from '../utils';
 
 export const Checklist = () => {
@@ -13,6 +13,7 @@ export const Checklist = () => {
   const [timeUnit, setTimeUnit] = useState<'minutes' | 'hours'>('minutes');
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [notificationTask, setNotificationTask] = useState<any>(null);
+  const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
 
   const tasks = useLiveQuery(
     async () => {
@@ -92,20 +93,51 @@ export const Checklist = () => {
     const today = now.toISOString().split('T')[0];
     const time = `${targetTime.getHours().toString().padStart(2, '0')}:${targetTime.getMinutes().toString().padStart(2, '0')}`;
 
-    await db.checklistTasks.add({
-      userId: currentUser.id,
-      petId: currentPetId,
-      date: today,
-      time,
-      timestamp: targetTime.getTime(),
-      task: taskText.trim(),
-      completed: false,
-      created_at: Date.now(),
-    });
+    if (editingTaskId) {
+      // Обновляем существующую задачу
+      await db.checklistTasks.update(editingTaskId, {
+        task: taskText.trim(),
+        time,
+        timestamp: targetTime.getTime(),
+      });
+    } else {
+      // Создаём новую задачу
+      await db.checklistTasks.add({
+        userId: currentUser.id,
+        petId: currentPetId,
+        date: today,
+        time,
+        timestamp: targetTime.getTime(),
+        task: taskText.trim(),
+        completed: false,
+        created_at: Date.now(),
+      });
+    }
 
     setTaskText('');
     setTimeAmount('');
+    setEditingTaskId(null);
     setShowAddForm(false);
+  };
+
+  const handleEditTask = (task: any) => {
+    setEditingTaskId(task.id);
+    setTaskText(task.task);
+    
+    // Вычисляем разницу во времени
+    const diff = task.timestamp - Date.now();
+    const minutes = Math.floor(diff / 60000);
+    
+    if (minutes < 60) {
+      setTimeAmount(Math.max(1, minutes).toString());
+      setTimeUnit('minutes');
+    } else {
+      const hours = Math.floor(minutes / 60);
+      setTimeAmount(hours.toString());
+      setTimeUnit('hours');
+    }
+    
+    setShowAddForm(true);
   };
 
   const handleToggleTask = async (id: number, completed: boolean) => {
@@ -170,7 +202,7 @@ export const Checklist = () => {
               return (
                 <div
                   key={task.id}
-                  className={`bg-white rounded-2xl p-4 transition-all ${
+                  className={`bg-white rounded-2xl p-4 transition-all group ${
                     task.completed ? 'opacity-60' : ''
                   } ${isOverdue ? 'border-2 border-red-200' : 'border border-gray-100'}`}
                 >
@@ -211,13 +243,21 @@ export const Checklist = () => {
                       </div>
                     </div>
 
-                    {/* Кнопка удаления */}
-                    <button
-                      onClick={() => handleDeleteTask(task.id!)}
-                      className="flex-shrink-0 p-1.5 hover:bg-red-100 rounded-lg transition-colors text-red-600"
-                    >
-                      <X size={16} />
-                    </button>
+                    {/* Кнопки действий */}
+                    <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => handleEditTask(task)}
+                        className="p-1.5 hover:bg-blue-100 rounded-lg transition-colors text-blue-600"
+                      >
+                        <Edit3 size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTask(task.id!)}
+                        className="p-1.5 hover:bg-red-100 rounded-lg transition-colors text-red-600"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -231,11 +271,13 @@ export const Checklist = () => {
         </div>
       </div>
 
-      {/* Модальное окно добавления задачи */}
+      {/* Модальное окно добавления/редактирования задачи */}
       {showAddForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6">
-            <h2 className="text-xl font-bold text-black mb-4">Добавить задачу</h2>
+            <h2 className="text-xl font-bold text-black mb-4">
+              {editingTaskId ? 'Редактировать задачу' : 'Добавить задачу'}
+            </h2>
             
             <form onSubmit={handleAddTask} className="space-y-4">
               <div>
@@ -284,7 +326,7 @@ export const Checklist = () => {
                   disabled={!taskText.trim() || !timeAmount}
                   className="flex-1 px-4 py-3 bg-black text-white rounded-full hover:bg-gray-800 transition-colors font-semibold disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  Добавить
+                  {editingTaskId ? 'Сохранить' : 'Добавить'}
                 </button>
                 <button
                   type="button"
@@ -292,6 +334,7 @@ export const Checklist = () => {
                     setShowAddForm(false);
                     setTaskText('');
                     setTimeAmount('');
+                    setEditingTaskId(null);
                   }}
                   className="px-6 py-3 bg-gray-100 text-black rounded-full hover:bg-gray-200 transition-colors font-semibold"
                 >
