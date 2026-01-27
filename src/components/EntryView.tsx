@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { useStore } from '../store';
-import { STATE_COLORS, STATE_LABELS, SYMPTOM_COLORS } from '../types';
+import { STATE_COLORS, STATE_LABELS, SYMPTOM_COLORS, MEDICATION_COLORS } from '../types';
 import { formatDisplayDate } from '../utils';
-import { ArrowLeft, Trash2, Plus, Edit3, X, Clock } from 'lucide-react';
+import { ArrowLeft, Trash2, Plus, Edit3, X, Clock, Pill } from 'lucide-react';
 import { QuickChat } from './QuickChat';
 import { MedicationManager } from './MedicationManager';
 import { addHistoryEntry } from '../services/history';
@@ -24,11 +24,17 @@ export const EntryView = () => {
   const [symptomTime, setSymptomTime] = useState('');
   const [symptomNote, setSymptomNote] = useState('');
   
+  // Medication form
+  const [medName, setMedName] = useState('');
+  const [medDosage, setMedDosage] = useState('');
+  const [medTime, setMedTime] = useState('');
+  const [medColor, setMedColor] = useState(MEDICATION_COLORS[0]);
+  
   // General note
   const [editingNote, setEditingNote] = useState(false);
   const [noteText, setNoteText] = useState('');
   
-  // Medication
+  // Old medication manager (for editing)
   const [editingMedId, setEditingMedId] = useState<number | null>(null);
   const [showMedForm, setShowMedForm] = useState(false);
 
@@ -82,6 +88,17 @@ export const EntryView = () => {
       return await db.symptomTags
         .where('petId').equals(currentPetId)
         .filter(t => t.userId === currentUser.id)
+        .toArray();
+    },
+    [currentPetId, currentUser]
+  );
+
+  const savedMedications = useLiveQuery(
+    async () => {
+      if (!currentPetId || !currentUser) return [];
+      return await db.medications
+        .where('petId').equals(currentPetId)
+        .filter(m => m.userId === currentUser.id)
         .toArray();
     },
     [currentPetId, currentUser]
@@ -251,6 +268,74 @@ export const EntryView = () => {
     if (confirm('Удалить эту запись симптома?')) {
       await db.symptomEntries.delete(id);
     }
+  };
+
+  const handleAddMedication = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!medName.trim() || !medDosage.trim() || !medTime || !selectedDate || !currentPetId || !currentUser) return;
+
+    const [hours, minutes] = medTime.split(':');
+    const timestamp = new Date(selectedDate).setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+    // Получаем или создаем тег лекарства
+    let medTag = await db.medicationTags
+      .where('name').equals(medName.trim())
+      .filter(t => t.petId === currentPetId && t.userId === currentUser.id)
+      .first();
+    
+    if (!medTag) {
+      const allTags = await db.medicationTags
+        .where('petId').equals(currentPetId)
+        .filter(t => t.userId === currentUser.id)
+        .toArray();
+      const colorIndex = allTags.length % MEDICATION_COLORS.length;
+      const tagId = await db.medicationTags.add({
+        userId: currentUser.id,
+        name: medName.trim(),
+        petId: currentPetId,
+        color: MEDICATION_COLORS[colorIndex],
+      });
+      medTag = await db.medicationTags.get(tagId);
+    }
+
+    const finalColor = medTag?.color || medColor;
+
+    // Добавляем запись лекарства
+    await db.medicationEntries.add({
+      userId: currentUser.id,
+      petId: currentPetId,
+      date: selectedDate,
+      time: medTime,
+      timestamp,
+      medication_name: medName.trim(),
+      dosage: medDosage,
+      color: finalColor,
+    });
+
+    // Сохраняем в список лекарств если новое
+    const existing = savedMedications?.find(m => m.name === medName.trim());
+    if (!existing) {
+      await db.medications.add({
+        userId: currentUser.id,
+        name: medName.trim(),
+        petId: currentPetId,
+        color: finalColor,
+        default_dosage: medDosage,
+      });
+    }
+
+    // Сбрасываем форму
+    setAddType(null);
+    setMedName('');
+    setMedDosage('');
+    setMedTime('');
+    setMedColor(MEDICATION_COLORS[0]);
+  };
+
+  const handleSelectSavedMed = (med: any) => {
+    setMedName(med.name);
+    setMedDosage(med.default_dosage || '');
+    setMedColor(med.color);
   };
 
   const getSymptomColor = (symptomName: string) => {
@@ -451,6 +536,7 @@ export const EntryView = () => {
                   const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
                   setStateTime(currentTime);
                   setSymptomTime(currentTime);
+                  setMedTime(currentTime);
                   setShowAddMenu(!showAddMenu);
                 }}
                 className="px-3 py-1.5 bg-black text-white rounded-full hover:bg-gray-800 transition-colors text-xs font-medium"
@@ -479,10 +565,7 @@ export const EntryView = () => {
                     <div className="text-xs font-medium text-gray-700">Симптом</div>
                   </button>
                   <button
-                    onClick={() => {
-                      setShowAddMenu(false);
-                      setShowMedForm(true);
-                    }}
+                    onClick={() => setAddType('medication')}
                     className="p-3 bg-white rounded-xl hover:bg-green-50 transition-all text-center border-2 border-transparent hover:border-green-200"
                   >
                     <div className="text-2xl mb-1">💊</div>
@@ -604,6 +687,123 @@ export const EntryView = () => {
                       setSymptomName('');
                       setSymptomTime('');
                       setSymptomNote('');
+                    }}
+                    className="px-4 py-2 bg-gray-200 text-black rounded-full hover:bg-gray-300 transition-colors text-sm font-medium"
+                  >
+                    Отмена
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Форма добавления лекарства */}
+            {addType === 'medication' && (
+              <form onSubmit={handleAddMedication} className="mb-3 p-4 bg-gray-50 rounded-2xl space-y-3">
+                <div className="text-sm font-semibold text-gray-700">Добавить лекарство</div>
+                
+                {/* Быстрый выбор */}
+                {savedMedications && savedMedications.length > 0 && (
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                      Быстрый выбор
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {savedMedications.map((med) => (
+                        <button
+                          key={med.id}
+                          type="button"
+                          onClick={() => handleSelectSavedMed(med)}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium text-white hover:opacity-80 transition-opacity"
+                          style={{ backgroundColor: med.color }}
+                        >
+                          <Pill size={12} />
+                          {med.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">
+                      Название
+                    </label>
+                    <input
+                      type="text"
+                      value={medName}
+                      onChange={(e) => setMedName(e.target.value)}
+                      placeholder="Преднизолон"
+                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-black transition-all text-black placeholder-gray-400 outline-none text-sm"
+                      required
+                      autoFocus
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">
+                      Дозировка
+                    </label>
+                    <input
+                      type="text"
+                      value={medDosage}
+                      onChange={(e) => setMedDosage(e.target.value)}
+                      placeholder="0.3 мг"
+                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-black transition-all text-black placeholder-gray-400 outline-none text-sm"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">
+                    Время
+                  </label>
+                  <input
+                    type="time"
+                    value={medTime}
+                    onChange={(e) => setMedTime(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-black transition-all text-black outline-none text-sm"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">
+                    Цвет
+                  </label>
+                  <div className="flex gap-1.5">
+                    {MEDICATION_COLORS.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => setMedColor(color)}
+                        className={`w-7 h-7 rounded-full transition-all ${
+                          medColor === color ? 'ring-2 ring-black scale-110' : ''
+                        }`}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={!medName.trim() || !medDosage.trim() || !medTime}
+                    className="flex-1 px-4 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-colors text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    Сохранить
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddType(null);
+                      setShowAddMenu(false);
+                      setMedName('');
+                      setMedDosage('');
+                      setMedTime('');
+                      setMedColor(MEDICATION_COLORS[0]);
                     }}
                     className="px-4 py-2 bg-gray-200 text-black rounded-full hover:bg-gray-300 transition-colors text-sm font-medium"
                   >
