@@ -882,7 +882,7 @@ export const EntryView = () => {
             {timelineItems.length > 0 ? (
               <div className="space-y-2">
                 {timelineItems.map((item, index) => {
-                  // Разные стили для разных типов записей
+                  // Разные стили фона для разных типов записей
                   const isState = item.type === 'state';
                   const isSymptom = item.type === 'symptom';
                   const isMedication = item.type === 'medication';
@@ -890,111 +890,105 @@ export const EntryView = () => {
                   return (
                     <div
                       key={`${item.type}-${item.data.id}-${index}`}
-                      className={`flex items-center gap-3 rounded-2xl transition-all group ${
+                      className={`flex items-center gap-3 p-3 rounded-2xl transition-all group ${
                         isState 
-                          ? 'p-4 bg-gradient-to-r from-gray-50 to-white border-2 border-gray-100 shadow-sm hover:shadow-md' 
+                          ? 'bg-gradient-to-r from-blue-50 to-white border border-blue-100 hover:shadow-md' 
                           : isSymptom
-                          ? 'p-3 bg-gray-50 hover:bg-gray-100'
-                          : 'p-2 bg-white hover:bg-gray-50 border border-gray-100'
+                          ? 'bg-gradient-to-r from-orange-50 to-white border border-orange-100 hover:shadow-sm'
+                          : 'bg-white border border-gray-200 hover:bg-gray-50'
                       }`}
                     >
-                      <div className={`flex-shrink-0 ${isState ? 'text-sm' : 'text-xs'} font-bold text-gray-400 flex items-center gap-1`}>
-                        <Clock size={isState ? 16 : 14} className="opacity-50" />
-                        {item.time}
+                      {/* Колонка времени - фиксированная ширина */}
+                      <div className="w-14 flex-shrink-0">
+                        <div className="text-sm text-black flex items-center gap-1">
+                          <Clock size={14} className="text-gray-400" />
+                          <span>{item.time}</span>
+                        </div>
                       </div>
 
-                      {item.type === 'state' && (
-                        <>
+                      {/* Колонка иконки - фиксированная ширина */}
+                      <div className="w-12 h-12 flex-shrink-0 flex items-center justify-center">
+                        {item.type === 'state' && (
                           <div
-                            className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0"
+                            className="w-12 h-12 rounded-xl flex items-center justify-center shadow-md"
                             style={{ 
                               background: `linear-gradient(135deg, ${STATE_COLORS[item.data.state_score]}, ${STATE_COLORS[item.data.state_score]}dd)` 
                             }}
                           >
-                            <span className="text-2xl font-bold text-white">
+                            <span className="text-xl font-bold text-white">
                               {item.data.state_score}
                             </span>
                           </div>
-                          <div className="flex-1">
-                            <div className="text-base font-bold text-black">
+                        )}
+                        {item.type === 'symptom' && (
+                          <div className="text-2xl">🤒</div>
+                        )}
+                        {item.type === 'medication' && (
+                          <div className="text-2xl">💊</div>
+                        )}
+                      </div>
+
+                      {/* Колонка текста - растягивается */}
+                      <div className="flex-1 min-w-0">
+                        {item.type === 'state' && (
+                          <>
+                            <div className="text-sm font-bold text-black">
                               {STATE_LABELS[item.data.state_score]}
                             </div>
                             {item.data.note && (
-                              <div className="text-sm text-gray-600 mt-1">
+                              <div className="text-xs text-gray-600 mt-0.5 truncate">
                                 {item.data.note}
                               </div>
                             )}
-                          </div>
-                          <button
-                            onClick={() => handleEditState(item.data)}
-                            className="p-2 hover:bg-blue-100 rounded-full transition-all text-blue-600 opacity-0 group-hover:opacity-100"
-                          >
-                            <Edit3 size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteState(item.data.id!)}
-                            className="p-2 hover:bg-red-100 rounded-full transition-all text-red-600 opacity-0 group-hover:opacity-100"
-                          >
-                            <X size={18} />
-                          </button>
-                        </>
-                      )}
-
-                      {item.type === 'symptom' && (
-                        <>
-                          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-2xl">
-                            🤒
-                          </div>
-                          <div className="flex-1">
+                          </>
+                        )}
+                        {item.type === 'symptom' && (
+                          <>
                             <div className="text-sm font-bold text-black">
                               {item.data.symptom}
                             </div>
                             {item.data.note && (
-                              <div className="text-xs text-gray-600 mt-0.5">
+                              <div className="text-xs text-gray-600 mt-0.5 truncate">
                                 {item.data.note}
                               </div>
                             )}
-                          </div>
-                          <button
-                            onClick={() => handleEditSymptom(item.data)}
-                            className="p-2 hover:bg-blue-100 rounded-full transition-all text-blue-600 opacity-0 group-hover:opacity-100"
-                          >
-                            <Edit3 size={14} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteSymptom(item.data.id!)}
-                            className="p-2 hover:bg-red-100 rounded-full transition-all text-red-600 opacity-0 group-hover:opacity-100"
-                          >
-                            <X size={16} />
-                          </button>
-                        </>
-                      )}
-
-                      {item.type === 'medication' && (
-                        <>
-                          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xl opacity-60">
-                            💊
-                          </div>
-                          <div className="flex-1">
-                            <div className="font-semibold text-black text-xs">{item.data.medication_name}</div>
-                            <div className="text-xs text-gray-500">
+                          </>
+                        )}
+                        {item.type === 'medication' && (
+                          <>
+                            <div className="text-sm font-bold text-black">
+                              {item.data.medication_name}
+                            </div>
+                            <div className="text-xs text-gray-600">
                               {item.data.dosage}
                             </div>
-                          </div>
-                          <button
-                            onClick={() => handleEditMedication(item.data)}
-                            className="p-1.5 hover:bg-blue-100 rounded-full transition-all text-blue-600 opacity-0 group-hover:opacity-100"
-                          >
-                            <Edit3 size={12} />
-                          </button>
-                          <button
-                            onClick={(e) => handleDeleteMed(item.data.id!, e)}
-                            className="p-1.5 hover:bg-red-100 rounded-full transition-all text-red-600 opacity-0 group-hover:opacity-100"
-                          >
-                            <X size={14} />
-                          </button>
-                        </>
-                      )}
+                          </>
+                        )}
+                      </div>
+
+                      {/* Колонка кнопок - фиксированная ширина */}
+                      <div className="flex gap-1 flex-shrink-0">
+                        <button
+                          onClick={() => {
+                            if (item.type === 'state') handleEditState(item.data);
+                            else if (item.type === 'symptom') handleEditSymptom(item.data);
+                            else handleEditMedication(item.data);
+                          }}
+                          className="p-2 hover:bg-blue-100 rounded-full transition-all text-blue-600 opacity-0 group-hover:opacity-100"
+                        >
+                          <Edit3 size={14} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            if (item.type === 'state') handleDeleteState(item.data.id!);
+                            else if (item.type === 'symptom') handleDeleteSymptom(item.data.id!);
+                            else handleDeleteMed(item.data.id!, e);
+                          }}
+                          className="p-2 hover:bg-red-100 rounded-full transition-all text-red-600 opacity-0 group-hover:opacity-100"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
