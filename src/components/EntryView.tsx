@@ -4,7 +4,7 @@ import { db } from '../db';
 import { useStore } from '../store';
 import { STATE_COLORS, STATE_LABELS, SYMPTOM_COLORS, MEDICATION_COLORS } from '../types';
 import { formatDisplayDate } from '../utils';
-import { ArrowLeft, Trash2, Edit3, X, Clock, Pill } from 'lucide-react';
+import { ArrowLeft, Trash2, Edit3, X, Pill } from 'lucide-react';
 import { QuickChat } from './QuickChat';
 import { addHistoryEntry } from '../services/history';
 
@@ -587,118 +587,124 @@ export const EntryView = () => {
 
             {/* Временная лента */}
             {timelineItems.length > 0 ? (
-              <div className="space-y-2">
-                {timelineItems.map((item, index) => {
-                  // Разные стили фона для разных типов записей
-                  const isState = item.type === 'state';
-                  const isSymptom = item.type === 'symptom';
-                  const isMedication = item.type === 'medication';
+              <div className="relative">
+                {/* Вертикальная линия timeline */}
+                <div className="absolute left-[22px] top-0 bottom-0 w-0.5 bg-gray-200" />
+                
+                <div className="space-y-0">
+                  {timelineItems.map((item, index) => {
+                    const isState = item.type === 'state';
+                    const isSymptom = item.type === 'symptom';
+                    const isMedication = item.type === 'medication';
 
-                  return (
-                    <div
-                      key={`${item.type}-${item.data.id}-${index}`}
-                      className={`flex items-center gap-3 p-3 rounded-2xl transition-all group ${
-                        isState 
-                          ? 'bg-gradient-to-r from-blue-50 to-white border border-blue-100 hover:shadow-md' 
-                          : isSymptom
-                          ? 'bg-gradient-to-r from-orange-50 to-white border border-orange-100 hover:shadow-sm'
-                          : 'bg-white border border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      {/* Колонка времени - фиксированная ширина */}
-                      <div className="w-14 flex-shrink-0">
-                        <div className="text-sm text-black flex items-center gap-1">
-                          <Clock size={14} className="text-gray-400" />
-                          <span>{item.time}</span>
-                        </div>
-                      </div>
-
-                      {/* Колонка иконки - фиксированная ширина */}
-                      <div className="w-12 h-12 flex-shrink-0 flex items-center justify-center">
-                        {item.type === 'state' && (
-                          <div
-                            className="w-12 h-12 rounded-xl flex items-center justify-center shadow-md"
-                            style={{ 
-                              background: `linear-gradient(135deg, ${STATE_COLORS[item.data.state_score]}, ${STATE_COLORS[item.data.state_score]}dd)` 
+                    return (
+                      <div
+                        key={`${item.type}-${item.data.id}-${index}`}
+                        className="relative flex items-start gap-4 py-3 group hover:bg-gray-50 transition-colors rounded-xl px-2"
+                      >
+                        {/* Точка на timeline */}
+                        <div className="relative flex-shrink-0 z-10">
+                          <div className="w-11 h-11 rounded-full bg-white border-2 flex items-center justify-center shadow-sm"
+                            style={{
+                              borderColor: isState 
+                                ? STATE_COLORS[item.data.state_score]
+                                : isSymptom 
+                                ? '#F97316'
+                                : '#6B7280'
                             }}
                           >
-                            <span className="text-xl font-bold text-white">
-                              {item.data.state_score}
-                            </span>
+                            {item.type === 'state' && (
+                              <span className="text-lg font-bold" style={{ color: STATE_COLORS[item.data.state_score] }}>
+                                {item.data.state_score}
+                              </span>
+                            )}
+                            {item.type === 'symptom' && (
+                              <span className="text-xl">🤒</span>
+                            )}
+                            {item.type === 'medication' && (
+                              <span className="text-xl">💊</span>
+                            )}
                           </div>
-                        )}
-                        {item.type === 'symptom' && (
-                          <div className="text-2xl">🤒</div>
-                        )}
-                        {item.type === 'medication' && (
-                          <div className="text-2xl">💊</div>
-                        )}
-                      </div>
+                        </div>
 
-                      {/* Колонка текста - растягивается */}
-                      <div className="flex-1 min-w-0">
-                        {item.type === 'state' && (
-                          <>
-                            <div className="text-sm font-bold text-black">
-                              {STATE_LABELS[item.data.state_score]}
-                            </div>
-                            {item.data.note && (
-                              <div className="text-xs text-gray-600 mt-0.5 truncate">
-                                {item.data.note}
-                              </div>
+                        {/* Контент */}
+                        <div className="flex-1 min-w-0 pt-1">
+                          {/* Время */}
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-medium text-gray-500">{item.time}</span>
+                            {item.type === 'state' && (
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded-full" 
+                                style={{ 
+                                  backgroundColor: `${STATE_COLORS[item.data.state_score]}15`,
+                                  color: STATE_COLORS[item.data.state_score]
+                                }}
+                              >
+                                {STATE_LABELS[item.data.state_score]}
+                              </span>
                             )}
-                          </>
-                        )}
-                        {item.type === 'symptom' && (
-                          <>
-                            <div className="text-sm font-bold text-black">
-                              {item.data.symptom}
-                            </div>
-                            {item.data.note && (
-                              <div className="text-xs text-gray-600 mt-0.5 truncate">
-                                {item.data.note}
-                              </div>
-                            )}
-                          </>
-                        )}
-                        {item.type === 'medication' && (
-                          <>
-                            <div className="text-sm font-bold text-black">
-                              {item.data.medication_name}
-                            </div>
-                            <div className="text-xs text-gray-600">
-                              {item.data.dosage}
-                            </div>
-                          </>
-                        )}
-                      </div>
+                          </div>
 
-                      {/* Колонка кнопок - фиксированная ширина */}
-                      <div className="flex gap-1 flex-shrink-0">
-                        <button
-                          onClick={() => {
-                            if (item.type === 'state') handleEditState(item.data);
-                            else if (item.type === 'symptom') handleEditSymptom(item.data);
-                            else handleEditMedication(item.data);
-                          }}
-                          className="p-2 hover:bg-blue-100 rounded-full transition-all text-blue-600 opacity-0 group-hover:opacity-100"
-                        >
-                          <Edit3 size={14} />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            if (item.type === 'state') handleDeleteState(item.data.id!);
-                            else if (item.type === 'symptom') handleDeleteSymptom(item.data.id!);
-                            else handleDeleteMed(item.data.id!, e);
-                          }}
-                          className="p-2 hover:bg-red-100 rounded-full transition-all text-red-600 opacity-0 group-hover:opacity-100"
-                        >
-                          <X size={16} />
-                        </button>
+                          {/* Основной текст */}
+                          {item.type === 'state' && (
+                            <>
+                              {item.data.note && (
+                                <div className="text-sm text-gray-700 leading-relaxed">
+                                  {item.data.note}
+                                </div>
+                              )}
+                            </>
+                          )}
+                          {item.type === 'symptom' && (
+                            <>
+                              <div className="text-sm font-semibold text-gray-900">
+                                {item.data.symptom}
+                              </div>
+                              {item.data.note && (
+                                <div className="text-sm text-gray-600 mt-0.5">
+                                  {item.data.note}
+                                </div>
+                              )}
+                            </>
+                          )}
+                          {item.type === 'medication' && (
+                            <>
+                              <div className="text-sm font-semibold text-gray-900">
+                                {item.data.medication_name}
+                              </div>
+                              <div className="text-sm text-gray-600">
+                                {item.data.dosage}
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Кнопки действий */}
+                        <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity pt-1">
+                          <button
+                            onClick={() => {
+                              if (item.type === 'state') handleEditState(item.data);
+                              else if (item.type === 'symptom') handleEditSymptom(item.data);
+                              else handleEditMedication(item.data);
+                            }}
+                            className="p-1.5 hover:bg-blue-100 rounded-lg transition-colors text-blue-600"
+                          >
+                            <Edit3 size={14} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              if (item.type === 'state') handleDeleteState(item.data.id!);
+                              else if (item.type === 'symptom') handleDeleteSymptom(item.data.id!);
+                              else handleDeleteMed(item.data.id!, e);
+                            }}
+                            className="p-1.5 hover:bg-red-100 rounded-lg transition-colors text-red-600"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             ) : (
               <div className="text-sm text-gray-400 text-center py-8">
