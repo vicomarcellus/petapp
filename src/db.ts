@@ -215,6 +215,23 @@ export class CatHealthDB extends Dexie {
       history: '++id, timestamp, entityType, date',
       checklistTasks: '++id, userId, petId, date, timestamp, completed, taskType',
     });
+
+    // Version 13: добавлены составные индексы для оптимизации запросов по дате
+    this.version(13).stores({
+      users: 'id, authDate',
+      pets: '++id, userId, name, type, created_at, isActive',
+      dayEntries: '++id, userId, petId, date, created_at, updated_at, [petId+date]',
+      stateEntries: '++id, userId, petId, date, timestamp, time, [petId+date]',
+      symptomEntries: '++id, userId, petId, date, timestamp, time, [petId+date]',
+      feedingEntries: '++id, userId, petId, date, timestamp, time, [petId+date]',
+      medicationEntries: '++id, userId, petId, date, timestamp, medication_name, [petId+date]',
+      medications: '++id, userId, petId, name',
+      symptomTags: '++id, userId, petId, name',
+      medicationTags: '++id, userId, petId, name',
+      foodTags: '++id, userId, petId, name',
+      history: '++id, timestamp, entityType, date',
+      checklistTasks: '++id, userId, petId, date, timestamp, completed, taskType, [petId+date]',
+    });
   }
 }
 

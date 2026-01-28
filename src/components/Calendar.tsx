@@ -16,28 +16,48 @@ export const Calendar = () => {
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [showTooltip, setShowTooltip] = useState(false);
   
+  const currentDate = new Date(currentYear, currentMonth, 1);
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(currentDate);
+  
+  // Форматируем даты для запроса
+  const startDateStr = format(monthStart, 'yyyy-MM-dd');
+  const endDateStr = format(monthEnd, 'yyyy-MM-dd');
+  
   const entries = useLiveQuery(
     () => {
       if (!currentPetId) return [];
-      return db.dayEntries.where('petId').equals(currentPetId).toArray();
+      // Загружаем только записи текущего месяца
+      return db.dayEntries
+        .where('petId').equals(currentPetId)
+        .filter(e => e.date >= startDateStr && e.date <= endDateStr)
+        .toArray();
     },
-    [currentPetId]
+    [currentPetId, startDateStr, endDateStr]
   );
 
   const stateEntries = useLiveQuery(
     () => {
       if (!currentPetId) return [];
-      return db.stateEntries.where('petId').equals(currentPetId).toArray();
+      // Загружаем только записи текущего месяца
+      return db.stateEntries
+        .where('petId').equals(currentPetId)
+        .filter(e => e.date >= startDateStr && e.date <= endDateStr)
+        .toArray();
     },
-    [currentPetId]
+    [currentPetId, startDateStr, endDateStr]
   );
 
   const medicationEntries = useLiveQuery(
     () => {
       if (!currentPetId) return [];
-      return db.medicationEntries.where('petId').equals(currentPetId).toArray();
+      // Загружаем только записи текущего месяца
+      return db.medicationEntries
+        .where('petId').equals(currentPetId)
+        .filter(e => e.date >= startDateStr && e.date <= endDateStr)
+        .toArray();
     },
-    [currentPetId]
+    [currentPetId, startDateStr, endDateStr]
   );
 
   const entriesMap = useMemo(() => 
@@ -68,9 +88,6 @@ export const Calendar = () => {
     return map;
   }, [medicationEntries]);
   
-  const currentDate = new Date(currentYear, currentMonth, 1);
-  const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(currentDate);
   const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
   const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });

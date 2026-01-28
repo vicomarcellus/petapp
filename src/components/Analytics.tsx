@@ -14,20 +14,30 @@ export const Analytics = () => {
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
 
+  // Загружаем только записи текущего месяца для производительности
+  const startDateStr = format(monthStart, 'yyyy-MM-dd');
+  const endDateStr = format(monthEnd, 'yyyy-MM-dd');
+
   const dayEntries = useLiveQuery(
     async () => {
       if (!currentPetId) return [];
-      return await db.dayEntries.where('petId').equals(currentPetId).toArray();
+      return await db.dayEntries
+        .where('petId').equals(currentPetId)
+        .filter(e => e.date >= startDateStr && e.date <= endDateStr)
+        .toArray();
     },
-    [currentPetId]
+    [currentPetId, startDateStr, endDateStr]
   );
 
   const medicationEntries = useLiveQuery(
     async () => {
       if (!currentPetId) return [];
-      return await db.medicationEntries.where('petId').equals(currentPetId).toArray();
+      return await db.medicationEntries
+        .where('petId').equals(currentPetId)
+        .filter(e => e.date >= startDateStr && e.date <= endDateStr)
+        .toArray();
     },
-    [currentPetId]
+    [currentPetId, startDateStr, endDateStr]
   );
 
   // Фильтруем записи за текущий месяц

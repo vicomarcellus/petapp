@@ -23,20 +23,33 @@ export const ActivityLog = () => {
   const [summaries, setSummaries] = useState<Map<string, string>>(new Map());
   const [loadingSummaries, setLoadingSummaries] = useState<Set<string>>(new Set());
 
+  // Загружаем только последние 30 дней для производительности
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const startDateStr = format(thirtyDaysAgo, 'yyyy-MM-dd');
+
   const dayEntries = useLiveQuery(
     async () => {
       if (!currentPetId) return [];
-      return await db.dayEntries.where('petId').equals(currentPetId).reverse().sortBy('date');
+      return await db.dayEntries
+        .where('petId').equals(currentPetId)
+        .filter(e => e.date >= startDateStr)
+        .reverse()
+        .sortBy('date');
     },
-    [currentPetId]
+    [currentPetId, startDateStr]
   );
 
   const medicationEntries = useLiveQuery(
     async () => {
       if (!currentPetId) return [];
-      return await db.medicationEntries.where('petId').equals(currentPetId).reverse().sortBy('date');
+      return await db.medicationEntries
+        .where('petId').equals(currentPetId)
+        .filter(e => e.date >= startDateStr)
+        .reverse()
+        .sortBy('date');
     },
-    [currentPetId]
+    [currentPetId, startDateStr]
   );
 
   // Группируем по дням
