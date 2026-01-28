@@ -6,10 +6,10 @@ import { Settings } from './components/Settings';
 import { ChangeHistory } from './components/ChangeHistory';
 import { Analytics } from './components/Analytics';
 import { Auth } from './components/Auth';
-import { Checklist } from './components/Checklist';
+// import { Checklist } from './components/Checklist';
 import { useAutoBackup } from './hooks/useAutoBackup';
 import { usePetInit } from './hooks/usePetInit';
-import { useTaskNotifications } from './hooks/useTaskNotifications';
+// import { useTaskNotifications } from './hooks/useTaskNotifications';
 
 function App() {
   const { view, currentUser, currentPetId } = useStore();
@@ -20,8 +20,8 @@ function App() {
   // Инициализация текущего питомца
   usePetInit();
   
-  // Глобальные уведомления о задачах
-  const { NotificationModal } = useTaskNotifications();
+  // Глобальные уведомления о задачах - ОТКЛЮЧЕНО
+  // const { NotificationModal } = useTaskNotifications();
 
   // Если пользователь не авторизован, показываем экран входа
   if (!currentUser) {
@@ -37,14 +37,14 @@ function App() {
     <div className="min-h-screen">
       {view === 'calendar' && <Calendar />}
       {(view === 'add' || view === 'edit' || view === 'view') && <EntryView />}
-      {view === 'checklist' && <Checklist />}
+      {/* {view === 'checklist' && <Checklist />} */}
       {view === 'log' && <ActivityLog />}
       {view === 'settings' && <Settings />}
       {view === 'history' && <ChangeHistory />}
       {view === 'analytics' && <Analytics />}
       
-      {/* Глобальные уведомления о задачах */}
-      {NotificationModal}
+      {/* Глобальные уведомления о задачах - ОТКЛЮЧЕНО */}
+      {/* {NotificationModal} */}
     </div>
   );
 }
