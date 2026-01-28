@@ -8,7 +8,7 @@ import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameMonth, isTod
 import { ru } from 'date-fns/locale';
 import { QuickChat } from './QuickChat';
 import { Header } from './Header';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 export const Calendar = () => {
   const { currentYear, currentMonth, setCurrentYear, setCurrentMonth, setSelectedDate, setView, currentPetId } = useStore();
@@ -40,24 +40,33 @@ export const Calendar = () => {
     [currentPetId]
   );
 
-  const entriesMap = new Map(entries?.map(e => [e.date, e]) || []);
+  const entriesMap = useMemo(() => 
+    new Map(entries?.map(e => [e.date, e]) || []),
+    [entries]
+  );
   
   // Создаем карту состояний по датам
-  const statesMap = new Map<string, typeof stateEntries>();
-  stateEntries?.forEach(state => {
-    if (!statesMap.has(state.date)) {
-      statesMap.set(state.date, []);
-    }
-    statesMap.get(state.date)!.push(state);
-  });
+  const statesMap = useMemo(() => {
+    const map = new Map<string, typeof stateEntries>();
+    stateEntries?.forEach(state => {
+      if (!map.has(state.date)) {
+        map.set(state.date, []);
+      }
+      map.get(state.date)!.push(state);
+    });
+    return map;
+  }, [stateEntries]);
   
-  const medsMap = new Map<string, typeof medicationEntries>();
-  medicationEntries?.forEach(med => {
-    if (!medsMap.has(med.date)) {
-      medsMap.set(med.date, []);
-    }
-    medsMap.get(med.date)!.push(med);
-  });
+  const medsMap = useMemo(() => {
+    const map = new Map<string, typeof medicationEntries>();
+    medicationEntries?.forEach(med => {
+      if (!map.has(med.date)) {
+        map.set(med.date, []);
+      }
+      map.get(med.date)!.push(med);
+    });
+    return map;
+  }, [medicationEntries]);
   
   const currentDate = new Date(currentYear, currentMonth, 1);
   const monthStart = startOfMonth(currentDate);
