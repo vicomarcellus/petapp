@@ -1208,7 +1208,8 @@ export const EntryView = () => {
         </div>
       )}
 
-      <QuickChat />
+      {/* QuickChat ВРЕМЕННО ОТКЛЮЧЕН ДЛЯ ДИАГНОСТИКИ */}
+      {/* <QuickChat /> */}
     </div>
   );
 };

@@ -319,7 +319,8 @@ export const Calendar = () => {
           </div>
         </div>
 
-        <QuickChat />
+        {/* QuickChat ВРЕМЕННО ОТКЛЮЧЕН ДЛЯ ДИАГНОСТИКИ */}
+        {/* <QuickChat /> */}
       </div>
     </div>
   );
