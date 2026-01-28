@@ -127,13 +127,50 @@ export const FeedingForm = ({
         </h2>
       </div>
 
-      {savedFoods && savedFoods.length > 0 && !editingId && (
+      {/* Предустановленные варианты */}
+      {!editingId && (
         <div>
           <label className="block text-sm font-semibold text-gray-600 mb-2">
             Быстрый выбор
           </label>
           <div className="flex flex-wrap gap-2">
-            {savedFoods.map((food) => (
+            {/* Предустановленные */}
+            <button
+              type="button"
+              onClick={() => {
+                setFoodName('Вода');
+                setFoodUnit('ml');
+                setFoodAmount('');
+              }}
+              className="flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+            >
+              💧 Вода
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFoodName('Сухой корм');
+                setFoodUnit('g');
+                setFoodAmount('');
+              }}
+              className="flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
+            >
+              🥘 Сухой корм
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFoodName('Влажный корм');
+                setFoodUnit('g');
+                setFoodAmount('');
+              }}
+              className="flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium bg-orange-100 text-orange-700 hover:bg-orange-200 transition-colors"
+            >
+              🍖 Влажный корм
+            </button>
+            
+            {/* Сохранённые корма */}
+            {savedFoods && savedFoods.length > 0 && savedFoods.map((food) => (
               <button
                 key={food.id}
                 type="button"
