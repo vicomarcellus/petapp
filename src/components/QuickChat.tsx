@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles, X, Loader2 } from 'lucide-react';
 import { useStore } from '../store';
 import { supabase } from '../lib/supabase';
+import { parseEntryFromText } from '../services/ai';
+import { formatDate } from '../utils';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -9,7 +11,7 @@ interface Message {
 }
 
 export const QuickChat = () => {
-  const { currentUser, currentPetId } = useStore();
+  const { currentUser, currentPetId, selectedDate, setSelectedDate, setView } = useStore();
   const [message, setMessage] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -25,7 +27,7 @@ export const QuickChat = () => {
   }, [messages]);
 
   const handleSend = async () => {
-    if (!message.trim() || loading) return;
+    if (!message.trim() || loading || !currentUser || !currentPetId) return;
     
     const userMessage = message.trim();
     setMessage('');
@@ -33,65 +35,213 @@ export const QuickChat = () => {
     setLoading(true);
 
     try {
-      // Получаем контекст - последние записи
-      let context = '';
-      if (currentUser && currentPetId) {
-        const today = new Date().toISOString().split('T')[0];
-        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        
-        const { data: recentStates } = await supabase
-          .from('state_entries')
-          .select('date, time, state_score, note')
-          .eq('user_id', currentUser.id)
-          .eq('pet_id', currentPetId)
-          .gte('date', weekAgo)
-          .lte('date', today)
-          .order('timestamp', { ascending: false })
-          .limit(10);
+      const today = formatDate(new Date());
+      const dateToUse = selectedDate || today;
 
-        if (recentStates && recentStates.length > 0) {
-          context = `Последние записи состояния питомца:\n${recentStates.map(s => 
-            `${s.date} ${s.time}: оценка ${s.state_score}/5${s.note ? `, заметка: ${s.note}` : ''}`
-          ).join('\n')}`;
+      // Получаем контекст для AI
+      const { data: stateEntries } = await supabase
+        .from('state_entries')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('pet_id', currentPetId)
+        .eq('date', dateToUse);
+
+      const { data: symptomEntries } = await supabase
+        .from('symptom_entries')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('pet_id', currentPetId)
+        .eq('date', dateToUse);
+
+      const { data: medicationEntries } = await supabase
+        .from('medication_entries')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('pet_id', currentPetId)
+        .eq('date', dateToUse);
+
+      const context = {
+        existingStates: stateEntries?.map(s => `${s.time}: ${s.state_score}/5`) || [],
+        existingSymptoms: symptomEntries?.map(s => s.symptom) || [],
+        existingMedications: medicationEntries?.map(m => `${m.medication_name} ${m.dosage}`) || [],
+        hasEntry: (stateEntries && stateEntries.length > 0) || false,
+        currentState: stateEntries && stateEntries.length > 0 
+          ? Math.round(stateEntries.reduce((sum, s) => sum + s.state_score, 0) / stateEntries.length)
+          : undefined,
+        currentView: 'calendar',
+        currentDate: dateToUse
+      };
+
+      // Парсим команду через AI
+      const parsed = await parseEntryFromText(userMessage, context);
+
+      // Выполняем действие
+      if (parsed.action === 'add') {
+        // Добавляем записи состояния
+        if (parsed.states && parsed.states.length > 0) {
+          for (const state of parsed.states) {
+            const timestamp = new Date(`${dateToUse}T${state.time}`).getTime();
+            await supabase.from('state_entries').insert({
+              user_id: currentUser.id,
+              pet_id: currentPetId,
+              date: dateToUse,
+              time: state.time,
+              timestamp,
+              state_score: state.score,
+              note: state.note || null
+            });
+          }
         }
+
+        // Добавляем симптомы
+        if (parsed.symptoms && parsed.symptoms.length > 0) {
+          for (const symptom of parsed.symptoms) {
+            const timestamp = new Date(`${dateToUse}T${symptom.time}`).getTime();
+            await supabase.from('symptom_entries').insert({
+              user_id: currentUser.id,
+              pet_id: currentPetId,
+              date: dateToUse,
+              time: symptom.time,
+              timestamp,
+              symptom: symptom.name,
+              note: symptom.note || null
+            });
+          }
+        }
+
+        // Добавляем лекарства
+        if (parsed.medications && parsed.medications.length > 0) {
+          for (const med of parsed.medications) {
+            const timestamp = new Date(`${dateToUse}T${med.time}`).getTime();
+            await supabase.from('medication_entries').insert({
+              user_id: currentUser.id,
+              pet_id: currentPetId,
+              date: dateToUse,
+              time: med.time,
+              timestamp,
+              medication_name: med.name,
+              dosage: med.dosage,
+              color: '#8B5CF6'
+            });
+          }
+        }
+
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: '✅ Записано!' 
+        }]);
+
+        // Обновляем вид если нужно
+        if (parsed.navigateToDate) {
+          setSelectedDate(parsed.navigateToDate);
+          setView('view');
+        }
+      } else if (parsed.action === 'remove') {
+        // Удаление
+        if (parsed.target === 'symptom' && parsed.itemName) {
+          await supabase
+            .from('symptom_entries')
+            .delete()
+            .eq('user_id', currentUser.id)
+            .eq('pet_id', currentPetId)
+            .eq('date', dateToUse)
+            .eq('symptom', parsed.itemName);
+          
+          setMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: `✅ Удалил симптом "${parsed.itemName}"` 
+          }]);
+        } else if (parsed.target === 'medication' && parsed.itemName) {
+          await supabase
+            .from('medication_entries')
+            .delete()
+            .eq('user_id', currentUser.id)
+            .eq('pet_id', currentPetId)
+            .eq('date', dateToUse)
+            .eq('medication_name', parsed.itemName);
+          
+          setMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: `✅ Удалил лекарство "${parsed.itemName}"` 
+          }]);
+        } else if (parsed.target === 'state' && parsed.time) {
+          await supabase
+            .from('state_entries')
+            .delete()
+            .eq('user_id', currentUser.id)
+            .eq('pet_id', currentPetId)
+            .eq('date', dateToUse)
+            .eq('time', parsed.time);
+          
+          setMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: `✅ Удалил запись состояния в ${parsed.time}` 
+          }]);
+        }
+      } else if (parsed.action === 'clear') {
+        // Очистка всех записей типа
+        if (parsed.target === 'symptom') {
+          await supabase
+            .from('symptom_entries')
+            .delete()
+            .eq('user_id', currentUser.id)
+            .eq('pet_id', currentPetId)
+            .eq('date', dateToUse);
+          
+          setMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: '✅ Удалил все симптомы' 
+          }]);
+        } else if (parsed.target === 'state') {
+          await supabase
+            .from('state_entries')
+            .delete()
+            .eq('user_id', currentUser.id)
+            .eq('pet_id', currentPetId)
+            .eq('date', dateToUse);
+          
+          setMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: '✅ Удалил все записи состояния' 
+          }]);
+        } else if (parsed.target === 'medication') {
+          await supabase
+            .from('medication_entries')
+            .delete()
+            .eq('user_id', currentUser.id)
+            .eq('pet_id', currentPetId)
+            .eq('date', dateToUse);
+          
+          setMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: '✅ Удалил все лекарства' 
+          }]);
+        }
+      } else if (parsed.action === 'chat' && parsed.message) {
+        // Просто ответ от AI
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: parsed.message 
+        }]);
+
+        if (parsed.navigateToDate) {
+          setSelectedDate(parsed.navigateToDate);
+          if (parsed.showDetails) {
+            setView('view');
+          }
+        }
+      } else {
+        // Неизвестная команда
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: 'Не понял команду. Попробуй: "состояние 4", "дрожь", "дали преднизолон 0,3"' 
+        }]);
       }
-
-      const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-      
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
-          messages: [
-            {
-              role: 'system',
-              content: `Ты - AI помощник для владельцев домашних животных. Помогаешь отслеживать здоровье питомца, даёшь советы по уходу. Отвечай кратко и по делу. ${context ? `\n\nКонтекст:\n${context}` : ''}`
-            },
-            ...messages.map(m => ({ role: m.role, content: m.content })),
-            { role: 'user', content: userMessage }
-          ],
-          temperature: 0.7,
-          max_tokens: 500
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Ошибка API');
-      }
-
-      const data = await response.json();
-      const aiResponse = data.choices[0].message.content;
-
-      setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
     } catch (error) {
       console.error('AI Error:', error);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: 'Извините, произошла ошибка. Попробуйте ещё раз.' 
+        content: 'Ошибка. Попробуй ещё раз или проверь OpenAI ключ.' 
       }]);
     } finally {
       setLoading(false);
