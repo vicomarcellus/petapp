@@ -217,11 +217,11 @@ export const QuickChat = () => {
             content: '✅ Удалил все лекарства' 
           }]);
         }
-      } else if (parsed.action === 'chat' && parsed.message) {
+      } else if (parsed.action === 'chat') {
         // Просто ответ от AI
         setMessages(prev => [...prev, { 
           role: 'assistant', 
-          content: parsed.message 
+          content: parsed.message || 'Нет ответа' 
         }]);
 
         if (parsed.navigateToDate) {
