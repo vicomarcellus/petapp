@@ -14,6 +14,7 @@ export const Calendar = () => {
   const { currentYear, currentMonth, setCurrentYear, setCurrentMonth, setSelectedDate, setView, currentPetId } = useStore();
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  const [showTooltip, setShowTooltip] = useState(false);
   
   const entries = useLiveQuery(
     () => {
@@ -168,9 +169,13 @@ export const Calendar = () => {
                         setHoveredDate(dateStr);
                         const rect = e.currentTarget.getBoundingClientRect();
                         setTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top });
+                        setTimeout(() => setShowTooltip(true), 300);
                       }
                     }}
-                    onMouseLeave={() => setHoveredDate(null)}
+                    onMouseLeave={() => {
+                      setHoveredDate(null);
+                      setShowTooltip(false);
+                    }}
                     disabled={!isCurrentMonth}
                     className={`
                       aspect-square rounded-2xl p-1.5 transition-all border-2
@@ -200,54 +205,62 @@ export const Calendar = () => {
             </div>
 
             {/* Tooltip */}
-            {hoveredDate && (entriesMap.get(hoveredDate) || statesMap.get(hoveredDate) || medsMap.get(hoveredDate)) && (
-              <div
-                className="fixed z-50 bg-black text-white px-3 py-2 rounded-2xl text-xs shadow-2xl pointer-events-none"
-                style={{
-                  left: `${tooltipPosition.x}px`,
-                  top: `${tooltipPosition.y - 10}px`,
-                  transform: 'translate(-50%, -100%)',
-                  maxWidth: '200px',
-                }}
-              >
-                {statesMap.get(hoveredDate) && statesMap.get(hoveredDate)!.length > 0 && (
-                  <div className="mb-2">
-                    <div className="font-semibold mb-1">
-                      Состояние ({statesMap.get(hoveredDate)!.length} записей):
-                    </div>
-                    {statesMap.get(hoveredDate)!.map((state, idx) => (
-                      <div key={idx} className="text-xs text-gray-300 mb-0.5">
-                        {state.time}: {state.state_score}/5
+            {hoveredDate && showTooltip && (() => {
+              const entry = entriesMap.get(hoveredDate);
+              const states = statesMap.get(hoveredDate);
+              const meds = medsMap.get(hoveredDate);
+              
+              if (!entry && !states && !meds) return null;
+              
+              return (
+                <div
+                  className="fixed z-50 bg-black text-white px-3 py-2 rounded-2xl text-xs shadow-2xl pointer-events-none"
+                  style={{
+                    left: `${tooltipPosition.x}px`,
+                    top: `${tooltipPosition.y - 10}px`,
+                    transform: 'translate(-50%, -100%)',
+                    maxWidth: '200px',
+                  }}
+                >
+                  {states && states.length > 0 && (
+                    <div className="mb-2">
+                      <div className="font-semibold mb-1">
+                        Состояние ({states.length} записей):
                       </div>
-                    ))}
-                  </div>
-                )}
-                {entriesMap.get(hoveredDate) && entriesMap.get(hoveredDate)!.symptoms && entriesMap.get(hoveredDate)!.symptoms.length > 0 && (
-                  <div className="mb-2">
-                    <div className="font-semibold mb-1">Симптомы:</div>
-                    <div className="text-xs text-gray-300">
-                      {entriesMap.get(hoveredDate)!.symptoms.join(', ')}
+                      {states.map((state, idx) => (
+                        <div key={idx} className="text-xs text-gray-300 mb-0.5">
+                          {state.time}: {state.state_score}/5
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                )}
-                {medsMap.get(hoveredDate) && medsMap.get(hoveredDate)!.length > 0 && (
-                  <div>
-                    <div className="font-semibold mb-1">Лекарства:</div>
-                    {medsMap.get(hoveredDate)!.map((med, idx) => (
-                      <div key={idx} className="flex items-center gap-2 mb-0.5">
-                        <div
-                          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: med.color }}
-                        />
-                        <span className="text-xs">
-                          {med.medication_name} {med.dosage} • {med.time}
-                        </span>
+                  )}
+                  {entry && entry.symptoms && entry.symptoms.length > 0 && (
+                    <div className="mb-2">
+                      <div className="font-semibold mb-1">Симптомы:</div>
+                      <div className="text-xs text-gray-300">
+                        {entry.symptoms.join(', ')}
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+                    </div>
+                  )}
+                  {meds && meds.length > 0 && (
+                    <div>
+                      <div className="font-semibold mb-1">Лекарства:</div>
+                      {meds.map((med, idx) => (
+                        <div key={idx} className="flex items-center gap-2 mb-0.5">
+                          <div
+                            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: med.color }}
+                          />
+                          <span className="text-xs">
+                            {med.medication_name} {med.dosage} • {med.time}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
           </div>
 
