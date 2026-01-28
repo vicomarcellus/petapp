@@ -154,8 +154,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
           <CalendarIcon size={16} />
           Календарь
         </button>
-        {/* Чеклист отключен */}
-        {/* <button
+        <button
           onClick={() => setView('checklist')}
           className={`flex items-center gap-1.5 px-4 py-2 rounded-full transition-all font-medium text-sm whitespace-nowrap ${
             view === 'checklist'
@@ -165,7 +164,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
         >
           <CheckSquare size={16} />
           Чеклист
-        </button> */}
+        </button>
         <button
           onClick={() => setView('analytics')}
           className={`flex items-center gap-1.5 px-4 py-2 rounded-full transition-all font-medium text-sm whitespace-nowrap ${
