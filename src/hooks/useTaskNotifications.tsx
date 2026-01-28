@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { useStore } from '../store';
@@ -8,6 +8,12 @@ export const useTaskNotifications = () => {
   const { currentPetId, currentUser } = useStore();
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [notificationTask, setNotificationTask] = useState<any>(null);
+  const notificationTaskRef = useRef<any>(null);
+
+  // Синхронизируем ref с state
+  useEffect(() => {
+    notificationTaskRef.current = notificationTask;
+  }, [notificationTask]);
 
   const tasks = useLiveQuery(
     async () => {
@@ -66,10 +72,11 @@ export const useTaskNotifications = () => {
       task.timestamp > now - 60000 // В течение последней минуты
     );
 
-    if (dueTask && (!notificationTask || notificationTask.id !== dueTask.id)) {
+    // Используем ref чтобы избежать бесконечного цикла
+    if (dueTask && (!notificationTaskRef.current || notificationTaskRef.current.id !== dueTask.id)) {
       setNotificationTask(dueTask);
     }
-  }, [tasks, currentTime, notificationTask]);
+  }, [tasks, currentTime]); // Убрали notificationTask из зависимостей!
 
   const handleCompleteTask = async () => {
     if (notificationTask && currentPetId && currentUser) {
