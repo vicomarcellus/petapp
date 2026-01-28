@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, Activity } from 'lucide-react';
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameMonth, isToday, startOfWeek, endOfWeek } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Header } from './Header';
+import { QuickChat } from './QuickChat';
 import type { DayEntry, StateEntry, MedicationEntry } from '../types';
 
 export const Calendar = () => {
@@ -361,6 +362,8 @@ export const Calendar = () => {
             </div>
           </div>
         </div>
+
+        <QuickChat />
       </div>
     </div>
   );
