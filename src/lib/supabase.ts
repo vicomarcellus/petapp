@@ -1,14 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables!');
-  console.error('VITE_SUPABASE_URL:', supabaseUrl);
-  console.error('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'exists' : 'missing');
-  throw new Error('Supabase environment variables are not configured. Please check Vercel settings.');
-}
+// Хардкод значений для Vercel
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://jweegvbywvixwzcliyzr.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp3ZWVndmJ5d3ZpeHd6Y2xpeXpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MTIxNzMsImV4cCI6MjA4NTE4ODE3M30.rdjZy9d1kbbtJ-54XMesPifBkowYD3SpKnigmrOKWEM';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
