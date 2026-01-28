@@ -37,8 +37,8 @@ export function Auth() {
 
     try {
       if (isLogin) {
-        // Вход - используем индекс вместо загрузки всех пользователей
-        const user = await db.users.get(email);
+        // Вход - используем индекс username
+        const user = await db.users.where('username').equals(email).first();
         
         if (!user) {
           setError('Пользователь не найден');
@@ -49,8 +49,8 @@ export function Auth() {
         localStorage.setItem('currentUser', JSON.stringify(user));
         setCurrentUser(user);
       } else {
-        // Регистрация - проверяем существование через get
-        const exists = await db.users.get(email);
+        // Регистрация - проверяем существование через индекс username
+        const exists = await db.users.where('username').equals(email).first();
         
         if (exists) {
           setError('Email уже используется');

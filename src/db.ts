@@ -218,7 +218,7 @@ export class CatHealthDB extends Dexie {
 
     // Version 13: добавлены составные индексы для оптимизации запросов по дате
     this.version(13).stores({
-      users: 'id, authDate',
+      users: 'id, authDate, username',
       pets: '++id, userId, name, type, created_at, isActive',
       dayEntries: '++id, userId, petId, date, created_at, updated_at, [petId+date]',
       stateEntries: '++id, userId, petId, date, timestamp, time, [petId+date]',
