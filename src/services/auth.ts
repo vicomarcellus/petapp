@@ -1,32 +1,26 @@
-import { db } from '../db';
+// DEPRECATED - больше не используется, аутентификация через Supabase
+// Оставлено для совместимости
+
 import { User } from '../types';
 
 export const authService = {
-  // Получить текущего пользователя
   getCurrentUser(): User | null {
-    const savedUser = localStorage.getItem('currentUser');
-    return savedUser ? JSON.parse(savedUser) : null;
+    return null;
   },
 
-  // Сохранить пользователя
   async saveUser(user: User): Promise<void> {
-    await db.users.put(user);
-    localStorage.setItem('currentUser', JSON.stringify(user));
+    // Не используется
   },
 
-  // Выйти
   logout(): void {
     localStorage.removeItem('currentUser');
   },
 
-  // Проверить авторизацию
   isAuthenticated(): boolean {
-    return !!this.getCurrentUser();
+    return false;
   },
 
-  // Получить ID пользователя
-  getUserId(): number | null {
-    const user = this.getCurrentUser();
-    return user?.id ?? null;
+  getUserId(): string | null {
+    return null;
   },
 };
