@@ -60,10 +60,10 @@ export const EntryView = () => {
   const stateEntries = useLiveQuery(
     async () => {
       if (!selectedDate || !currentPetId || !currentUser) return [];
-      const entries = await db.stateEntries.where('date').equals(selectedDate).toArray();
-      return entries
-        .filter(e => e.petId === currentPetId && e.userId === currentUser.id)
-        .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+      return await db.stateEntries
+        .where('[petId+date]').equals([currentPetId, selectedDate])
+        .filter(e => e.userId === currentUser.id)
+        .sortBy('timestamp');
     },
     [selectedDate, currentPetId, currentUser]
   );
@@ -71,10 +71,10 @@ export const EntryView = () => {
   const symptomEntries = useLiveQuery(
     async () => {
       if (!selectedDate || !currentPetId || !currentUser) return [];
-      const entries = await db.symptomEntries.where('date').equals(selectedDate).toArray();
-      return entries
-        .filter(e => e.petId === currentPetId && e.userId === currentUser.id)
-        .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+      return await db.symptomEntries
+        .where('[petId+date]').equals([currentPetId, selectedDate])
+        .filter(e => e.userId === currentUser.id)
+        .sortBy('timestamp');
     },
     [selectedDate, currentPetId, currentUser]
   );
@@ -82,10 +82,10 @@ export const EntryView = () => {
   const medications = useLiveQuery(
     async () => {
       if (!selectedDate || !currentPetId || !currentUser) return [];
-      const entries = await db.medicationEntries.where('date').equals(selectedDate).toArray();
-      return entries
-        .filter(e => e.petId === currentPetId && e.userId === currentUser.id)
-        .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+      return await db.medicationEntries
+        .where('[petId+date]').equals([currentPetId, selectedDate])
+        .filter(e => e.userId === currentUser.id)
+        .sortBy('timestamp');
     },
     [selectedDate, currentPetId, currentUser]
   );
@@ -115,10 +115,10 @@ export const EntryView = () => {
   const feedingEntries = useLiveQuery(
     async () => {
       if (!selectedDate || !currentPetId || !currentUser) return [];
-      const entries = await db.feedingEntries.where('date').equals(selectedDate).toArray();
-      return entries
-        .filter(e => e.petId === currentPetId && e.userId === currentUser.id)
-        .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+      return await db.feedingEntries
+        .where('[petId+date]').equals([currentPetId, selectedDate])
+        .filter(e => e.userId === currentUser.id)
+        .sortBy('timestamp');
     },
     [selectedDate, currentPetId, currentUser]
   );
@@ -126,10 +126,10 @@ export const EntryView = () => {
   const updateDayEntryAverage = async () => {
     if (!selectedDate || !currentPetId || !currentUser) return;
 
-    // Получаем все записи состояния за день
+    // Получаем все записи состояния за день используя составной индекс
     const states = await db.stateEntries
-      .where('date').equals(selectedDate)
-      .filter(s => s.petId === currentPetId && s.userId === currentUser.id)
+      .where('[petId+date]').equals([currentPetId, selectedDate])
+      .filter(s => s.userId === currentUser.id)
       .toArray();
 
     if (states.length === 0) {
@@ -482,39 +482,18 @@ export const EntryView = () => {
   };
 
   const handleDelete = async () => {
-    if (!entry?.id || !selectedDate) return;
+    if (!entry?.id || !selectedDate || !currentPetId) return;
     
     if (confirm('Удалить эту запись? Будут удалены все состояния, лекарства, симптомы и кормления за этот день.')) {
       try {
         const entryId = entry.id;
         const dateToDelete = selectedDate;
         
-        // Удаляем все записи состояния за этот день для текущего питомца
-        const states = await db.stateEntries.where('date').equals(dateToDelete).filter(s => s.petId === currentPetId).toArray();
-        
-        for (const state of states) {
-          if (state.id) {
-            await db.stateEntries.delete(state.id);
-          }
-        }
-        
-        // Удаляем все лекарства за этот день для текущего питомца
-        const meds = await db.medicationEntries.where('date').equals(dateToDelete).filter(m => m.petId === currentPetId).toArray();
-        
-        for (const med of meds) {
-          if (med.id) {
-            await db.medicationEntries.delete(med.id);
-          }
-        }
-        
-        // Удаляем все кормления за этот день для текущего питомца
-        const feedings = await db.feedingEntries.where('date').equals(dateToDelete).filter(f => f.petId === currentPetId).toArray();
-        
-        for (const feeding of feedings) {
-          if (feeding.id) {
-            await db.feedingEntries.delete(feeding.id);
-          }
-        }
+        // Используем составные индексы для удаления
+        await db.stateEntries.where('[petId+date]').equals([currentPetId, dateToDelete]).delete();
+        await db.medicationEntries.where('[petId+date]').equals([currentPetId, dateToDelete]).delete();
+        await db.feedingEntries.where('[petId+date]').equals([currentPetId, dateToDelete]).delete();
+        await db.symptomEntries.where('[petId+date]').equals([currentPetId, dateToDelete]).delete();
         
         // Удаляем запись
         await db.dayEntries.delete(entryId);
@@ -1208,8 +1187,8 @@ export const EntryView = () => {
         </div>
       )}
 
-      {/* QuickChat временно отключен для диагностики */}
-      {/* <QuickChat /> */}
+      {/* QuickChat */}
+      <QuickChat />
     </div>
   );
 };

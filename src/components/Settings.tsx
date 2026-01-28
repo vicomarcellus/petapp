@@ -9,7 +9,7 @@ import { PetManager } from './PetManager';
 import { Header } from './Header';
 
 export const Settings = () => {
-  const { setView } = useStore();
+  const { setView, currentUser, currentPetId } = useStore();
   const [editingSymptom, setEditingSymptom] = useState<number | null>(null);
   const [editingMed, setEditingMed] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
@@ -18,8 +18,22 @@ export const Settings = () => {
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const symptomTags = useLiveQuery(() => db.symptomTags.toArray());
-  const medicationTags = useLiveQuery(() => db.medicationTags.toArray());
+  const symptomTags = useLiveQuery(() => {
+    if (!currentUser || !currentPetId) return [];
+    return db.symptomTags
+      .where('petId').equals(currentPetId)
+      .filter(t => t.userId === currentUser.id)
+      .toArray();
+  }, [currentUser, currentPetId]);
+  
+  const medicationTags = useLiveQuery(() => {
+    if (!currentUser || !currentPetId) return [];
+    return db.medicationTags
+      .where('petId').equals(currentPetId)
+      .filter(t => t.userId === currentUser.id)
+      .toArray();
+  }, [currentUser, currentPetId]);
+  
   const lastBackupDate = getLastAutoBackupDate();
 
   const handleSaveSymptom = async () => {

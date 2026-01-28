@@ -20,7 +20,8 @@ export const PetManager = () => {
   const [petType, setPetType] = useState('cat');
 
   const pets = useLiveQuery(() => 
-    currentUser ? db.pets.where('userId').equals(currentUser.id).toArray() : []
+    currentUser ? db.pets.where('userId').equals(currentUser.id).toArray() : [],
+    [currentUser]
   );
 
   const handleAddPet = async () => {
@@ -50,10 +51,10 @@ export const PetManager = () => {
   };
 
   const handleSelectPet = async (petId: number) => {
-    if (!currentUser) return;
-    // Снимаем isActive со всех питомцев пользователя
-    const allPets = await db.pets.where('userId').equals(currentUser.id).toArray();
-    for (const pet of allPets) {
+    if (!currentUser || !pets) return;
+    
+    // Используем уже загруженные данные
+    for (const pet of pets) {
       await db.pets.update(pet.id!, { isActive: pet.id === petId });
     }
     
@@ -62,7 +63,7 @@ export const PetManager = () => {
 
   const handleDeletePet = async (petId: number) => {
     if (!confirm('Удалить питомца? Все данные о нем будут удалены!')) return;
-    if (!currentUser) return;
+    if (!currentUser || !pets) return;
 
     try {
       // Удаляем все данные питомца
@@ -75,7 +76,7 @@ export const PetManager = () => {
 
       // Если удалили активного питомца, выбираем первого доступного
       if (currentPetId === petId) {
-        const remainingPets = await db.pets.where('userId').equals(currentUser.id).toArray();
+        const remainingPets = pets.filter(p => p.id !== petId);
         if (remainingPets.length > 0) {
           await handleSelectPet(remainingPets[0].id!);
         } else {

@@ -23,14 +23,16 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
   const [showPetMenu, setShowPetMenu] = useState(false);
 
   const pets = useLiveQuery(() => 
-    currentUser ? db.pets.where('userId').equals(currentUser.id).toArray() : []
+    currentUser ? db.pets.where('userId').equals(currentUser.id).toArray() : [],
+    [currentUser]
   );
   const currentPet = pets?.find(p => p.id === currentPetId);
 
   const handleSelectPet = async (petId: number) => {
-    if (!currentUser) return;
-    const allPets = await db.pets.where('userId').equals(currentUser.id).toArray();
-    for (const pet of allPets) {
+    if (!currentUser || !pets) return;
+    
+    // Используем уже загруженные данные вместо повторного запроса
+    for (const pet of pets) {
       await db.pets.update(pet.id!, { isActive: pet.id === petId });
     }
     
