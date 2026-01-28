@@ -1,317 +1,92 @@
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db';
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
-import { TrendingUp, TrendingDown, Minus, Pill, Activity } from 'lucide-react';
-import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
-import { ru } from 'date-fns/locale';
-import { STATE_COLORS, STATE_LABELS } from '../types';
 import { Header } from './Header';
+import { TrendingUp, Activity } from 'lucide-react';
+import { STATE_COLORS } from '../types';
 
 export const Analytics = () => {
-  const { setView, currentYear, currentMonth, currentPetId } = useStore();
+  const { currentUser, currentPetId } = useStore();
+  const [avgScore, setAvgScore] = useState(0);
+  const [totalEntries, setTotalEntries] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  const currentDate = new Date(currentYear, currentMonth, 1);
-  const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(currentDate);
-
-  // Загружаем только записи текущего месяца для производительности
-  const startDateStr = format(monthStart, 'yyyy-MM-dd');
-  const endDateStr = format(monthEnd, 'yyyy-MM-dd');
-
-  const dayEntries = useLiveQuery(
-    async () => {
-      if (!currentPetId) return [];
-      return await db.dayEntries
-        .where('petId').equals(currentPetId)
-        .filter(e => e.date >= startDateStr && e.date <= endDateStr)
-        .toArray();
-    },
-    [currentPetId, startDateStr, endDateStr]
-  );
-
-  const medicationEntries = useLiveQuery(
-    async () => {
-      if (!currentPetId) return [];
-      return await db.medicationEntries
-        .where('petId').equals(currentPetId)
-        .filter(e => e.date >= startDateStr && e.date <= endDateStr)
-        .toArray();
-    },
-    [currentPetId, startDateStr, endDateStr]
-  );
-
-  // Фильтруем записи за текущий месяц
-  const thisMonthEntries = dayEntries?.filter(e => {
-    const entryDate = parseISO(e.date);
-    return entryDate >= monthStart && entryDate <= monthEnd;
-  }).sort((a, b) => a.date.localeCompare(b.date)) || [];
-
-  const thisMonthMeds = medicationEntries?.filter(e => {
-    const entryDate = parseISO(e.date);
-    return entryDate >= monthStart && entryDate <= monthEnd;
-  }) || [];
-
-  // Статистика
-  const avgScore = thisMonthEntries.length > 0
-    ? (thisMonthEntries.reduce((sum, e) => sum + e.state_score, 0) / thisMonthEntries.length).toFixed(1)
-    : '0';
-
-  const goodDays = thisMonthEntries.filter(e => e.state_score >= 4).length;
-  const badDays = thisMonthEntries.filter(e => e.state_score <= 2).length;
-
-  // Тренд (сравниваем первую и вторую половину месяца)
-  const midPoint = Math.floor(thisMonthEntries.length / 2);
-  const firstHalf = thisMonthEntries.slice(0, midPoint);
-  const secondHalf = thisMonthEntries.slice(midPoint);
-  
-  const firstHalfAvg = firstHalf.length > 0
-    ? firstHalf.reduce((sum, e) => sum + e.state_score, 0) / firstHalf.length
-    : 0;
-  const secondHalfAvg = secondHalf.length > 0
-    ? secondHalf.reduce((sum, e) => sum + e.state_score, 0) / secondHalf.length
-    : 0;
-
-  const trend = secondHalfAvg - firstHalfAvg;
-  const trendIcon = trend > 0.3 ? <TrendingUp size={20} /> : trend < -0.3 ? <TrendingDown size={20} /> : <Minus size={20} />;
-  const trendColor = trend > 0.3 ? 'text-green-600' : trend < -0.3 ? 'text-red-600' : 'text-gray-600';
-  const trendText = trend > 0.3 ? 'Улучшение' : trend < -0.3 ? 'Ухудшение' : 'Стабильно';
-
-  // Статистика по лекарствам
-  const medStats = new Map<string, { count: number; color: string }>();
-  thisMonthMeds.forEach(med => {
-    const key = med.medication_name;
-    if (!medStats.has(key)) {
-      medStats.set(key, { count: 0, color: med.color || '#3B82F6' });
+  useEffect(() => {
+    if (currentUser && currentPetId) {
+      loadAnalytics();
     }
-    medStats.get(key)!.count++;
-  });
+  }, [currentUser, currentPetId]);
 
-  const topMeds = Array.from(medStats.entries())
-    .sort((a, b) => b[1].count - a[1].count)
-    .slice(0, 5);
+  const loadAnalytics = async () => {
+    if (!currentUser || !currentPetId) return;
+    
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const startDate = thirtyDaysAgo.toISOString().split('T')[0];
 
-  // График - все дни месяца
-  const allDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
-  const chartData = allDays.map(day => {
-    const dateStr = format(day, 'yyyy-MM-dd');
-    const entry = thisMonthEntries.find(e => e.date === dateStr);
-    return {
-      date: day,
-      score: entry?.state_score || null,
-    };
-  });
+      const { data, error } = await supabase
+        .from('state_entries')
+        .select('state_score')
+        .eq('user_id', currentUser.id)
+        .eq('pet_id', currentPetId)
+        .gte('date', startDate);
 
-  const maxScore = 5;
-  const chartHeight = 200;
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        const avg = data.reduce((sum, e) => sum + e.state_score, 0) / data.length;
+        setAvgScore(Number(avg.toFixed(1)));
+        setTotalEntries(data.length);
+      }
+    } catch (error) {
+      console.error('Error loading analytics:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#F5F5F7] p-3 md:p-4">
+        <div className="max-w-5xl mx-auto">
+          <Header />
+          <div className="text-center py-8 text-gray-400">Загрузка...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F5F5F7] p-3 md:p-4 pb-28">
       <div className="max-w-5xl mx-auto">
         <Header />
 
-        <div className="text-sm text-gray-500 mb-4">
-          {format(currentDate, 'LLLL yyyy', { locale: ru })}
-        </div>
-
-        <div className="space-y-3">
-          {/* Основная статистика */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="bg-white rounded-2xl p-4">
-              <div className="text-xs text-gray-500 mb-1">Средняя оценка</div>
-              <div className="text-3xl font-bold text-black">{avgScore}</div>
-            </div>
-            <div className="bg-white rounded-2xl p-4">
-              <div className="text-xs text-gray-500 mb-1">Хороших дней</div>
-              <div className="text-3xl font-bold text-green-600">{goodDays}</div>
-            </div>
-            <div className="bg-white rounded-2xl p-4">
-              <div className="text-xs text-gray-500 mb-1">Плохих дней</div>
-              <div className="text-3xl font-bold text-red-600">{badDays}</div>
-            </div>
-            <div className="bg-white rounded-2xl p-4">
-              <div className={`flex items-center gap-2 mb-1 ${trendColor}`}>
-                {trendIcon}
-                <div className="text-xs font-semibold">{trendText}</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
+                <TrendingUp className="text-blue-600" size={24} />
               </div>
-              <div className="text-2xl font-bold text-black">
-                {trend > 0 ? '+' : ''}{trend.toFixed(1)}
+              <div>
+                <div className="text-sm text-gray-500">Средняя оценка</div>
+                <div className="text-3xl font-bold">{avgScore}</div>
               </div>
             </div>
+            <div className="text-sm text-gray-600">За последние 30 дней</div>
           </div>
 
-          {/* График состояния */}
-          <div className="bg-white rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-4">
-              <Activity size={18} className="text-black" />
-              <h2 className="text-lg font-bold text-black">График состояния</h2>
-            </div>
-
-            {thisMonthEntries.length > 0 ? (
-              <div className="relative" style={{ paddingLeft: '32px', paddingBottom: '24px', paddingTop: '8px' }}>
-                <div className="relative" style={{ height: chartHeight }}>
-                  {/* Горизонтальные линии сетки */}
-                  {[5, 4, 3, 2, 1].map(score => {
-                    const yPos = ((maxScore - score) / maxScore) * chartHeight;
-                    return (
-                      <div key={score}>
-                        <div
-                          className="absolute border-t border-gray-100"
-                          style={{ 
-                            top: `${yPos}px`,
-                            left: 0,
-                            right: 0,
-                          }}
-                        />
-                        <span 
-                          className="absolute text-xs text-gray-400"
-                          style={{
-                            top: `${yPos - 8}px`,
-                            left: '-28px',
-                          }}
-                        >
-                          {score}
-                        </span>
-                      </div>
-                    );
-                  })}
-
-                  {/* График */}
-                  <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                    {chartData.map((point, i) => {
-                      if (point.score === null) return null;
-                      
-                      const nextPoint = chartData.slice(i + 1).find(p => p.score !== null);
-                      if (!nextPoint) return null;
-                      
-                      const nextIndex = chartData.indexOf(nextPoint);
-                      
-                      const x1 = (i / (chartData.length - 1)) * 100;
-                      const y1 = ((maxScore - point.score) / maxScore) * 100;
-                      const x2 = (nextIndex / (chartData.length - 1)) * 100;
-                      const y2 = ((maxScore - (nextPoint.score || 0)) / maxScore) * 100;
-                      
-                      return (
-                        <line
-                          key={`line-${i}`}
-                          x1={`${x1}%`}
-                          y1={`${y1}%`}
-                          x2={`${x2}%`}
-                          y2={`${y2}%`}
-                          stroke="black"
-                          strokeWidth="2"
-                        />
-                      );
-                    })}
-                  </svg>
-                  
-                  {chartData.map((point, i) => {
-                    if (point.score === null) return null;
-                    
-                    const x = (i / (chartData.length - 1)) * 100;
-                    const y = ((maxScore - point.score) / maxScore) * chartHeight;
-                    
-                    const dateStr = format(point.date, 'yyyy-MM-dd');
-                    const entry = thisMonthEntries.find(e => e.date === dateStr);
-                    
-                    let tooltipText = `${format(point.date, 'd MMM', { locale: ru })}: ${STATE_LABELS[point.score]}`;
-                    if (entry?.symptoms && entry.symptoms.length > 0) {
-                      tooltipText += `\nСимптомы: ${entry.symptoms.join(', ')}`;
-                    }
-
-                    return (
-                      <div
-                        key={i}
-                        className="absolute rounded-full border-2 border-white"
-                        style={{
-                          left: `${x}%`,
-                          top: `${y}px`,
-                          width: '12px',
-                          height: '12px',
-                          backgroundColor: STATE_COLORS[point.score],
-                          transform: 'translate(-50%, -50%)',
-                        }}
-                        title={tooltipText}
-                      />
-                    );
-                  })}
-                </div>
-
-                {/* Подписи дат */}
-                <div className="flex justify-between text-xs text-gray-400 mt-2">
-                  <span>{format(monthStart, 'd MMM', { locale: ru })}</span>
-                  <span>{format(monthEnd, 'd MMM', { locale: ru })}</span>
-                </div>
+          <div className="bg-white rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center">
+                <Activity className="text-green-600" size={24} />
               </div>
-            ) : (
-              <div className="text-center py-12 text-gray-400">
-                <p>Нет данных за этот месяц</p>
+              <div>
+                <div className="text-sm text-gray-500">Всего записей</div>
+                <div className="text-3xl font-bold">{totalEntries}</div>
               </div>
-            )}
-          </div>
-
-          {/* Топ лекарств */}
-          <div className="bg-white rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-4">
-              <Pill size={18} className="text-black" />
-              <h2 className="text-lg font-bold text-black">Топ лекарств</h2>
             </div>
-
-            {topMeds.length > 0 ? (
-              <div className="space-y-3">
-                {topMeds.map(([name, data], index) => {
-                  const maxCount = topMeds[0][1].count;
-                  const percentage = (data.count / maxCount) * 100;
-
-                  return (
-                    <div key={name}>
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: data.color }}
-                          />
-                          <span className="text-sm font-medium text-black">{name}</span>
-                        </div>
-                        <span className="text-sm font-bold text-gray-600">{data.count}×</span>
-                      </div>
-                      <div className="w-full bg-gray-100 rounded-full h-2">
-                        <div
-                          className="h-2 rounded-full transition-all"
-                          style={{
-                            width: `${percentage}%`,
-                            backgroundColor: data.color,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-400">
-                <p>Нет данных о лекарствах</p>
-              </div>
-            )}
-          </div>
-
-          {/* Легенда состояний */}
-          <div className="bg-white rounded-2xl p-4">
-            <div className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wide">
-              Шкала состояний
-            </div>
-            <div className="flex gap-3 flex-wrap">
-              {[1, 2, 3, 4, 5].map(score => (
-                <div key={score} className="flex items-center gap-2">
-                  <div
-                    className="w-6 h-6 rounded-lg flex items-center justify-center text-white font-bold text-xs"
-                    style={{ backgroundColor: STATE_COLORS[score] }}
-                  >
-                    {score}
-                  </div>
-                  <div className="text-sm text-gray-700">{STATE_LABELS[score]}</div>
-                </div>
-              ))}
-            </div>
+            <div className="text-sm text-gray-600">За последние 30 дней</div>
           </div>
         </div>
       </div>

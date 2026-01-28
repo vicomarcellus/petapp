@@ -1,54 +1,76 @@
-import { useState, useRef } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db';
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
-import { Edit3, Check, X, Download, Upload, Save, AlertTriangle } from 'lucide-react';
+import { Edit3, Check, X } from 'lucide-react';
 import { SYMPTOM_COLORS } from '../types';
-import { downloadBackup, uploadBackup, autoBackup, getLastAutoBackupDate } from '../services/backup';
 import { PetManager } from './PetManager';
 import { Header } from './Header';
+import type { SymptomTag, MedicationTag } from '../types';
 
 export const Settings = () => {
-  const { setView, currentUser, currentPetId } = useStore();
+  const { currentUser, currentPetId } = useStore();
   const [editingSymptom, setEditingSymptom] = useState<number | null>(null);
   const [editingMed, setEditingMed] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState('');
-  const [backupStatus, setBackupStatus] = useState<string | null>(null);
-  const [importing, setImporting] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const symptomTags = useLiveQuery(() => {
-    if (!currentUser || !currentPetId) return [];
-    return db.symptomTags
-      .where('petId').equals(currentPetId)
-      .filter(t => t.userId === currentUser.id)
-      .toArray();
-  }, [currentUser, currentPetId]);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   
-  const medicationTags = useLiveQuery(() => {
-    if (!currentUser || !currentPetId) return [];
-    return db.medicationTags
-      .where('petId').equals(currentPetId)
-      .filter(t => t.userId === currentUser.id)
-      .toArray();
-  }, [currentUser, currentPetId]);
-  
-  const lastBackupDate = getLastAutoBackupDate();
+  const [symptomTags, setSymptomTags] = useState<SymptomTag[]>([]);
+  const [medicationTags, setMedicationTags] = useState<MedicationTag[]>([]);
 
-  const handleSaveSymptom = async () => {
-    if (editingSymptom && editName.trim()) {
-      await db.symptomTags.update(editingSymptom, {
-        name: editName.trim(),
-        color: editColor,
-      });
-      setEditingSymptom(null);
-      setEditName('');
-      setEditColor('');
+  useEffect(() => {
+    if (currentUser && currentPetId) {
+      loadTags();
+      
+      // Подписка на изменения
+      const symptomChannel = supabase
+        .channel('symptom_tags_changes')
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'symptom_tags', filter: `pet_id=eq.${currentPetId}` },
+          () => loadTags()
+        )
+        .subscribe();
+
+      const medChannel = supabase
+        .channel('medication_tags_changes')
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'medication_tags', filter: `pet_id=eq.${currentPetId}` },
+          () => loadTags()
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(symptomChannel);
+        supabase.removeChannel(medChannel);
+      };
+    }
+  }, [currentUser, currentPetId]);
+
+  const loadTags = async () => {
+    if (!currentUser || !currentPetId) return;
+    
+    try {
+      const [symptomsRes, medsRes] = await Promise.all([
+        supabase
+          .from('symptom_tags')
+          .select('*')
+          .eq('user_id', currentUser.id)
+          .eq('pet_id', currentPetId),
+        supabase
+          .from('medication_tags')
+          .select('*')
+          .eq('user_id', currentUser.id)
+          .eq('pet_id', currentPetId)
+      ]);
+
+      if (symptomsRes.data) setSymptomTags(symptomsRes.data);
+      if (medsRes.data) setMedicationTags(medsRes.data);
+    } catch (error) {
+      console.error('Error loading tags:', error);
     }
   };
 
@@ -70,35 +92,59 @@ export const Settings = () => {
       return;
     }
     
-    if (!currentUser) return;
-    
     try {
-      // В реальном приложении здесь должно быть хеширование пароля
-      // Для демо просто сохраняем (в production использовать bcrypt или аналог)
-      await db.users.update(currentUser.id, {
-        password: newPassword, // В production: await bcrypt.hash(newPassword, 10)
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
       });
+
+      if (error) throw error;
       
-      setBackupStatus('Пароль успешно изменен');
+      setStatusMessage('Пароль успешно изменен');
       setChangingPassword(false);
       setNewPassword('');
       setConfirmPassword('');
       
-      setTimeout(() => setBackupStatus(null), 3000);
+      setTimeout(() => setStatusMessage(null), 3000);
     } catch (error) {
-      setPasswordError('Ошибка при изменении пароля');
+      setPasswordError('Ошибка при изменении пароля: ' + (error as Error).message);
+    }
+  };
+
+  const handleSaveSymptom = async () => {
+    if (editingSymptom && editName.trim()) {
+      try {
+        const { error } = await supabase
+          .from('symptom_tags')
+          .update({ name: editName.trim(), color: editColor })
+          .eq('id', editingSymptom);
+
+        if (error) throw error;
+        
+        setEditingSymptom(null);
+        setEditName('');
+        setEditColor('');
+      } catch (error) {
+        console.error('Error updating symptom tag:', error);
+      }
     }
   };
 
   const handleSaveMed = async () => {
     if (editingMed && editName.trim()) {
-      await db.medicationTags.update(editingMed, {
-        name: editName.trim(),
-        color: editColor,
-      });
-      setEditingMed(null);
-      setEditName('');
-      setEditColor('');
+      try {
+        const { error } = await supabase
+          .from('medication_tags')
+          .update({ name: editName.trim(), color: editColor })
+          .eq('id', editingMed);
+
+        if (error) throw error;
+        
+        setEditingMed(null);
+        setEditName('');
+        setEditColor('');
+      } catch (error) {
+        console.error('Error updating medication tag:', error);
+      }
     }
   };
 
@@ -109,98 +155,33 @@ export const Settings = () => {
     setEditColor('');
   };
 
-  const handleDownloadBackup = async () => {
-    try {
-      setBackupStatus('Создание бэкапа...');
-      await downloadBackup();
-      await autoBackup(); // Также сохраняем автобэкап
-      setBackupStatus('Бэкап успешно скачан!');
-      setTimeout(() => setBackupStatus(null), 3000);
-    } catch (error) {
-      setBackupStatus('Ошибка создания бэкапа');
-      setTimeout(() => setBackupStatus(null), 3000);
-    }
-  };
-
-  const handleUploadBackup = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const mode = confirm(
-      'Заменить все данные (ОК) или объединить с существующими (Отмена)?'
-    ) ? 'replace' : 'merge';
-
-    try {
-      setImporting(true);
-      setBackupStatus('Импорт данных...');
-      await uploadBackup(file, mode);
-      await autoBackup(); // Создаем автобэкап после импорта
-      setBackupStatus('Данные успешно импортированы!');
-      setTimeout(() => {
-        setBackupStatus(null);
-        window.location.reload(); // Перезагружаем для обновления UI
-      }, 2000);
-    } catch (error) {
-      setBackupStatus(`Ошибка импорта: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
-      setTimeout(() => setBackupStatus(null), 5000);
-    } finally {
-      setImporting(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-
-  const handleCreateAutoBackup = async () => {
-    try {
-      setBackupStatus('Создание автобэкапа...');
-      await autoBackup();
-      setBackupStatus('Автобэкап создан!');
-      setTimeout(() => setBackupStatus(null), 3000);
-    } catch (error) {
-      setBackupStatus('Ошибка создания автобэкапа');
-      setTimeout(() => setBackupStatus(null), 3000);
-    }
-  };
-
-  const handleRestoreAutoBackup = async () => {
-    if (!confirm('Восстановить данные из автобэкапа? Текущие данные будут заменены.')) {
-      return;
-    }
-
-    try {
-      setBackupStatus('Восстановление из автобэкапа...');
-      const { restoreAutoBackup } = await import('../services/backup');
-      const success = await restoreAutoBackup();
-      
-      if (success) {
-        setBackupStatus('Данные восстановлены!');
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
-      } else {
-        setBackupStatus('Автобэкап не найден');
-        setTimeout(() => setBackupStatus(null), 3000);
-      }
-    } catch (error) {
-      setBackupStatus('Ошибка восстановления');
-      setTimeout(() => setBackupStatus(null), 3000);
-    }
-  };
-
   const handleDeleteSymptom = async (id: number) => {
     if (confirm('Удалить этот тег симптома?')) {
-      await db.symptomTags.delete(id);
+      try {
+        const { error } = await supabase
+          .from('symptom_tags')
+          .delete()
+          .eq('id', id);
+
+        if (error) throw error;
+      } catch (error) {
+        console.error('Error deleting symptom tag:', error);
+      }
     }
   };
 
   const handleDeleteMed = async (id: number) => {
     if (confirm('Удалить этот тег лекарства?')) {
-      await db.medicationTags.delete(id);
+      try {
+        const { error } = await supabase
+          .from('medication_tags')
+          .delete()
+          .eq('id', id);
+
+        if (error) throw error;
+      } catch (error) {
+        console.error('Error deleting medication tag:', error);
+      }
     }
   };
 
@@ -214,26 +195,6 @@ export const Settings = () => {
     setEditingMed(id);
     setEditName(name);
     setEditColor(color);
-  };
-
-  const handleClearAll = async () => {
-    if (confirm('Вы уверены? Это удалит ВСЕ данные: записи, лекарства, симптомы и теги. Это действие нельзя отменить!')) {
-      if (confirm('Последнее предупреждение! Все данные будут удалены безвозвратно. Продолжить?')) {
-        try {
-          await db.dayEntries.clear();
-          await db.medicationEntries.clear();
-          await db.medications.clear();
-          await db.symptomTags.clear();
-          await db.medicationTags.clear();
-          
-          alert('Все данные удалены!');
-          window.location.href = '/';
-        } catch (error) {
-          console.error('Error clearing data:', error);
-          alert('Ошибка при удалении данных: ' + error);
-        }
-      }
-    }
   };
 
   return (
@@ -318,6 +279,12 @@ export const Settings = () => {
             </div>
           )}
 
+          {statusMessage && (
+            <div className="p-3 bg-blue-50 rounded-xl text-sm text-blue-800">
+              {statusMessage}
+            </div>
+          )}
+
           {/* Управление питомцами */}
           <div>
             <h2 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide px-1">
@@ -326,84 +293,8 @@ export const Settings = () => {
             <PetManager />
           </div>
 
-          {/* Бэкапы */}
-          <div>
-            <h2 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide px-1">
-              Резервные копии
-            </h2>
-            
-            {backupStatus && (
-              <div className="mb-2 p-3 bg-blue-50 rounded-xl text-sm text-blue-800">
-                {backupStatus}
-              </div>
-            )}
-
-            {lastBackupDate && (
-              <div className="mb-2 p-3 bg-gray-50 rounded-xl text-xs text-gray-600">
-                Последний автобэкап: {new Date(lastBackupDate).toLocaleString('ru-RU')}
-              </div>
-            )}
-
-            <div className="bg-white rounded-2xl p-3 space-y-2">
-              <button
-                onClick={handleDownloadBackup}
-                disabled={importing}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-black text-white rounded-full hover:bg-gray-800 transition-colors font-medium text-sm disabled:opacity-50"
-              >
-                <Download size={16} />
-                Скачать бэкап
-              </button>
-
-              <button
-                onClick={handleUploadBackup}
-                disabled={importing}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-black rounded-full hover:bg-gray-50 transition-colors font-medium text-sm border border-gray-200 disabled:opacity-50"
-              >
-                <Upload size={16} />
-                {importing ? 'Импорт...' : 'Загрузить бэкап'}
-              </button>
-
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <button
-                  onClick={handleCreateAutoBackup}
-                  disabled={importing}
-                  className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors font-medium text-xs disabled:opacity-50"
-                >
-                  <Save size={14} />
-                  Создать
-                </button>
-                
-                <button
-                  onClick={handleRestoreAutoBackup}
-                  disabled={importing || !lastBackupDate}
-                  className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors font-medium text-xs disabled:opacity-50"
-                >
-                  <Upload size={14} />
-                  Восстановить
-                </button>
-              </div>
-            </div>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".json"
-              onChange={handleFileChange}
-              className="hidden"
-            />
-
-            <div className="mt-2 p-3 bg-yellow-50 rounded-xl">
-              <div className="flex items-start gap-2">
-                <AlertTriangle size={14} className="text-yellow-600 flex-shrink-0 mt-0.5" />
-                <div className="text-xs text-yellow-800">
-                  Регулярно создавайте бэкапы! Автобэкап хранится в браузере.
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Теги симптомов */}
-          {symptomTags && symptomTags.length > 0 && (
+          {symptomTags.length > 0 && (
             <div>
               <h2 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide px-1">
                 Теги симптомов
@@ -478,7 +369,7 @@ export const Settings = () => {
           )}
 
           {/* Теги лекарств */}
-          {medicationTags && medicationTags.length > 0 && (
+          {medicationTags.length > 0 && (
             <div>
               <h2 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide px-1">
                 Теги лекарств
@@ -551,39 +442,6 @@ export const Settings = () => {
               </div>
             </div>
           )}
-
-          {/* Расширенные функции */}
-          <div>
-            <h2 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide px-1">
-              Дополнительно
-            </h2>
-            <div className="bg-white rounded-2xl p-3">
-              <button
-                onClick={() => setView('history')}
-                className="w-full px-4 py-2.5 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors font-medium text-sm"
-              >
-                История изменений
-              </button>
-            </div>
-          </div>
-
-          {/* Опасная зона */}
-          <div>
-            <h2 className="text-xs font-semibold text-red-500 mb-2 uppercase tracking-wide px-1">
-              Опасная зона
-            </h2>
-            <div className="bg-white rounded-2xl p-3 border border-red-200">
-              <p className="text-xs text-gray-600 mb-2">
-                Удалить все данные безвозвратно
-              </p>
-              <button
-                onClick={handleClearAll}
-                className="w-full px-4 py-2.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors font-medium text-sm"
-              >
-                Удалить все данные
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>

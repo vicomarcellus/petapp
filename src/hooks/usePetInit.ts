@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { db } from '../db';
+import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
 
 /**
@@ -16,25 +16,38 @@ export const usePetInit = () => {
       // Если питомец уже выбран, ничего не делаем
       if (currentPetId !== null) return;
 
-      // Ищем активного питомца для текущего пользователя
-      const activePet = await db.pets
-        .filter(p => p.userId === currentUser.id && p.isActive === true)
-        .first();
-      
-      if (activePet) {
-        setCurrentPetId(activePet.id!);
-      } else {
-        // Если нет активного, берем первого доступного для этого пользователя
-        const firstPet = await db.pets
-          .where('userId')
-          .equals(currentUser.id)
-          .first();
-          
-        if (firstPet) {
-          await db.pets.update(firstPet.id!, { isActive: true });
-          setCurrentPetId(firstPet.id!);
+      try {
+        // Ищем активного питомца для текущего пользователя
+        const { data: activePet, error: activeError } = await supabase
+          .from('pets')
+          .select('*')
+          .eq('user_id', currentUser.id)
+          .eq('is_active', true)
+          .single();
+        
+        if (!activeError && activePet) {
+          setCurrentPetId(activePet.id!);
+        } else {
+          // Если нет активного, берем первого доступного для этого пользователя
+          const { data: firstPet, error: firstError } = await supabase
+            .from('pets')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .order('created_at', { ascending: true })
+            .limit(1)
+            .single();
+            
+          if (!firstError && firstPet) {
+            await supabase
+              .from('pets')
+              .update({ is_active: true })
+              .eq('id', firstPet.id);
+            setCurrentPetId(firstPet.id!);
+          }
+          // НЕ создаем дефолтного питомца - пользователь сам добавит
         }
-        // НЕ создаем дефолтного питомца - пользователь сам добавит
+      } catch (error) {
+        console.error('Error initializing pet:', error);
       }
     };
 

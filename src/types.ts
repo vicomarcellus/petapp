@@ -1,16 +1,16 @@
 export interface User {
-  id: number; // User ID
+  id: string; // Supabase User ID (UUID)
   firstName: string;
   lastName?: string;
   username?: string;
   photoUrl?: string;
   authDate: number;
-  password?: string; // Хешированный пароль
+  password?: string; // Не используется с Supabase
 }
 
 export interface Pet {
   id?: number;
-  userId: number; // Telegram user ID
+  user_id: string; // Supabase User ID (UUID)
   name: string;
   type: string; // 'cat', 'dog', 'bird', 'other' и т.д.
   photo?: string; // base64 или URL
@@ -18,14 +18,14 @@ export interface Pet {
   breed?: string;
   color?: string;
   notes?: string;
-  created_at: number;
-  isActive?: boolean; // Активный питомец (выбран сейчас)
+  created_at?: string;
+  is_active?: boolean; // Активный питомец (выбран сейчас)
 }
 
 export interface MedicationEntry {
   id?: number;
-  userId: number; // Telegram user ID
-  petId: number; // ID питомца
+  user_id: string; // Supabase User ID (UUID)
+  pet_id: number; // ID питомца
   date: string; // YYYY-MM-DD
   medication_name: string;
   dosage: string;
@@ -37,8 +37,8 @@ export interface MedicationEntry {
 
 export interface Medication {
   id?: number;
-  userId: number; // Telegram user ID
-  petId: number; // ID питомца
+  user_id: string; // Supabase User ID (UUID)
+  pet_id: number; // ID питомца
   name: string;
   color: string;
   default_dosage?: string;
@@ -46,60 +46,60 @@ export interface Medication {
 
 export interface MedicationTag {
   id?: number;
-  userId: number; // Telegram user ID
-  petId: number; // ID питомца
+  user_id: string; // Supabase User ID (UUID)
+  pet_id: number; // ID питомца
   name: string;
   color: string;
 }
 
 export interface SymptomTag {
   id?: number;
-  userId: number; // Telegram user ID
-  petId: number; // ID питомца
+  user_id: string; // Supabase User ID (UUID)
+  pet_id: number; // ID питомца
   name: string;
   color: string;
 }
 
 export interface DayEntry {
   id?: number;
-  userId: number; // Telegram user ID
-  petId: number; // ID питомца
+  user_id: string; // Supabase User ID (UUID)
+  pet_id: number; // ID питомца
   date: string; // YYYY-MM-DD
   state_score: 1 | 2 | 3 | 4 | 5;
   note: string;
   symptoms: string[]; // Массив симптомов как строки
-  created_at: number;
-  updated_at: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface StateEntry {
   id?: number;
-  userId: number; // Telegram user ID
-  petId: number; // ID питомца
+  user_id: string; // Supabase User ID (UUID)
+  pet_id: number; // ID питомца
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   timestamp: number; // полный timestamp для сортировки
   state_score: 1 | 2 | 3 | 4 | 5;
   note?: string; // Опциональная заметка к конкретному состоянию
-  created_at: number;
+  created_at?: string;
 }
 
 export interface SymptomEntry {
   id?: number;
-  userId: number; // Telegram user ID
-  petId: number; // ID питомца
+  user_id: string; // Supabase User ID (UUID)
+  pet_id: number; // ID питомца
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   timestamp: number; // полный timestamp для сортировки
   symptom: string; // Название симптома
   note?: string; // Опциональная заметка
-  created_at: number;
+  created_at?: string;
 }
 
 export interface FeedingEntry {
   id?: number;
-  userId: number; // Telegram user ID
-  petId: number; // ID питомца
+  user_id: string; // Supabase User ID (UUID)
+  pet_id: number; // ID питомца
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   timestamp: number; // полный timestamp для сортировки
@@ -107,13 +107,13 @@ export interface FeedingEntry {
   amount: string; // Количество (например "50 г" или "100 мл")
   unit: 'g' | 'ml' | 'none'; // Единица измерения
   note?: string; // Опциональная заметка
-  created_at: number;
+  created_at?: string;
 }
 
 export interface FoodTag {
   id?: number;
-  userId: number; // Telegram user ID
-  petId: number; // ID питомца
+  user_id: string; // Supabase User ID (UUID)
+  pet_id: number; // ID питомца
   name: string;
   default_unit?: 'g' | 'ml' | 'none';
   default_amount?: string;
@@ -121,18 +121,18 @@ export interface FoodTag {
 
 export interface ChecklistTask {
   id?: number;
-  userId: number; // Telegram user ID
-  petId: number; // ID питомца
+  user_id: string; // Supabase User ID (UUID)
+  pet_id: number; // ID питомца
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   timestamp: number; // полный timestamp для сортировки и проверки просрочки
   task: string; // Текст задачи
   completed: boolean; // Выполнена ли задача
-  taskType?: 'medication' | 'feeding' | 'other'; // Тип задачи
-  linkedItemId?: number; // ID связанного лекарства или корма
-  linkedItemName?: string; // Название связанного элемента
-  linkedItemAmount?: string; // Количество/дозировка
-  created_at: number;
+  task_type?: 'medication' | 'feeding' | 'other'; // Тип задачи
+  linked_item_id?: number; // ID связанного лекарства или корма
+  linked_item_name?: string; // Название связанного элемента
+  linked_item_amount?: string; // Количество/дозировка
+  created_at?: string;
 }
 
 export interface HistoryEntry {

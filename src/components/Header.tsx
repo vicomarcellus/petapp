@@ -1,8 +1,8 @@
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db';
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
 import { ChevronDown, BarChart3, ClipboardList, Settings, Calendar as CalendarIcon, LogOut, ArrowLeft, CheckSquare } from 'lucide-react';
-import { useState } from 'react';
+import { Pet } from '../types';
 
 interface HeaderProps {
   showBackButton?: boolean;
@@ -21,27 +21,70 @@ const PET_EMOJIS: Record<string, string> = {
 export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
   const { setView, currentPetId, setCurrentPetId, view, currentUser, setCurrentUser } = useStore();
   const [showPetMenu, setShowPetMenu] = useState(false);
+  const [pets, setPets] = useState<Pet[]>([]);
 
-  const pets = useLiveQuery(() => 
-    currentUser ? db.pets.where('userId').equals(currentUser.id).toArray() : [],
-    [currentUser]
-  );
-  const currentPet = pets?.find(p => p.id === currentPetId);
+  useEffect(() => {
+    if (currentUser) {
+      loadPets();
+      
+      // Подписка на изменения
+      const channel = supabase
+        .channel('header_pets_changes')
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'pets', filter: `user_id=eq.${currentUser.id}` },
+          () => loadPets()
+        )
+        .subscribe();
 
-  const handleSelectPet = async (petId: number) => {
-    if (!currentUser || !pets) return;
-    
-    // Используем уже загруженные данные вместо повторного запроса
-    for (const pet of pets) {
-      await db.pets.update(pet.id!, { isActive: pet.id === petId });
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
+  }, [currentUser]);
+
+  const loadPets = async () => {
+    if (!currentUser) return;
     
-    setCurrentPetId(petId);
-    setShowPetMenu(false);
+    try {
+      const { data, error } = await supabase
+        .from('pets')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      setPets(data || []);
+    } catch (error) {
+      console.error('Error loading pets:', error);
+    }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('currentUser');
+  const currentPet = pets.find(p => p.id === currentPetId);
+
+  const handleSelectPet = async (petId: number) => {
+    if (!currentUser) return;
+    
+    try {
+      // Обновляем все питомцы
+      await supabase
+        .from('pets')
+        .update({ is_active: false })
+        .eq('user_id', currentUser.id);
+
+      await supabase
+        .from('pets')
+        .update({ is_active: true })
+        .eq('id', petId);
+      
+      setCurrentPetId(petId);
+      setShowPetMenu(false);
+    } catch (error) {
+      console.error('Error selecting pet:', error);
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setCurrentUser(null);
   };
 
@@ -96,7 +139,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
           )}
 
           {/* Pet Selector */}
-          {pets && pets.length > 0 && currentPet && (
+          {pets.length > 0 && currentPet && (
             <div className="relative">
               <button
                 onClick={() => pets.length > 1 && setShowPetMenu(!showPetMenu)}

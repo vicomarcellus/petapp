@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db';
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
 import { Plus, Check, Trash2 } from 'lucide-react';
+import { Pet } from '../types';
 
 const PET_TYPES = [
   { value: 'cat', label: '🐱 Кот', emoji: '🐱' },
@@ -18,28 +18,67 @@ export const PetManager = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [petName, setPetName] = useState('');
   const [petType, setPetType] = useState('cat');
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const pets = useLiveQuery(() => 
-    currentUser ? db.pets.where('userId').equals(currentUser.id).toArray() : [],
-    [currentUser]
-  );
+  useEffect(() => {
+    if (currentUser) {
+      loadPets();
+      
+      // Подписка на изменения
+      const channel = supabase
+        .channel('pets_changes')
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'pets', filter: `user_id=eq.${currentUser.id}` },
+          () => loadPets()
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [currentUser]);
+
+  const loadPets = async () => {
+    if (!currentUser) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('pets')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      setPets(data || []);
+    } catch (error) {
+      console.error('Error loading pets:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAddPet = async () => {
     if (!petName.trim() || !currentUser) return;
 
     try {
-      const newPetId = await db.pets.add({
-        userId: currentUser.id,
-        name: petName.trim(),
-        type: petType,
-        created_at: Date.now(),
-        isActive: false,
-      });
+      const { data, error } = await supabase
+        .from('pets')
+        .insert({
+          user_id: currentUser.id,
+          name: petName.trim(),
+          type: petType,
+          is_active: pets.length === 0, // Первый питомец активен
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
 
       // Если это первый питомец, делаем его активным
-      if (!pets || pets.length === 0) {
-        await db.pets.update(newPetId, { isActive: true });
-        setCurrentPetId(newPetId as number);
+      if (pets.length === 0 && data) {
+        setCurrentPetId(data.id!);
       }
 
       setPetName('');
@@ -47,32 +86,43 @@ export const PetManager = () => {
       setShowAddForm(false);
     } catch (error) {
       console.error('Error adding pet:', error);
+      alert('Ошибка при добавлении питомца');
     }
   };
 
   const handleSelectPet = async (petId: number) => {
-    if (!currentUser || !pets) return;
+    if (!currentUser) return;
     
-    // Используем уже загруженные данные
-    for (const pet of pets) {
-      await db.pets.update(pet.id!, { isActive: pet.id === petId });
+    try {
+      // Обновляем все питомцы
+      await supabase
+        .from('pets')
+        .update({ is_active: false })
+        .eq('user_id', currentUser.id);
+
+      await supabase
+        .from('pets')
+        .update({ is_active: true })
+        .eq('id', petId);
+      
+      setCurrentPetId(petId);
+    } catch (error) {
+      console.error('Error selecting pet:', error);
     }
-    
-    setCurrentPetId(petId);
   };
 
   const handleDeletePet = async (petId: number) => {
     if (!confirm('Удалить питомца? Все данные о нем будут удалены!')) return;
-    if (!currentUser || !pets) return;
+    if (!currentUser) return;
 
     try {
-      // Удаляем все данные питомца
-      await db.dayEntries.where('petId').equals(petId).delete();
-      await db.medicationEntries.where('petId').equals(petId).delete();
-      await db.medications.where('petId').equals(petId).delete();
-      await db.symptomTags.where('petId').equals(petId).delete();
-      await db.medicationTags.where('petId').equals(petId).delete();
-      await db.pets.delete(petId);
+      // Удаляем питомца (каскадное удаление настроено в БД)
+      const { error } = await supabase
+        .from('pets')
+        .delete()
+        .eq('id', petId);
+
+      if (error) throw error;
 
       // Если удалили активного питомца, выбираем первого доступного
       if (currentPetId === petId) {
@@ -85,12 +135,23 @@ export const PetManager = () => {
       }
     } catch (error) {
       console.error('Error deleting pet:', error);
+      alert('Ошибка при удалении питомца');
     }
   };
 
   const getPetEmoji = (type: string) => {
     return PET_TYPES.find(t => t.value === type)?.emoji || '🐾';
   };
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl p-4">
+        <div className="text-center py-4 text-gray-400 text-sm">
+          Загрузка...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-2xl p-4">
@@ -100,7 +161,7 @@ export const PetManager = () => {
 
       {/* Список питомцев */}
       <div className="space-y-2 mb-3">
-        {pets?.map((pet) => (
+        {pets.map((pet) => (
           <div
             key={pet.id}
             className={`flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer ${
@@ -198,7 +259,7 @@ export const PetManager = () => {
         </button>
       )}
 
-      {(!pets || pets.length === 0) && !showAddForm && (
+      {pets.length === 0 && !showAddForm && (
         <div className="text-center py-4 text-gray-400 text-sm">
           Добавьте первого питомца
         </div>

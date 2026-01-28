@@ -23,7 +23,7 @@ export const useStore = create<AppState>((set) => ({
   selectedDate: null,
   currentYear: new Date().getFullYear(),
   currentMonth: new Date().getMonth(),
-  currentPetId: null, // Будет установлен при загрузке
+  currentPetId: null,
   view: 'calendar',
   editingEntry: null,
   setCurrentUser: (user) => set({ currentUser: user }),

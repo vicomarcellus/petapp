@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../store';
-import { db } from '../db';
-import { User } from '../types';
+import { supabase } from '../lib/supabase';
 import { LogOut, PawPrint } from 'lucide-react';
 
 export function Auth() {
@@ -11,85 +10,111 @@ export function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Проверяем сохраненного пользователя
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
-      const user = JSON.parse(savedUser);
-      setCurrentUser(user);
-    }
+    // Проверяем текущую сессию
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setCurrentUser({
+          id: session.user.id,
+          firstName: session.user.user_metadata?.firstName || session.user.email?.split('@')[0] || 'User',
+          username: session.user.email,
+          authDate: new Date(session.user.created_at).getTime(),
+        });
+      }
+    });
+
+    // Подписываемся на изменения аутентификации
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setCurrentUser({
+          id: session.user.id,
+          firstName: session.user.user_metadata?.firstName || session.user.email?.split('@')[0] || 'User',
+          username: session.user.email,
+          authDate: new Date(session.user.created_at).getTime(),
+        });
+      } else {
+        setCurrentUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, [setCurrentUser]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     if (!email || !password) {
       setError('Заполните все поля');
+      setLoading(false);
       return;
     }
 
     if (!isLogin && !name) {
       setError('Введите имя');
+      setLoading(false);
       return;
     }
 
     try {
       if (isLogin) {
-        // Вход - используем индекс username
-        const user = await db.users.where('username').equals(email).first();
-        
-        if (!user) {
-          setError('Пользователь не найден');
+        // Вход
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (signInError) {
+          if (signInError.message.includes('Invalid login credentials')) {
+            setError('Неверный email или пароль. Если вы новый пользователь - зарегистрируйтесь.');
+          } else if (signInError.message.includes('Email not confirmed')) {
+            setError('Email не подтвержден. Проверьте почту.');
+          } else {
+            setError('Ошибка входа: ' + signInError.message);
+          }
           return;
         }
-
-        // Сохраняем пользователя
-        localStorage.setItem('currentUser', JSON.stringify(user));
-        setCurrentUser(user);
       } else {
-        // Регистрация - проверяем существование через индекс username
-        const exists = await db.users.where('username').equals(email).first();
-        
-        if (exists) {
-          setError('Email уже используется');
+        // Регистрация
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              firstName: name,
+            },
+          },
+        });
+
+        if (signUpError) {
+          setError(signUpError.message);
           return;
         }
 
-        const user: User = {
-          id: Date.now(),
-          firstName: name,
-          username: email,
-          authDate: Date.now(),
-        };
-
-        await db.users.put(user);
-        localStorage.setItem('currentUser', JSON.stringify(user));
-        setCurrentUser(user);
+        // Показываем сообщение об успешной регистрации
+        setError('');
+        alert('Регистрация успешна! Проверьте email для подтверждения (если включено).');
       }
     } catch (err) {
       setError('Ошибка: ' + (err as Error).message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('currentUser');
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setCurrentUser(null);
   };
 
   if (currentUser) {
     return (
       <div className="flex items-center gap-3">
-        {currentUser.photoUrl && (
-          <img
-            src={currentUser.photoUrl}
-            alt={currentUser.firstName}
-            className="w-8 h-8 rounded-full"
-          />
-        )}
         <span className="text-sm text-gray-700">
-          {currentUser.firstName} {currentUser.lastName}
+          {currentUser.firstName}
         </span>
         <button
           onClick={handleLogout}
@@ -129,6 +154,7 @@ export function Auth() {
                 onChange={(e) => setName(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                 placeholder="Ваше имя"
+                disabled={loading}
               />
             </div>
           )}
@@ -143,6 +169,7 @@ export function Auth() {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
               placeholder="your@email.com"
+              disabled={loading}
             />
           </div>
 
@@ -156,6 +183,7 @@ export function Auth() {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
               placeholder="••••••••"
+              disabled={loading}
             />
           </div>
 
@@ -167,9 +195,10 @@ export function Auth() {
 
           <button
             type="submit"
-            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+            disabled={loading}
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLogin ? 'Войти' : 'Зарегистрироваться'}
+            {loading ? 'Загрузка...' : isLogin ? 'Войти' : 'Зарегистрироваться'}
           </button>
 
           <button
@@ -178,6 +207,7 @@ export function Auth() {
               setIsLogin(!isLogin);
               setError('');
             }}
+            disabled={loading}
             className="w-full text-blue-500 hover:text-blue-600 text-sm font-medium"
           >
             {isLogin ? 'Нет аккаунта? Зарегистрируйтесь' : 'Уже есть аккаунт? Войдите'}

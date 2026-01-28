@@ -1,74 +1,105 @@
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db';
+import { useState, useEffect, useMemo } from 'react';
+import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
 import { formatDate } from '../utils';
 import { STATE_COLORS } from '../types';
 import { ChevronLeft, ChevronRight, Activity } from 'lucide-react';
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameMonth, isToday, startOfWeek, endOfWeek } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { QuickChat } from './QuickChat';
 import { Header } from './Header';
-import { useState, useMemo } from 'react';
+import type { DayEntry, StateEntry, MedicationEntry } from '../types';
 
 export const Calendar = () => {
-  const { currentYear, currentMonth, setCurrentYear, setCurrentMonth, setSelectedDate, setView, currentPetId } = useStore();
+  const { currentYear, currentMonth, setCurrentYear, setCurrentMonth, setSelectedDate, setView, currentPetId, currentUser } = useStore();
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [showTooltip, setShowTooltip] = useState(false);
+  const [entries, setEntries] = useState<DayEntry[]>([]);
+  const [stateEntries, setStateEntries] = useState<StateEntry[]>([]);
+  const [medicationEntries, setMedicationEntries] = useState<MedicationEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   
   const currentDate = new Date(currentYear, currentMonth, 1);
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   
-  // Форматируем даты для запроса
   const startDateStr = format(monthStart, 'yyyy-MM-dd');
   const endDateStr = format(monthEnd, 'yyyy-MM-dd');
-  
-  const entries = useLiveQuery(
-    () => {
-      if (!currentPetId) return [];
-      // Загружаем только записи текущего месяца
-      return db.dayEntries
-        .where('petId').equals(currentPetId)
-        .filter(e => e.date >= startDateStr && e.date <= endDateStr)
-        .toArray();
-    },
-    [currentPetId, startDateStr, endDateStr]
-  );
 
-  const stateEntries = useLiveQuery(
-    () => {
-      if (!currentPetId) return [];
-      // Загружаем только записи текущего месяца
-      return db.stateEntries
-        .where('petId').equals(currentPetId)
-        .filter(e => e.date >= startDateStr && e.date <= endDateStr)
-        .toArray();
-    },
-    [currentPetId, startDateStr, endDateStr]
-  );
+  useEffect(() => {
+    if (currentUser && currentPetId) {
+      loadData();
+      
+      // Подписка на изменения
+      const channel = supabase
+        .channel('calendar_changes')
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'day_entries', filter: `pet_id=eq.${currentPetId}` },
+          () => loadData()
+        )
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'state_entries', filter: `pet_id=eq.${currentPetId}` },
+          () => loadData()
+        )
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'medication_entries', filter: `pet_id=eq.${currentPetId}` },
+          () => loadData()
+        )
+        .subscribe();
 
-  const medicationEntries = useLiveQuery(
-    () => {
-      if (!currentPetId) return [];
-      // Загружаем только записи текущего месяца
-      return db.medicationEntries
-        .where('petId').equals(currentPetId)
-        .filter(e => e.date >= startDateStr && e.date <= endDateStr)
-        .toArray();
-    },
-    [currentPetId, startDateStr, endDateStr]
-  );
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [currentUser, currentPetId, startDateStr, endDateStr]);
+
+  const loadData = async () => {
+    if (!currentUser || !currentPetId) return;
+    
+    try {
+      setLoading(true);
+      const [dayRes, stateRes, medRes] = await Promise.all([
+        supabase
+          .from('day_entries')
+          .select('*')
+          .eq('user_id', currentUser.id)
+          .eq('pet_id', currentPetId)
+          .gte('date', startDateStr)
+          .lte('date', endDateStr),
+        supabase
+          .from('state_entries')
+          .select('*')
+          .eq('user_id', currentUser.id)
+          .eq('pet_id', currentPetId)
+          .gte('date', startDateStr)
+          .lte('date', endDateStr),
+        supabase
+          .from('medication_entries')
+          .select('*')
+          .eq('user_id', currentUser.id)
+          .eq('pet_id', currentPetId)
+          .gte('date', startDateStr)
+          .lte('date', endDateStr)
+      ]);
+
+      if (dayRes.data) setEntries(dayRes.data);
+      if (stateRes.data) setStateEntries(stateRes.data);
+      if (medRes.data) setMedicationEntries(medRes.data);
+    } catch (error) {
+      console.error('Error loading calendar data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const entriesMap = useMemo(() => 
-    new Map(entries?.map(e => [e.date, e]) || []),
+    new Map(entries.map(e => [e.date, e])),
     [entries]
   );
   
-  // Создаем карту состояний по датам
   const statesMap = useMemo(() => {
-    const map = new Map<string, typeof stateEntries>();
-    stateEntries?.forEach(state => {
+    const map = new Map<string, StateEntry[]>();
+    stateEntries.forEach(state => {
       if (!map.has(state.date)) {
         map.set(state.date, []);
       }
@@ -78,8 +109,8 @@ export const Calendar = () => {
   }, [stateEntries]);
   
   const medsMap = useMemo(() => {
-    const map = new Map<string, typeof medicationEntries>();
-    medicationEntries?.forEach(med => {
+    const map = new Map<string, MedicationEntry[]>();
+    medicationEntries.forEach(med => {
       if (!map.has(med.date)) {
         map.set(med.date, []);
       }
@@ -102,7 +133,6 @@ export const Calendar = () => {
     setSelectedDate(dateStr);
     const entry = entriesMap.get(dateStr);
     const states = statesMap.get(dateStr);
-    // Показываем view если есть запись дня или записи состояния
     setView((entry || (states && states.length > 0)) ? 'view' : 'add');
   };
 
@@ -113,27 +143,34 @@ export const Calendar = () => {
     setCurrentMonth(newDate.getMonth());
   };
 
-  // Статистика
-  const thisMonthEntries = entries?.filter(e => {
+  const thisMonthEntries = entries.filter(e => {
     const entryDate = new Date(e.date);
     return entryDate.getMonth() === currentDate.getMonth() && 
            entryDate.getFullYear() === currentYear;
-  }) || [];
+  });
   
-  // Вычисляем среднюю оценку за месяц из dayEntries (которые уже содержат средние за день)
   const avgScore = thisMonthEntries.length > 0
     ? (thisMonthEntries.reduce((sum, e) => sum + e.state_score, 0) / thisMonthEntries.length).toFixed(1)
     : '0';
 
-  // Хорошие дни - это дни где среднее состояние >= 4
   const goodDays = thisMonthEntries.filter(e => e.state_score >= 4).length;
 
-  // Подсчитываем общее количество записей состояния за месяц
-  const thisMonthStateEntries = stateEntries?.filter(s => {
+  const thisMonthStateEntries = stateEntries.filter(s => {
     const stateDate = new Date(s.date);
     return stateDate.getMonth() === currentDate.getMonth() && 
            stateDate.getFullYear() === currentYear;
-  }) || [];
+  });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#F5F5F7] p-3 md:p-4">
+        <div className="max-w-5xl mx-auto">
+          <Header />
+          <div className="text-center py-8 text-gray-400">Загрузка...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F5F5F7] p-3 md:p-4 pb-28">
@@ -141,9 +178,7 @@ export const Calendar = () => {
         <Header />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
-          {/* Main Calendar Card */}
           <div className="lg:col-span-2 bg-white rounded-xl p-4">
-            {/* Month Navigation */}
             <div className="flex items-center justify-between mb-4">
               <button
                 onClick={() => changeMonth(-1)}
@@ -162,7 +197,6 @@ export const Calendar = () => {
               </button>
             </div>
 
-            {/* Weekday Headers */}
             <div className="grid grid-cols-7 gap-1.5 mb-2">
               {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(day => (
                 <div key={day} className="text-center text-xs font-semibold text-gray-400 py-0.5">
@@ -171,7 +205,6 @@ export const Calendar = () => {
               ))}
             </div>
 
-            {/* Calendar Grid */}
             <div className="grid grid-cols-7 gap-1.5 relative">
               {weeks.flat().map((date, index) => {
                 const dateStr = formatDate(date);
@@ -181,7 +214,6 @@ export const Calendar = () => {
                 const isCurrentMonth = isSameMonth(date, currentDate);
                 const isTodayDate = isToday(date);
                 
-                // Вычисляем среднюю оценку за день из всех записей состояния
                 const avgDayScore = dayStates && dayStates.length > 0
                   ? Math.round(dayStates.reduce((sum, s) => sum + s.state_score, 0) / dayStates.length) as 1 | 2 | 3 | 4 | 5
                   : entry?.state_score;
@@ -230,7 +262,6 @@ export const Calendar = () => {
               })}
             </div>
 
-            {/* Tooltip */}
             {hoveredDate && showTooltip && (() => {
               const entry = entriesMap.get(hoveredDate);
               const states = statesMap.get(hoveredDate);
@@ -287,12 +318,9 @@ export const Calendar = () => {
                 </div>
               );
             })()}
-
           </div>
 
-          {/* Stats Sidebar */}
           <div className="space-y-3">
-            {/* Avg Score Card */}
             <div className="bg-white rounded-xl p-3">
               <div className="flex items-start gap-2">
                 <div className="w-8 h-8 bg-black rounded-2xl flex items-center justify-center flex-shrink-0">
@@ -306,7 +334,6 @@ export const Calendar = () => {
               </div>
             </div>
 
-            {/* Total Entries Card */}
             <div className="bg-white rounded-xl p-3">
               <div className="flex items-start gap-2">
                 <div className="w-8 h-8 bg-[#F5F5F7] rounded-2xl flex items-center justify-center text-black text-sm font-bold flex-shrink-0">
@@ -320,7 +347,6 @@ export const Calendar = () => {
               </div>
             </div>
 
-            {/* Good Days Card */}
             <div className="bg-white rounded-xl p-3">
               <div className="flex items-start gap-2">
                 <div className="w-8 h-8 bg-[#F5F5F7] rounded-2xl flex items-center justify-center text-black text-sm font-bold flex-shrink-0">
@@ -335,9 +361,6 @@ export const Calendar = () => {
             </div>
           </div>
         </div>
-
-        {/* QuickChat */}
-        <QuickChat />
       </div>
     </div>
   );
