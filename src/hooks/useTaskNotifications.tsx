@@ -21,33 +21,36 @@ export const useTaskNotifications = () => {
     [currentPetId, currentUser]
   );
 
+  // Загружаем medications и foods только если есть задачи
+  const hasTasks = tasks && tasks.length > 0;
+
   const savedMedications = useLiveQuery(
     async () => {
-      if (!currentPetId || !currentUser) return [];
+      if (!currentPetId || !currentUser || !hasTasks) return [];
       return await db.medications
         .where('petId').equals(currentPetId)
         .filter(m => m.userId === currentUser.id)
         .toArray();
     },
-    [currentPetId, currentUser]
+    [currentPetId, currentUser, hasTasks]
   );
 
   const savedFoods = useLiveQuery(
     async () => {
-      if (!currentPetId || !currentUser) return [];
+      if (!currentPetId || !currentUser || !hasTasks) return [];
       return await db.foodTags
         .where('petId').equals(currentPetId)
         .filter(f => f.userId === currentUser.id)
         .toArray();
     },
-    [currentPetId, currentUser]
+    [currentPetId, currentUser, hasTasks]
   );
 
-  // Обновляем текущее время каждую секунду
+  // Обновляем текущее время каждые 5 секунд (вместо каждой секунды для производительности)
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(Date.now());
-    }, 1000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, []);

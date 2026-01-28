@@ -49,11 +49,11 @@ export const Checklist = () => {
     [currentPetId, currentUser]
   );
 
-  // Обновляем текущее время каждую секунду для таймеров
+  // Обновляем текущее время каждые 2 секунды для таймеров (оптимизация производительности)
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(Date.now());
-    }, 1000);
+    }, 2000);
 
     return () => clearInterval(interval);
   }, []);
