@@ -20,8 +20,8 @@ function App() {
   // Инициализация текущего питомца
   usePetInit();
   
-  // Глобальные уведомления о задачах - ВРЕМЕННО ОТКЛЮЧЕНО ДЛЯ ДИАГНОСТИКИ
-  // const { NotificationModal } = useTaskNotifications();
+  // Глобальные уведомления о задачах
+  const { NotificationModal } = useTaskNotifications();
 
   // Если пользователь не авторизован, показываем экран входа
   if (!currentUser) {
@@ -43,8 +43,8 @@ function App() {
       {view === 'history' && <ChangeHistory />}
       {view === 'analytics' && <Analytics />}
       
-      {/* Глобальные уведомления о задачах - ВРЕМЕННО ОТКЛЮЧЕНО */}
-      {/* {NotificationModal} */}
+      {/* Глобальные уведомления о задачах */}
+      {NotificationModal}
     </div>
   );
 }

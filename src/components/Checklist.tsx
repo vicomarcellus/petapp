@@ -49,17 +49,14 @@ export const Checklist = () => {
     [currentPetId, currentUser]
   );
 
-  // Обновляем текущее время каждые 2 секунды для таймеров (оптимизация производительности)
-  // ВРЕМЕННО ОТКЛЮЧЕНО ДЛЯ ДИАГНОСТИКИ
-  /*
+  // Обновляем текущее время каждые 10 секунд для таймеров (оптимизация производительности)
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(Date.now());
-    }, 2000);
+    }, 10000);
 
     return () => clearInterval(interval);
   }, []);
-  */
 
   // Функция форматирования времени до задачи
   const formatTimeRemaining = (timestamp: number) => {
@@ -400,8 +397,7 @@ export const Checklist = () => {
                           <span className={`text-xs font-semibold ${
                             isOverdue ? 'text-red-500' : task.timestamp - now < 300000 ? 'text-orange-500' : 'text-blue-500'
                           }`}>
-                            {/* ВРЕМЕННО ОТКЛЮЧЕН ТАЙМЕР ОБРАТНОГО ОТСЧЁТА */}
-                            {/* • {formatTimeRemaining(task.timestamp)} */}
+                            • {formatTimeRemaining(task.timestamp)}
                           </span>
                         )}
                       </div>
