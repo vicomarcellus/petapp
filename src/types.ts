@@ -95,6 +95,29 @@ export interface SymptomEntry {
   created_at: number;
 }
 
+export interface FeedingEntry {
+  id?: number;
+  userId: number; // Telegram user ID
+  petId: number; // ID питомца
+  date: string; // YYYY-MM-DD
+  time: string; // HH:mm
+  timestamp: number; // полный timestamp для сортировки
+  food_name: string; // Название корма/воды
+  amount: string; // Количество (например "50 г" или "100 мл")
+  unit: 'g' | 'ml' | 'none'; // Единица измерения
+  note?: string; // Опциональная заметка
+  created_at: number;
+}
+
+export interface FoodTag {
+  id?: number;
+  userId: number; // Telegram user ID
+  petId: number; // ID питомца
+  name: string;
+  default_unit?: 'g' | 'ml' | 'none';
+  default_amount?: string;
+}
+
 export interface ChecklistTask {
   id?: number;
   userId: number; // Telegram user ID
@@ -104,6 +127,10 @@ export interface ChecklistTask {
   timestamp: number; // полный timestamp для сортировки и проверки просрочки
   task: string; // Текст задачи
   completed: boolean; // Выполнена ли задача
+  taskType?: 'medication' | 'feeding' | 'other'; // Тип задачи
+  linkedItemId?: number; // ID связанного лекарства или корма
+  linkedItemName?: string; // Название связанного элемента
+  linkedItemAmount?: string; // Количество/дозировка
   created_at: number;
 }
 

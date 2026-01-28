@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { useStore } from '../store';
-import { ArrowLeft, Plus, X, Clock, Check, Bell, Edit3 } from 'lucide-react';
+import { ArrowLeft, Plus, X, Clock, Check, Edit3 } from 'lucide-react';
 import { formatDisplayDate } from '../utils';
 
 export const Checklist = () => {
@@ -10,10 +10,10 @@ export const Checklist = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [taskText, setTaskText] = useState('');
   const [timeAmount, setTimeAmount] = useState('');
-  const [timeUnit, setTimeUnit] = useState<'minutes' | 'hours'>('minutes');
   const [currentTime, setCurrentTime] = useState(Date.now());
-  const [notificationTask, setNotificationTask] = useState<any>(null);
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
+  const [taskType, setTaskType] = useState<'medication' | 'feeding' | 'other'>('other');
+  const [linkedItemId, setLinkedItemId] = useState<number | null>(null);
 
   const tasks = useLiveQuery(
     async () => {
@@ -27,7 +27,29 @@ export const Checklist = () => {
     [currentPetId, currentUser]
   );
 
-  // Обновляем текущее время каждую секунду
+  const savedMedications = useLiveQuery(
+    async () => {
+      if (!currentPetId || !currentUser) return [];
+      return await db.medications
+        .where('petId').equals(currentPetId)
+        .filter(m => m.userId === currentUser.id)
+        .toArray();
+    },
+    [currentPetId, currentUser]
+  );
+
+  const savedFoods = useLiveQuery(
+    async () => {
+      if (!currentPetId || !currentUser) return [];
+      return await db.foodTags
+        .where('petId').equals(currentPetId)
+        .filter(f => f.userId === currentUser.id)
+        .toArray();
+    },
+    [currentPetId, currentUser]
+  );
+
+  // Обновляем текущее время каждую секунду для таймеров
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(Date.now());
@@ -35,22 +57,6 @@ export const Checklist = () => {
 
     return () => clearInterval(interval);
   }, []);
-
-  // Проверяем задачи на срабатывание уведомлений
-  useEffect(() => {
-    if (!tasks) return;
-
-    const now = Date.now();
-    const dueTask = tasks.find(task => 
-      !task.completed && 
-      task.timestamp <= now && 
-      task.timestamp > now - 60000 // В течение последней минуты
-    );
-
-    if (dueTask && (!notificationTask || notificationTask.id !== dueTask.id)) {
-      setNotificationTask(dueTask);
-    }
-  }, [tasks, currentTime]);
 
   // Функция форматирования времени до задачи
   const formatTimeRemaining = (timestamp: number) => {
@@ -84,14 +90,28 @@ export const Checklist = () => {
     const amount = parseInt(timeAmount);
     const targetTime = new Date(now);
     
-    if (timeUnit === 'minutes') {
-      targetTime.setMinutes(targetTime.getMinutes() + amount);
-    } else {
-      targetTime.setHours(targetTime.getHours() + amount);
-    }
+    targetTime.setMinutes(targetTime.getMinutes() + amount);
 
     const today = now.toISOString().split('T')[0];
     const time = `${targetTime.getHours().toString().padStart(2, '0')}:${targetTime.getMinutes().toString().padStart(2, '0')}`;
+
+    // Получаем данные связанного элемента
+    let linkedName = '';
+    let linkedAmount = '';
+    
+    if (taskType === 'medication' && linkedItemId) {
+      const med = savedMedications?.find(m => m.id === linkedItemId);
+      if (med) {
+        linkedName = med.name;
+        linkedAmount = med.default_dosage || '';
+      }
+    } else if (taskType === 'feeding' && linkedItemId) {
+      const food = savedFoods?.find(f => f.id === linkedItemId);
+      if (food) {
+        linkedName = food.name;
+        linkedAmount = food.default_amount ? `${food.default_amount} ${food.default_unit === 'g' ? 'г' : food.default_unit === 'ml' ? 'мл' : ''}`.trim() : '';
+      }
+    }
 
     if (editingTaskId) {
       // Обновляем существующую задачу
@@ -99,10 +119,14 @@ export const Checklist = () => {
         task: taskText.trim(),
         time,
         timestamp: targetTime.getTime(),
+        taskType,
+        linkedItemId: linkedItemId || undefined,
+        linkedItemName: linkedName || undefined,
+        linkedItemAmount: linkedAmount || undefined,
       });
     } else {
       // Создаём новую задачу
-      await db.checklistTasks.add({
+      const newTask = {
         userId: currentUser.id,
         petId: currentPetId,
         date: today,
@@ -110,12 +134,20 @@ export const Checklist = () => {
         timestamp: targetTime.getTime(),
         task: taskText.trim(),
         completed: false,
+        taskType,
+        linkedItemId: linkedItemId || undefined,
+        linkedItemName: linkedName || undefined,
+        linkedItemAmount: linkedAmount || undefined,
         created_at: Date.now(),
-      });
+      };
+      console.log('✅ Создаём задачу:', newTask);
+      await db.checklistTasks.add(newTask);
     }
 
     setTaskText('');
     setTimeAmount('');
+    setTaskType('other');
+    setLinkedItemId(null);
     setEditingTaskId(null);
     setShowAddForm(false);
   };
@@ -123,24 +155,66 @@ export const Checklist = () => {
   const handleEditTask = (task: any) => {
     setEditingTaskId(task.id);
     setTaskText(task.task);
+    setTaskType(task.taskType || 'other');
+    setLinkedItemId(task.linkedItemId || null);
     
-    // Вычисляем разницу во времени
+    // Вычисляем разницу во времени в минутах
     const diff = task.timestamp - Date.now();
     const minutes = Math.floor(diff / 60000);
-    
-    if (minutes < 60) {
-      setTimeAmount(Math.max(1, minutes).toString());
-      setTimeUnit('minutes');
-    } else {
-      const hours = Math.floor(minutes / 60);
-      setTimeAmount(hours.toString());
-      setTimeUnit('hours');
-    }
+    setTimeAmount(Math.max(1, minutes).toString());
     
     setShowAddForm(true);
   };
 
-  const handleToggleTask = async (id: number, completed: boolean) => {
+  const handleToggleTask = async (id: number, completed: boolean, task?: any) => {
+    // Если отмечаем как выполненную и это задача с лекарством/кормлением
+    if (!completed && task && currentPetId && currentUser) {
+      console.log('✅ Отмечаем задачу выполненной через чекбокс:', {
+        taskType: task.taskType,
+        linkedItemName: task.linkedItemName,
+        linkedItemAmount: task.linkedItemAmount
+      });
+
+      // Записываем в лог дня если задача связана с лекарством или кормлением
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
+      const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      const timestamp = now.getTime();
+      
+      if (task.taskType === 'medication' && task.linkedItemName) {
+        // Создаем запись о приеме лекарства
+        const medEntry = {
+          userId: currentUser.id,
+          petId: currentPetId,
+          date: today,
+          time: currentTime,
+          timestamp,
+          medication_name: task.linkedItemName,
+          dosage: task.linkedItemAmount || '',
+          color: savedMedications?.find(m => m.id === task.linkedItemId)?.color || '#3B82F6',
+        };
+        console.log('💊 Создаём запись лекарства через чекбокс:', medEntry);
+        await db.medicationEntries.add(medEntry);
+      } else if (task.taskType === 'feeding' && task.linkedItemName) {
+        // Создаем запись о кормлении
+        const food = savedFoods?.find(f => f.id === task.linkedItemId);
+        const feedEntry = {
+          userId: currentUser.id,
+          petId: currentPetId,
+          date: today,
+          time: currentTime,
+          timestamp,
+          food_name: task.linkedItemName,
+          amount: task.linkedItemAmount || '',
+          unit: food?.default_unit || 'none',
+          created_at: Date.now(),
+        };
+        console.log('🍽️ Создаём запись кормления через чекбокс:', feedEntry);
+        await db.feedingEntries.add(feedEntry);
+      }
+    }
+
+    // Обновляем статус задачи
     await db.checklistTasks.update(id, { completed: !completed });
   };
 
@@ -154,6 +228,33 @@ export const Checklist = () => {
     setView('calendar');
   };
 
+  const handleAddTimeToAll = async (minutes: number) => {
+    if (!tasks || tasks.length === 0) return;
+    
+    const now = Date.now();
+    const addMilliseconds = minutes * 60 * 1000;
+    
+    for (const task of tasks) {
+      if (!task.completed && task.id) {
+        const newTimestamp = task.timestamp + addMilliseconds;
+        
+        // Не даём уйти в прошлое - минимум через 1 минуту от текущего времени
+        const finalTimestamp = Math.max(newTimestamp, now + 60000);
+        
+        const newDate = new Date(finalTimestamp);
+        const newTime = `${newDate.getHours().toString().padStart(2, '0')}:${newDate.getMinutes().toString().padStart(2, '0')}`;
+        
+        await db.checklistTasks.update(task.id, {
+          timestamp: finalTimestamp,
+          time: newTime,
+        });
+      }
+    }
+  };
+
+  // Проверяем просроченные задачи
+  const now = Date.now();
+
   // Сортируем задачи: невыполненные сначала, потом по времени
   const sortedTasks = tasks?.sort((a, b) => {
     if (a.completed !== b.completed) {
@@ -161,16 +262,6 @@ export const Checklist = () => {
     }
     return a.timestamp - b.timestamp;
   }) || [];
-
-  const handleCloseNotification = async () => {
-    if (notificationTask) {
-      await handleToggleTask(notificationTask.id, notificationTask.completed);
-    }
-    setNotificationTask(null);
-  };
-
-  // Проверяем просроченные задачи
-  const now = Date.now();
 
   return (
     <div className="min-h-screen bg-[#F5F5F7] p-4 pb-32">
@@ -193,6 +284,53 @@ export const Checklist = () => {
           </button>
         </div>
 
+        {/* Быстрое добавление времени ко всем задачам */}
+        {sortedTasks.length > 0 && (
+          <div className="bg-white rounded-2xl p-4 mb-3">
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              Изменить время всех задач
+            </div>
+            <div className="grid grid-cols-6 gap-2">
+              <button
+                onClick={() => handleAddTimeToAll(-10)}
+                className="px-2 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-semibold text-gray-700 transition-all"
+              >
+                -10м
+              </button>
+              <button
+                onClick={() => handleAddTimeToAll(10)}
+                className="px-2 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-semibold text-gray-700 transition-all"
+              >
+                +10м
+              </button>
+              <button
+                onClick={() => handleAddTimeToAll(-30)}
+                className="px-2 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-semibold text-gray-700 transition-all"
+              >
+                -30м
+              </button>
+              <button
+                onClick={() => handleAddTimeToAll(30)}
+                className="px-2 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-semibold text-gray-700 transition-all"
+              >
+                +30м
+              </button>
+              <button
+                onClick={() => handleAddTimeToAll(-60)}
+                className="px-2 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-semibold text-gray-700 transition-all"
+              >
+                -60м
+              </button>
+              <button
+                onClick={() => handleAddTimeToAll(60)}
+                className="px-2 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-semibold text-gray-700 transition-all"
+              >
+                +60м
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Список задач */}
         <div className="space-y-2">
           {sortedTasks.length > 0 ? (
@@ -209,7 +347,7 @@ export const Checklist = () => {
                   <div className="flex items-start gap-3">
                     {/* Чекбокс */}
                     <button
-                      onClick={() => handleToggleTask(task.id!, task.completed)}
+                      onClick={() => handleToggleTask(task.id!, task.completed, task)}
                       className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
                         task.completed
                           ? 'bg-green-500 border-green-500'
@@ -226,6 +364,37 @@ export const Checklist = () => {
                       }`}>
                         {task.task}
                       </div>
+                      {/* Показываем детали лекарства или еды */}
+                      {task.linkedItemName && (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          {task.taskType === 'medication' && (
+                            <>
+                              <span className="text-xs">💊</span>
+                              <span className="text-xs font-semibold text-gray-700">
+                                {task.linkedItemName}
+                              </span>
+                              {task.linkedItemAmount && (
+                                <span className="text-xs text-gray-500">
+                                  • {task.linkedItemAmount}
+                                </span>
+                              )}
+                            </>
+                          )}
+                          {task.taskType === 'feeding' && (
+                            <>
+                              <span className="text-xs">🍽️</span>
+                              <span className="text-xs font-semibold text-gray-700">
+                                {task.linkedItemName}
+                              </span>
+                              {task.linkedItemAmount && (
+                                <span className="text-xs text-gray-500">
+                                  • {task.linkedItemAmount}
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      )}
                       <div className="flex items-center gap-2 mt-1">
                         <Clock size={12} className={isOverdue ? 'text-red-500' : 'text-gray-400'} />
                         <span className={`text-xs ${
@@ -297,26 +466,118 @@ export const Checklist = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-600 mb-2">
-                  Через сколько?
+                  Тип задачи
                 </label>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    value={timeAmount}
-                    onChange={(e) => setTimeAmount(e.target.value)}
-                    placeholder="30"
-                    min="1"
-                    className="flex-1 px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-black transition-all text-black placeholder-gray-400 outline-none"
-                    required
-                  />
+                <select
+                  value={taskType}
+                  onChange={(e) => {
+                    setTaskType(e.target.value as 'medication' | 'feeding' | 'other');
+                    setLinkedItemId(null);
+                  }}
+                  className="w-full px-4 py-3 pr-10 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-black transition-all text-black outline-none appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e')] bg-[length:20px] bg-[right_0.75rem_center] bg-no-repeat"
+                >
+                  <option value="other">Другое</option>
+                  <option value="medication">💊 Лекарство</option>
+                  <option value="feeding">🍽️ Кормление</option>
+                </select>
+              </div>
+
+              {taskType === 'medication' && savedMedications && savedMedications.length > 0 && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-600 mb-2">
+                    Выберите лекарство
+                  </label>
                   <select
-                    value={timeUnit}
-                    onChange={(e) => setTimeUnit(e.target.value as 'minutes' | 'hours')}
-                    className="px-4 py-3 pr-10 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-black transition-all text-black outline-none appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e')] bg-[length:20px] bg-[right_0.75rem_center] bg-no-repeat"
+                    value={linkedItemId || ''}
+                    onChange={(e) => setLinkedItemId(e.target.value ? parseInt(e.target.value) : null)}
+                    className="w-full px-4 py-3 pr-10 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-black transition-all text-black outline-none appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e')] bg-[length:20px] bg-[right_0.75rem_center] bg-no-repeat"
                   >
-                    <option value="minutes">минут</option>
-                    <option value="hours">часов</option>
+                    <option value="">Не выбрано</option>
+                    {savedMedications.map((med) => (
+                      <option key={med.id} value={med.id}>
+                        {med.name} {med.default_dosage ? `(${med.default_dosage})` : ''}
+                      </option>
+                    ))}
                   </select>
+                </div>
+              )}
+
+              {taskType === 'feeding' && savedFoods && savedFoods.length > 0 && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-600 mb-2">
+                    Выберите корм
+                  </label>
+                  <select
+                    value={linkedItemId || ''}
+                    onChange={(e) => setLinkedItemId(e.target.value ? parseInt(e.target.value) : null)}
+                    className="w-full px-4 py-3 pr-10 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-black transition-all text-black outline-none appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e')] bg-[length:20px] bg-[right_0.75rem_center] bg-no-repeat"
+                  >
+                    <option value="">Не выбрано</option>
+                    {savedFoods.map((food) => (
+                      <option key={food.id} value={food.id}>
+                        {food.name} {food.default_amount ? `(${food.default_amount} ${food.default_unit === 'g' ? 'г' : food.default_unit === 'ml' ? 'мл' : ''})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-600 mb-2">
+                  Через сколько минут?
+                </label>
+                <input
+                  type="number"
+                  value={timeAmount}
+                  onChange={(e) => setTimeAmount(e.target.value)}
+                  placeholder="30"
+                  min="1"
+                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-black transition-all text-black placeholder-gray-400 outline-none"
+                  required
+                />
+                <div className="grid grid-cols-6 gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setTimeAmount(Math.max(1, parseInt(timeAmount || '0') - 10).toString())}
+                    className="px-2 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-700 transition-colors"
+                  >
+                    -10
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTimeAmount((parseInt(timeAmount || '0') + 10).toString())}
+                    className="px-2 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-700 transition-colors"
+                  >
+                    +10
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTimeAmount(Math.max(1, parseInt(timeAmount || '0') - 30).toString())}
+                    className="px-2 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-700 transition-colors"
+                  >
+                    -30
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTimeAmount((parseInt(timeAmount || '0') + 30).toString())}
+                    className="px-2 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-700 transition-colors"
+                  >
+                    +30
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTimeAmount(Math.max(1, parseInt(timeAmount || '0') - 60).toString())}
+                    className="px-2 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-700 transition-colors"
+                  >
+                    -60
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTimeAmount((parseInt(timeAmount || '0') + 60).toString())}
+                    className="px-2 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-700 transition-colors"
+                  >
+                    +60
+                  </button>
                 </div>
               </div>
 
@@ -334,6 +595,8 @@ export const Checklist = () => {
                     setShowAddForm(false);
                     setTaskText('');
                     setTimeAmount('');
+                    setTaskType('other');
+                    setLinkedItemId(null);
                     setEditingTaskId(null);
                   }}
                   className="px-6 py-3 bg-gray-100 text-black rounded-full hover:bg-gray-200 transition-colors font-semibold"
@@ -342,48 +605,6 @@ export const Checklist = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Модалка уведомления о задаче */}
-      {notificationTask && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl animate-scaleIn">
-            <div className="flex items-center justify-center mb-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-red-500 rounded-full flex items-center justify-center animate-bounce">
-                <Bell size={32} className="text-white" />
-              </div>
-            </div>
-            
-            <h2 className="text-2xl font-bold text-center text-black mb-2">
-              Время пришло!
-            </h2>
-            
-            <div className="bg-gray-50 rounded-2xl p-4 mb-6">
-              <p className="text-lg font-semibold text-center text-gray-900">
-                {notificationTask.task}
-              </p>
-              <p className="text-sm text-center text-gray-500 mt-1">
-                Запланировано на {notificationTask.time}
-              </p>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={handleCloseNotification}
-                className="flex-1 px-6 py-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors font-semibold flex items-center justify-center gap-2"
-              >
-                <Check size={20} />
-                Выполнено
-              </button>
-              <button
-                onClick={() => setNotificationTask(null)}
-                className="px-6 py-3 bg-gray-200 text-black rounded-full hover:bg-gray-300 transition-colors font-semibold"
-              >
-                Позже
-              </button>
-            </div>
           </div>
         </div>
       )}

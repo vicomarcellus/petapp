@@ -4,14 +4,16 @@ import { db } from '../db';
 import { useStore } from '../store';
 import { STATE_COLORS, STATE_LABELS, SYMPTOM_COLORS, MEDICATION_COLORS } from '../types';
 import { formatDisplayDate } from '../utils';
-import { ArrowLeft, Trash2, Edit3, X, Clock, Pill } from 'lucide-react';
+import { ArrowLeft, Trash2, Edit3, X, Pill, Utensils } from 'lucide-react';
 import { QuickChat } from './QuickChat';
 import { addHistoryEntry } from '../services/history';
+import { AddMenu } from './EntryView/AddMenu';
+import { FeedingForm } from './EntryView/FeedingForm';
 
 export const EntryView = () => {
   const { selectedDate, setView, currentPetId, currentUser } = useStore();
   const [showAddMenu, setShowAddMenu] = useState(false);
-  const [addType, setAddType] = useState<'state' | 'symptom' | 'medication' | null>(null);
+  const [addType, setAddType] = useState<'state' | 'symptom' | 'medication' | 'feeding' | null>(null);
   const [showModal, setShowModal] = useState(false);
   
   // State form
@@ -31,6 +33,14 @@ export const EntryView = () => {
   const [medDosage, setMedDosage] = useState('');
   const [medTime, setMedTime] = useState('');
   const [editingMedId, setEditingMedId] = useState<number | null>(null);
+  
+  // Feeding form
+  const [foodName, setFoodName] = useState('');
+  const [foodAmount, setFoodAmount] = useState('');
+  const [foodUnit, setFoodUnit] = useState<'g' | 'ml' | 'none'>('g');
+  const [foodTime, setFoodTime] = useState('');
+  const [foodNote, setFoodNote] = useState('');
+  const [editingFeedingId, setEditingFeedingId] = useState<number | null>(null);
   
   // General note
   const [editingNote, setEditingNote] = useState(false);
@@ -100,6 +110,17 @@ export const EntryView = () => {
         .toArray();
     },
     [currentPetId, currentUser]
+  );
+
+  const feedingEntries = useLiveQuery(
+    async () => {
+      if (!selectedDate || !currentPetId || !currentUser) return [];
+      const entries = await db.feedingEntries.where('date').equals(selectedDate).toArray();
+      return entries
+        .filter(e => e.petId === currentPetId && e.userId === currentUser.id)
+        .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    },
+    [selectedDate, currentPetId, currentUser]
   );
 
   const updateDayEntryAverage = async () => {
@@ -448,10 +469,22 @@ export const EntryView = () => {
     }
   };
 
+  const handleEditFeeding = (feeding: any) => {
+    setEditingFeedingId(feeding.id);
+    setAddType('feeding');
+    setShowModal(true);
+  };
+
+  const handleDeleteFeeding = async (id: number) => {
+    if (confirm('Удалить это кормление?')) {
+      await db.feedingEntries.delete(id);
+    }
+  };
+
   const handleDelete = async () => {
     if (!entry?.id || !selectedDate) return;
     
-    if (confirm('Удалить эту запись? Будут удалены все состояния, лекарства и симптомы за этот день.')) {
+    if (confirm('Удалить эту запись? Будут удалены все состояния, лекарства, симптомы и кормления за этот день.')) {
       try {
         const entryId = entry.id;
         const dateToDelete = selectedDate;
@@ -471,6 +504,15 @@ export const EntryView = () => {
         for (const med of meds) {
           if (med.id) {
             await db.medicationEntries.delete(med.id);
+          }
+        }
+        
+        // Удаляем все кормления за этот день для текущего питомца
+        const feedings = await db.feedingEntries.where('date').equals(dateToDelete).filter(f => f.petId === currentPetId).toArray();
+        
+        for (const feeding of feedings) {
+          if (feeding.id) {
+            await db.feedingEntries.delete(feeding.id);
           }
         }
         
@@ -494,7 +536,7 @@ export const EntryView = () => {
 
   // Объединяем все записи в единую временную ленту
   type TimelineItem = {
-    type: 'state' | 'symptom' | 'medication';
+    type: 'state' | 'symptom' | 'medication' | 'feeding';
     time: string;
     timestamp: number;
     data: any;
@@ -504,6 +546,7 @@ export const EntryView = () => {
     ...(stateEntries?.map(s => ({ type: 'state' as const, time: s.time, timestamp: s.timestamp, data: s })) || []),
     ...(symptomEntries?.map(s => ({ type: 'symptom' as const, time: s.time, timestamp: s.timestamp, data: s })) || []),
     ...(medications?.map(m => ({ type: 'medication' as const, time: m.time, timestamp: m.timestamp, data: m })) || []),
+    ...(feedingEntries?.map(f => ({ type: 'feeding' as const, time: f.time, timestamp: f.timestamp, data: f })) || []),
   ].sort((a, b) => a.timestamp - b.timestamp);
 
   // Собираем уникальные симптомы за день для блока сводки
@@ -593,6 +636,7 @@ export const EntryView = () => {
                   const isState = item.type === 'state';
                   const isSymptom = item.type === 'symptom';
                   const isMedication = item.type === 'medication';
+                  const isFeeding = item.type === 'feeding';
 
                   return (
                     <div
@@ -602,13 +646,14 @@ export const EntryView = () => {
                           ? 'bg-gradient-to-r from-blue-50 to-white border border-blue-100 hover:shadow-md' 
                           : isSymptom
                           ? 'bg-gradient-to-r from-orange-50 to-white border border-orange-100 hover:shadow-sm'
+                          : isFeeding
+                          ? 'bg-gradient-to-r from-green-50 to-white border border-green-100 hover:shadow-sm'
                           : 'bg-white border border-gray-200 hover:bg-gray-50'
                       }`}
                     >
                       {/* Колонка времени - фиксированная ширина */}
                       <div className="w-14 flex-shrink-0">
                         <div className="text-sm text-black flex items-center gap-1">
-                          <Clock size={14} className="text-gray-400" />
                           <span>{item.time}</span>
                         </div>
                       </div>
@@ -632,6 +677,9 @@ export const EntryView = () => {
                         )}
                         {item.type === 'medication' && (
                           <div className="text-2xl">💊</div>
+                        )}
+                        {item.type === 'feeding' && (
+                          <div className="text-2xl">🍽️</div>
                         )}
                       </div>
 
@@ -671,6 +719,18 @@ export const EntryView = () => {
                             </div>
                           </>
                         )}
+                        {item.type === 'feeding' && (
+                          <>
+                            <div className="text-sm font-bold text-black">
+                              {item.data.food_name}
+                            </div>
+                            {item.data.amount && (
+                              <div className="text-xs text-gray-600">
+                                {item.data.amount}
+                              </div>
+                            )}
+                          </>
+                        )}
                       </div>
 
                       {/* Колонка кнопок - фиксированная ширина */}
@@ -679,6 +739,7 @@ export const EntryView = () => {
                           onClick={() => {
                             if (item.type === 'state') handleEditState(item.data);
                             else if (item.type === 'symptom') handleEditSymptom(item.data);
+                            else if (item.type === 'feeding') handleEditFeeding(item.data);
                             else handleEditMedication(item.data);
                           }}
                           className="p-2 hover:bg-blue-100 rounded-full transition-all text-blue-600 opacity-0 group-hover:opacity-100"
@@ -689,6 +750,7 @@ export const EntryView = () => {
                           onClick={(e) => {
                             if (item.type === 'state') handleDeleteState(item.data.id!);
                             else if (item.type === 'symptom') handleDeleteSymptom(item.data.id!);
+                            else if (item.type === 'feeding') handleDeleteFeeding(item.data.id!);
                             else handleDeleteMed(item.data.id!, e);
                           }}
                           className="p-2 hover:bg-red-100 rounded-full transition-all text-red-600 opacity-0 group-hover:opacity-100"
@@ -838,50 +900,16 @@ export const EntryView = () => {
             <div className="p-6">
               {/* Меню выбора типа */}
               {showAddMenu && !addType && (
-                <div className="space-y-4">
-                  <h2 className="text-xl font-bold text-black">Что добавить?</h2>
-                  <div className="grid grid-cols-3 gap-3">
-                    <button
-                      onClick={() => {
-                        setAddType('state');
-                        setShowAddMenu(false);
-                      }}
-                      className="p-4 bg-gradient-to-br from-blue-50 to-white rounded-2xl hover:from-blue-100 hover:to-blue-50 transition-all text-center border-2 border-blue-100"
-                    >
-                      <div className="text-3xl mb-2">😊</div>
-                      <div className="text-sm font-semibold text-gray-700">Состояние</div>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setAddType('symptom');
-                        setShowAddMenu(false);
-                      }}
-                      className="p-4 bg-gradient-to-br from-orange-50 to-white rounded-2xl hover:from-orange-100 hover:to-orange-50 transition-all text-center border-2 border-orange-100"
-                    >
-                      <div className="text-3xl mb-2">🤒</div>
-                      <div className="text-sm font-semibold text-gray-700">Симптом</div>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setAddType('medication');
-                        setShowAddMenu(false);
-                      }}
-                      className="p-4 bg-gradient-to-br from-gray-50 to-white rounded-2xl hover:from-gray-100 hover:to-gray-50 transition-all text-center border-2 border-gray-200"
-                    >
-                      <div className="text-3xl mb-2">💊</div>
-                      <div className="text-sm font-semibold text-gray-700">Лекарство</div>
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowModal(false);
-                      setShowAddMenu(false);
-                    }}
-                    className="w-full px-4 py-3 bg-gray-100 text-black rounded-full hover:bg-gray-200 transition-colors font-medium"
-                  >
-                    Отмена
-                  </button>
-                </div>
+                <AddMenu
+                  onSelect={(type) => {
+                    setAddType(type);
+                    setShowAddMenu(false);
+                  }}
+                  onCancel={() => {
+                    setShowModal(false);
+                    setShowAddMenu(false);
+                  }}
+                />
               )}
 
               {/* Форма состояния */}
@@ -1150,6 +1178,30 @@ export const EntryView = () => {
                     </button>
                   </div>
                 </form>
+              )}
+
+              {/* Форма кормления */}
+              {addType === 'feeding' && (
+                <FeedingForm
+                  selectedDate={selectedDate!}
+                  currentPetId={currentPetId!}
+                  currentUser={currentUser!}
+                  editingId={editingFeedingId}
+                  onSave={() => {
+                    setShowModal(false);
+                    setAddType(null);
+                    setEditingFeedingId(null);
+                  }}
+                  onCancel={() => {
+                    setShowModal(false);
+                    setAddType(null);
+                    setEditingFeedingId(null);
+                  }}
+                  onBack={() => {
+                    setAddType(null);
+                    setShowAddMenu(true);
+                  }}
+                />
               )}
             </div>
           </div>

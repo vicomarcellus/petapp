@@ -9,6 +9,7 @@ import { Auth } from './components/Auth';
 import { Checklist } from './components/Checklist';
 import { useAutoBackup } from './hooks/useAutoBackup';
 import { usePetInit } from './hooks/usePetInit';
+import { useTaskNotifications } from './hooks/useTaskNotifications';
 
 function App() {
   const { view, currentUser, currentPetId } = useStore();
@@ -18,6 +19,9 @@ function App() {
   
   // Инициализация текущего питомца
   usePetInit();
+  
+  // Глобальные уведомления о задачах
+  const { NotificationModal } = useTaskNotifications();
 
   // Если пользователь не авторизован, показываем экран входа
   if (!currentUser) {
@@ -38,6 +42,9 @@ function App() {
       {view === 'settings' && <Settings />}
       {view === 'history' && <ChangeHistory />}
       {view === 'analytics' && <Analytics />}
+      
+      {/* Глобальные уведомления о задачах */}
+      {NotificationModal}
     </div>
   );
 }

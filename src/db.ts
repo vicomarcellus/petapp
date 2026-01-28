@@ -1,5 +1,5 @@
 import Dexie, { Table } from 'dexie';
-import { DayEntry, MedicationEntry, Medication, SymptomTag, MedicationTag, HistoryEntry, Pet, User, StateEntry, SymptomEntry, ChecklistTask } from './types';
+import { DayEntry, MedicationEntry, Medication, SymptomTag, MedicationTag, HistoryEntry, Pet, User, StateEntry, SymptomEntry, ChecklistTask, FeedingEntry, FoodTag } from './types';
 
 export class CatHealthDB extends Dexie {
   users!: Table<User>;
@@ -7,10 +7,12 @@ export class CatHealthDB extends Dexie {
   dayEntries!: Table<DayEntry>;
   stateEntries!: Table<StateEntry>;
   symptomEntries!: Table<SymptomEntry>;
+  feedingEntries!: Table<FeedingEntry>;
   medicationEntries!: Table<MedicationEntry>;
   medications!: Table<Medication>;
   symptomTags!: Table<SymptomTag>;
   medicationTags!: Table<MedicationTag>;
+  foodTags!: Table<FoodTag>;
   history!: Table<HistoryEntry>;
   checklistTasks!: Table<ChecklistTask>;
 
@@ -195,6 +197,23 @@ export class CatHealthDB extends Dexie {
       medicationTags: '++id, userId, petId, name',
       history: '++id, timestamp, entityType, date',
       checklistTasks: '++id, userId, petId, date, timestamp, completed',
+    });
+
+    // Version 12: добавлена таблица кормлений и тегов еды
+    this.version(12).stores({
+      users: 'id, authDate',
+      pets: '++id, userId, name, type, created_at, isActive',
+      dayEntries: '++id, userId, petId, date, created_at, updated_at',
+      stateEntries: '++id, userId, petId, date, timestamp, time',
+      symptomEntries: '++id, userId, petId, date, timestamp, time',
+      feedingEntries: '++id, userId, petId, date, timestamp, time',
+      medicationEntries: '++id, userId, petId, date, timestamp, medication_name',
+      medications: '++id, userId, petId, name',
+      symptomTags: '++id, userId, petId, name',
+      medicationTags: '++id, userId, petId, name',
+      foodTags: '++id, userId, petId, name',
+      history: '++id, timestamp, entityType, date',
+      checklistTasks: '++id, userId, petId, date, timestamp, completed, taskType',
     });
   }
 }
