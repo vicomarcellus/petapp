@@ -4,6 +4,7 @@ import { parseEntryFromText } from '../services/ai';
 import { analyzeTrends, generateContextualHints } from '../services/aiAnalytics';
 import { db } from '../db';
 import { formatDate } from '../utils';
+import { format } from 'date-fns';
 import { DayEntry, MEDICATION_COLORS, SYMPTOM_COLORS } from '../types';
 import { useStore } from '../store';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -70,20 +71,30 @@ export const QuickChat = () => {
     return null;
   }
 
-  // Получаем данные для контекстных подсказок
+  // Получаем данные для контекстных подсказок - только последние 30 дней
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const startDateStr = format(thirtyDaysAgo, 'yyyy-MM-dd');
+
   const dayEntries = useLiveQuery(
     async () => {
       if (!currentPetId) return [];
-      return await db.dayEntries.where('petId').equals(currentPetId).toArray();
+      return await db.dayEntries
+        .where('petId').equals(currentPetId)
+        .filter(e => e.date >= startDateStr)
+        .toArray();
     },
-    [currentPetId]
+    [currentPetId, startDateStr]
   );
   const medicationEntries = useLiveQuery(
     async () => {
       if (!currentPetId) return [];
-      return await db.medicationEntries.where('petId').equals(currentPetId).toArray();
+      return await db.medicationEntries
+        .where('petId').equals(currentPetId)
+        .filter(e => e.date >= startDateStr)
+        .toArray();
     },
-    [currentPetId]
+    [currentPetId, startDateStr]
   );
   
   const targetDate = (view === 'add' || view === 'edit' || view === 'view') && selectedDate 
