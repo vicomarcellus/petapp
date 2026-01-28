@@ -16,6 +16,10 @@ export const Settings = () => {
   const [editColor, setEditColor] = useState('');
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const symptomTags = useLiveQuery(() => {
@@ -45,6 +49,44 @@ export const Settings = () => {
       setEditingSymptom(null);
       setEditName('');
       setEditColor('');
+    }
+  };
+
+  const handleChangePassword = async () => {
+    setPasswordError('');
+    
+    if (!newPassword || !confirmPassword) {
+      setPasswordError('Заполните все поля');
+      return;
+    }
+    
+    if (newPassword.length < 6) {
+      setPasswordError('Пароль должен быть минимум 6 символов');
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Пароли не совпадают');
+      return;
+    }
+    
+    if (!currentUser) return;
+    
+    try {
+      // В реальном приложении здесь должно быть хеширование пароля
+      // Для демо просто сохраняем (в production использовать bcrypt или аналог)
+      await db.users.update(currentUser.id, {
+        password: newPassword, // В production: await bcrypt.hash(newPassword, 10)
+      });
+      
+      setBackupStatus('Пароль успешно изменен');
+      setChangingPassword(false);
+      setNewPassword('');
+      setConfirmPassword('');
+      
+      setTimeout(() => setBackupStatus(null), 3000);
+    } catch (error) {
+      setPasswordError('Ошибка при изменении пароля');
     }
   };
 
@@ -200,6 +242,82 @@ export const Settings = () => {
         <Header />
 
         <div className="space-y-4">
+          {/* Профиль пользователя */}
+          {currentUser && (
+            <div>
+              <h2 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide px-1">
+                Профиль
+              </h2>
+              <div className="bg-white rounded-2xl p-4 space-y-3">
+                <div>
+                  <div className="text-xs font-semibold text-gray-500 mb-1">Email</div>
+                  <div className="text-sm text-gray-900">{currentUser.username}</div>
+                </div>
+                
+                {!changingPassword ? (
+                  <button
+                    onClick={() => setChangingPassword(true)}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Изменить пароль
+                  </button>
+                ) : (
+                  <div className="space-y-3 pt-2 border-t border-gray-100">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">
+                        Новый пароль
+                      </label>
+                      <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Минимум 6 символов"
+                        className="w-full px-3 py-2 bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-black transition-all text-sm outline-none"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">
+                        Подтвердите пароль
+                      </label>
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Повторите пароль"
+                        className="w-full px-3 py-2 bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-black transition-all text-sm outline-none"
+                      />
+                    </div>
+                    
+                    {passwordError && (
+                      <div className="text-xs text-red-600">{passwordError}</div>
+                    )}
+                    
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleChangePassword}
+                        className="px-4 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-colors text-sm font-medium"
+                      >
+                        Сохранить
+                      </button>
+                      <button
+                        onClick={() => {
+                          setChangingPassword(false);
+                          setNewPassword('');
+                          setConfirmPassword('');
+                          setPasswordError('');
+                        }}
+                        className="px-4 py-2 bg-gray-100 text-black rounded-full hover:bg-gray-200 transition-colors text-sm font-medium"
+                      >
+                        Отмена
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Управление питомцами */}
           <div>
             <h2 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide px-1">

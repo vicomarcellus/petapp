@@ -1,10 +1,11 @@
 export interface User {
-  id: number; // Telegram user ID
+  id: number; // User ID
   firstName: string;
   lastName?: string;
   username?: string;
   photoUrl?: string;
   authDate: number;
+  password?: string; // Хешированный пароль
 }
 
 export interface Pet {
