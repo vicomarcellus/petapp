@@ -66,17 +66,10 @@ export const useTaskNotifications = () => {
     if (dueTask && (!notificationTask || notificationTask.id !== dueTask.id)) {
       setNotificationTask(dueTask);
     }
-  }, [tasks, currentTime]);
+  }, [tasks, currentTime, notificationTask]);
 
   const handleCompleteTask = async () => {
     if (notificationTask && currentPetId && currentUser) {
-      console.log('🔔 Выполнение задачи:', {
-        taskType: notificationTask.taskType,
-        linkedItemName: notificationTask.linkedItemName,
-        linkedItemAmount: notificationTask.linkedItemAmount,
-        linkedItemId: notificationTask.linkedItemId
-      });
-
       // Отмечаем задачу как выполненную
       await db.checklistTasks.update(notificationTask.id, { completed: true });
       
@@ -98,7 +91,6 @@ export const useTaskNotifications = () => {
           dosage: notificationTask.linkedItemAmount || '',
           color: savedMedications?.find(m => m.id === notificationTask.linkedItemId)?.color || '#3B82F6',
         };
-        console.log('💊 Создаём запись лекарства:', medEntry);
         await db.medicationEntries.add(medEntry);
       } else if (notificationTask.taskType === 'feeding' && notificationTask.linkedItemName) {
         // Создаем запись о кормлении
@@ -114,7 +106,6 @@ export const useTaskNotifications = () => {
           unit: food?.default_unit || 'none',
           created_at: Date.now(),
         };
-        console.log('🍽️ Создаём запись кормления:', feedEntry);
         await db.feedingEntries.add(feedEntry);
       }
     }

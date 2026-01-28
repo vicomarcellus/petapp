@@ -140,7 +140,6 @@ export const Checklist = () => {
         linkedItemAmount: linkedAmount || undefined,
         created_at: Date.now(),
       };
-      console.log('✅ Создаём задачу:', newTask);
       await db.checklistTasks.add(newTask);
     }
 
@@ -169,12 +168,6 @@ export const Checklist = () => {
   const handleToggleTask = async (id: number, completed: boolean, task?: any) => {
     // Если отмечаем как выполненную и это задача с лекарством/кормлением
     if (!completed && task && currentPetId && currentUser) {
-      console.log('✅ Отмечаем задачу выполненной через чекбокс:', {
-        taskType: task.taskType,
-        linkedItemName: task.linkedItemName,
-        linkedItemAmount: task.linkedItemAmount
-      });
-
       // Записываем в лог дня если задача связана с лекарством или кормлением
       const now = new Date();
       const today = now.toISOString().split('T')[0];
@@ -193,7 +186,6 @@ export const Checklist = () => {
           dosage: task.linkedItemAmount || '',
           color: savedMedications?.find(m => m.id === task.linkedItemId)?.color || '#3B82F6',
         };
-        console.log('💊 Создаём запись лекарства через чекбокс:', medEntry);
         await db.medicationEntries.add(medEntry);
       } else if (task.taskType === 'feeding' && task.linkedItemName) {
         // Создаем запись о кормлении
@@ -209,7 +201,6 @@ export const Checklist = () => {
           unit: food?.default_unit || 'none',
           created_at: Date.now(),
         };
-        console.log('🍽️ Создаём запись кормления через чекбокс:', feedEntry);
         await db.feedingEntries.add(feedEntry);
       }
     }
