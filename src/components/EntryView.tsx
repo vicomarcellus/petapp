@@ -16,7 +16,7 @@ type TimelineEntry =
 
 export const EntryView = () => {
   const { selectedDate, setView, currentPetId, currentUser } = useStore();
-  const { scheduleEvent, cancelEvent, updateEvent, events, NotificationModal } = useScheduledEvents();
+  const { scheduleEvent, cancelEvent, updateEvent, events, formatTimeLeft, NotificationModal } = useScheduledEvents();
   const [stateEntries, setStateEntries] = useState<StateEntry[]>([]);
   const [symptomEntries, setSymptomEntries] = useState<SymptomEntry[]>([]);
   const [medicationEntries, setMedicationEntries] = useState<MedicationEntry[]>([]);
@@ -64,6 +64,57 @@ export const EntryView = () => {
       loadSavedItems();
     }
   }, [selectedDate, currentPetId, currentUser]);
+
+  // Обработчик выполнения запланированного события
+  useEffect(() => {
+    const handleScheduledCompleted = async (e: any) => {
+      const event = e.detail;
+      if (!selectedDate || !currentPetId || !currentUser) return;
+
+      try {
+        const now = new Date();
+        const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        const timestamp = now.getTime();
+
+        if (event.type === 'medication') {
+          await supabase.from('medication_entries').insert({
+            user_id: currentUser.id,
+            pet_id: currentPetId,
+            date: selectedDate,
+            time: timeStr,
+            timestamp,
+            medication_name: event.data.medication_name,
+            dosage: event.data.dosage,
+            color: '#8B5CF6',
+            is_scheduled: true
+          });
+        } else if (event.type === 'feeding') {
+          await supabase.from('feeding_entries').insert({
+            user_id: currentUser.id,
+            pet_id: currentPetId,
+            date: selectedDate,
+            time: timeStr,
+            timestamp,
+            food_name: event.data.food_name,
+            amount: event.data.amount,
+            unit: event.data.unit,
+            is_scheduled: true
+          });
+        }
+
+        // Удаляем событие из запланированных
+        cancelEvent(event.id);
+        
+        // Перезагружаем данные
+        loadData();
+      } catch (error) {
+        console.error('Error completing scheduled event:', error);
+      }
+    };
+
+    window.addEventListener('scheduledEventCompleted', handleScheduledCompleted);
+    return () => window.removeEventListener('scheduledEventCompleted', handleScheduledCompleted);
+  }, [selectedDate, currentPetId, currentUser, cancelEvent]);
 
   const loadSavedItems = async () => {
     if (!currentUser || !currentPetId) return;
@@ -730,7 +781,7 @@ export const EntryView = () => {
                               
                               {/* Таймер справа */}
                               <div className="text-xs font-medium text-blue-600 px-2 py-1 bg-blue-100 rounded-full flex-shrink-0">
-                                {event.minutesLeft > 0 ? `${event.minutesLeft}м` : 'сейчас'}
+                                {formatTimeLeft(event.minutesLeft, event.secondsLeft)}
                               </div>
                               
                               <button 
