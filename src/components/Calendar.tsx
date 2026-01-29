@@ -227,7 +227,10 @@ export const Calendar = () => {
                       if ((dayMeds && dayMeds.length > 0) || entry || (dayStates && dayStates.length > 0)) {
                         setHoveredDate(dateStr);
                         const rect = e.currentTarget.getBoundingClientRect();
-                        setTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top });
+                        setTooltipPosition({ 
+                          x: rect.left + rect.width / 2, 
+                          y: rect.top + window.scrollY 
+                        });
                         setTimeout(() => setShowTooltip(true), 300);
                       }
                     }}
@@ -272,7 +275,7 @@ export const Calendar = () => {
               
               return (
                 <div
-                  className="fixed z-50 bg-black text-white px-4 py-3 rounded-2xl text-xs shadow-2xl pointer-events-none"
+                  className="absolute z-50 bg-black text-white px-4 py-3 rounded-2xl text-xs shadow-2xl pointer-events-none"
                   style={{
                     left: `${tooltipPosition.x}px`,
                     top: `${tooltipPosition.y - 10}px`,
