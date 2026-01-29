@@ -934,21 +934,21 @@ export const EntryView = () => {
                         return (
                           <div key={`scheduled-${scheduledEntry.type}-${data.id}`} className="p-3 rounded-xl bg-gray-50">
                             <div className="flex items-center gap-3">
-                              <div className="text-sm font-medium text-gray-600 w-16 flex-shrink-0">{timeStr}</div>
+                              <div className="text-sm font-medium text-gray-600 w-16 flex-shrink-0 opacity-50">{timeStr}</div>
                               
                               {/* Иконка как у обычных карточек */}
                               {scheduledEntry.type === 'medication' && (
-                                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-100 flex-shrink-0">
+                                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-100 flex-shrink-0 opacity-50">
                                   <Pill className="text-purple-600" size={20} />
                                 </div>
                               )}
                               {scheduledEntry.type === 'feeding' && (
-                                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-green-100 flex-shrink-0">
+                                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-green-100 flex-shrink-0 opacity-50">
                                   <Utensils className="text-green-600" size={20} />
                                 </div>
                               )}
                               
-                              <div className="flex-1 min-w-0">
+                              <div className="flex-1 min-w-0 opacity-50">
                                 <div className="text-sm font-medium text-black">
                                   {scheduledEntry.type === 'medication' && `Лекарство: ${(data as MedicationEntry).medication_name}`}
                                   {scheduledEntry.type === 'feeding' && `Питание: ${(data as FeedingEntry).food_name}`}
@@ -959,12 +959,12 @@ export const EntryView = () => {
                                 </div>
                               </div>
                               
-                              {/* Таймер справа */}
+                              {/* Таймер справа - БЕЗ opacity */}
                               <div className="text-xs font-medium text-gray-600 px-2 py-1 bg-gray-200 rounded-full flex-shrink-0">
                                 {formatTimeLeft(data.scheduled_time!)}
                               </div>
                               
-                              {/* Кнопка "Выполнено" */}
+                              {/* Кнопки - БЕЗ opacity */}
                               <button 
                                 onClick={() => handleCompleteScheduled(data.id!, scheduledEntry.type)} 
                                 className="p-2 hover:bg-green-100 rounded-full transition-colors text-green-600 flex-shrink-0"
