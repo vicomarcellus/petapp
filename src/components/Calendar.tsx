@@ -272,7 +272,7 @@ export const Calendar = () => {
               
               return (
                 <div
-                  className="fixed z-50 bg-black text-white px-3 py-2 rounded-[32px] text-xs shadow-2xl pointer-events-none"
+                  className="fixed z-50 bg-black text-white px-4 py-3 rounded-2xl text-xs shadow-2xl pointer-events-none"
                   style={{
                     left: `${tooltipPosition.x}px`,
                     top: `${tooltipPosition.y - 10}px`,
