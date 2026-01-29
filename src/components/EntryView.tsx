@@ -83,15 +83,18 @@ export const EntryView = () => {
   ].sort((a, b) => a.data.timestamp - b.data.timestamp);
 
   const handleAddState = async () => {
-    if (!selectedDate || !currentPetId || !currentUser || !stateTime) return;
+    if (!selectedDate || !currentPetId || !currentUser) return;
     
     try {
-      const timestamp = new Date(`${selectedDate}T${stateTime}`).getTime();
+      // Если время не указано, берем текущее
+      const timeToUse = stateTime || new Date().toTimeString().slice(0, 5);
+      const timestamp = new Date(`${selectedDate}T${timeToUse}`).getTime();
+      
       await supabase.from('state_entries').insert({
         user_id: currentUser.id,
         pet_id: currentPetId,
         date: selectedDate,
-        time: stateTime,
+        time: timeToUse,
         timestamp,
         state_score: stateScore,
         note: stateNote || null
@@ -108,15 +111,18 @@ export const EntryView = () => {
   };
 
   const handleAddSymptom = async () => {
-    if (!selectedDate || !currentPetId || !currentUser || !symptomTime || !symptomName) return;
+    if (!selectedDate || !currentPetId || !currentUser || !symptomName) return;
     
     try {
-      const timestamp = new Date(`${selectedDate}T${symptomTime}`).getTime();
+      // Если время не указано, берем текущее
+      const timeToUse = symptomTime || new Date().toTimeString().slice(0, 5);
+      const timestamp = new Date(`${selectedDate}T${timeToUse}`).getTime();
+      
       await supabase.from('symptom_entries').insert({
         user_id: currentUser.id,
         pet_id: currentPetId,
         date: selectedDate,
-        time: symptomTime,
+        time: timeToUse,
         timestamp,
         symptom: symptomName,
         note: symptomNote || null
@@ -133,15 +139,18 @@ export const EntryView = () => {
   };
 
   const handleAddMedication = async () => {
-    if (!selectedDate || !currentPetId || !currentUser || !medicationTime || !medicationName) return;
+    if (!selectedDate || !currentPetId || !currentUser || !medicationName) return;
     
     try {
-      const timestamp = new Date(`${selectedDate}T${medicationTime}`).getTime();
+      // Если время не указано, берем текущее
+      const timeToUse = medicationTime || new Date().toTimeString().slice(0, 5);
+      const timestamp = new Date(`${selectedDate}T${timeToUse}`).getTime();
+      
       await supabase.from('medication_entries').insert({
         user_id: currentUser.id,
         pet_id: currentPetId,
         date: selectedDate,
-        time: medicationTime,
+        time: timeToUse,
         timestamp,
         medication_name: medicationName,
         dosage: medicationDosage,
@@ -159,15 +168,18 @@ export const EntryView = () => {
   };
 
   const handleAddFeeding = async () => {
-    if (!selectedDate || !currentPetId || !currentUser || !foodTime || !foodName) return;
+    if (!selectedDate || !currentPetId || !currentUser || !foodName) return;
     
     try {
-      const timestamp = new Date(`${selectedDate}T${foodTime}`).getTime();
+      // Если время не указано, берем текущее
+      const timeToUse = foodTime || new Date().toTimeString().slice(0, 5);
+      const timestamp = new Date(`${selectedDate}T${timeToUse}`).getTime();
+      
       await supabase.from('feeding_entries').insert({
         user_id: currentUser.id,
         pet_id: currentPetId,
         date: selectedDate,
-        time: foodTime,
+        time: timeToUse,
         timestamp,
         food_name: foodName,
         amount: foodAmount,
@@ -381,8 +393,8 @@ export const EntryView = () => {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Время</label>
-                  <input type="time" value={stateTime} onChange={(e) => setStateTime(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Время (необязательно)</label>
+                  <input type="time" value={stateTime} onChange={(e) => setStateTime(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Текущее время" />
                 </div>
 
                 <div>
@@ -399,7 +411,7 @@ export const EntryView = () => {
                   <textarea value={stateNote} onChange={(e) => setStateNote(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none" rows={3} placeholder="Дополнительная информация..." />
                 </div>
 
-                <button onClick={handleAddState} disabled={!stateTime} className="w-full py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Добавить</button>
+                <button onClick={handleAddState} className="w-full py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors">Добавить</button>
               </div>
             </div>
           </div>
@@ -415,7 +427,7 @@ export const EntryView = () => {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Время</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Время (необязательно)</label>
                   <input type="time" value={symptomTime} onChange={(e) => setSymptomTime(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
 
@@ -429,7 +441,7 @@ export const EntryView = () => {
                   <textarea value={symptomNote} onChange={(e) => setSymptomNote(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none" rows={3} placeholder="Дополнительная информация..." />
                 </div>
 
-                <button onClick={handleAddSymptom} disabled={!symptomTime || !symptomName} className="w-full py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Добавить</button>
+                <button onClick={handleAddSymptom} disabled={!symptomName} className="w-full py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Добавить</button>
               </div>
             </div>
           </div>
@@ -445,7 +457,7 @@ export const EntryView = () => {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Время</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Время (необязательно)</label>
                   <input type="time" value={medicationTime} onChange={(e) => setMedicationTime(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
 
@@ -459,7 +471,7 @@ export const EntryView = () => {
                   <input type="text" value={medicationDosage} onChange={(e) => setMedicationDosage(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Например: 0,3 мл" />
                 </div>
 
-                <button onClick={handleAddMedication} disabled={!medicationTime || !medicationName} className="w-full py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Добавить</button>
+                <button onClick={handleAddMedication} disabled={!medicationName} className="w-full py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Добавить</button>
               </div>
             </div>
           </div>
@@ -475,7 +487,7 @@ export const EntryView = () => {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Время</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Время (необязательно)</label>
                   <input type="time" value={foodTime} onChange={(e) => setFoodTime(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
 
@@ -504,7 +516,7 @@ export const EntryView = () => {
                   <textarea value={foodNote} onChange={(e) => setFoodNote(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none" rows={2} placeholder="Дополнительная информация..." />
                 </div>
 
-                <button onClick={handleAddFeeding} disabled={!foodTime || !foodName} className="w-full py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Добавить</button>
+                <button onClick={handleAddFeeding} disabled={!foodName} className="w-full py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Добавить</button>
               </div>
             </div>
           </div>
