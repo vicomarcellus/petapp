@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
 import { STATE_COLORS, STATE_LABELS } from '../types';
 import { formatDisplayDate } from '../utils';
-import { Trash2, Plus, Activity, AlertCircle, Pill, Utensils, X } from 'lucide-react';
+import { Trash2, Plus, Activity, AlertCircle, Pill, Utensils, X, Edit2 } from 'lucide-react';
 import { Header } from './Header';
 import type { StateEntry, SymptomEntry, MedicationEntry, FeedingEntry } from '../types';
 
@@ -222,9 +222,10 @@ export const EntryView = () => {
     const { type, data } = entry;
     
     if (type === 'state') {
+      const hasSecondLine = !!data.note;
       return (
-        <div className="flex items-start gap-3">
-          <div className="text-sm font-medium text-gray-600 w-16 flex-shrink-0">{data.time}</div>
+        <div className="flex items-center gap-3">
+          <div className={`text-sm font-medium text-gray-600 w-16 flex-shrink-0 ${hasSecondLine ? 'self-start pt-1' : ''}`}>{data.time}</div>
           <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: STATE_COLORS[data.state_score] }}>
             <Activity className="text-white" size={20} />
           </div>
@@ -232,6 +233,9 @@ export const EntryView = () => {
             <div className="text-sm font-medium text-black">Состояние: {STATE_LABELS[data.state_score]}</div>
             {data.note && <div className="text-xs text-gray-600 mt-1">{data.note}</div>}
           </div>
+          <button className="p-2 hover:bg-blue-100 rounded-full transition-colors text-blue-600 flex-shrink-0">
+            <Edit2 size={16} />
+          </button>
           <button onClick={() => handleDelete(entry)} className="p-2 hover:bg-red-100 rounded-full transition-colors text-red-600 flex-shrink-0">
             <Trash2 size={16} />
           </button>
@@ -240,9 +244,10 @@ export const EntryView = () => {
     }
     
     if (type === 'symptom') {
+      const hasSecondLine = !!data.note;
       return (
-        <div className="flex items-start gap-3">
-          <div className="text-sm font-medium text-gray-600 w-16 flex-shrink-0">{data.time}</div>
+        <div className="flex items-center gap-3">
+          <div className={`text-sm font-medium text-gray-600 w-16 flex-shrink-0 ${hasSecondLine ? 'self-start pt-1' : ''}`}>{data.time}</div>
           <div className="w-10 h-10 rounded-full flex items-center justify-center bg-red-100 flex-shrink-0">
             <AlertCircle className="text-red-600" size={20} />
           </div>
@@ -250,6 +255,9 @@ export const EntryView = () => {
             <div className="text-sm font-medium text-black">Симптом: {data.symptom}</div>
             {data.note && <div className="text-xs text-gray-600 mt-1">{data.note}</div>}
           </div>
+          <button className="p-2 hover:bg-blue-100 rounded-full transition-colors text-blue-600 flex-shrink-0">
+            <Edit2 size={16} />
+          </button>
           <button onClick={() => handleDelete(entry)} className="p-2 hover:bg-red-100 rounded-full transition-colors text-red-600 flex-shrink-0">
             <Trash2 size={16} />
           </button>
@@ -259,7 +267,7 @@ export const EntryView = () => {
     
     if (type === 'medication') {
       return (
-        <div className="flex items-start gap-3">
+        <div className="flex items-center gap-3">
           <div className="text-sm font-medium text-gray-600 w-16 flex-shrink-0">{data.time}</div>
           <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-100 flex-shrink-0">
             <Pill className="text-purple-600" size={20} />
@@ -268,6 +276,9 @@ export const EntryView = () => {
             <div className="text-sm font-medium text-black">Лекарство: {data.medication_name}</div>
             <div className="text-xs text-gray-600 mt-1">{data.dosage}</div>
           </div>
+          <button className="p-2 hover:bg-blue-100 rounded-full transition-colors text-blue-600 flex-shrink-0">
+            <Edit2 size={16} />
+          </button>
           <button onClick={() => handleDelete(entry)} className="p-2 hover:bg-red-100 rounded-full transition-colors text-red-600 flex-shrink-0">
             <Trash2 size={16} />
           </button>
@@ -276,9 +287,10 @@ export const EntryView = () => {
     }
     
     if (type === 'feeding') {
+      const hasNote = !!data.note;
       return (
-        <div className="flex items-start gap-3">
-          <div className="text-sm font-medium text-gray-600 w-16 flex-shrink-0">{data.time}</div>
+        <div className="flex items-center gap-3">
+          <div className={`text-sm font-medium text-gray-600 w-16 flex-shrink-0 ${hasNote ? 'self-start pt-1' : ''}`}>{data.time}</div>
           <div className="w-10 h-10 rounded-full flex items-center justify-center bg-green-100 flex-shrink-0">
             <Utensils className="text-green-600" size={20} />
           </div>
@@ -289,6 +301,9 @@ export const EntryView = () => {
             </div>
             {data.note && <div className="text-xs text-gray-600 mt-1">{data.note}</div>}
           </div>
+          <button className="p-2 hover:bg-blue-100 rounded-full transition-colors text-blue-600 flex-shrink-0">
+            <Edit2 size={16} />
+          </button>
           <button onClick={() => handleDelete(entry)} className="p-2 hover:bg-red-100 rounded-full transition-colors text-red-600 flex-shrink-0">
             <Trash2 size={16} />
           </button>
@@ -324,8 +339,8 @@ export const EntryView = () => {
         </div>
 
         {showAddMenu && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowAddMenu(false)}>
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold">Добавить запись</h3>
                 <button onClick={() => setShowAddMenu(false)} className="p-2 hover:bg-gray-100 rounded-full">
@@ -384,8 +399,8 @@ export const EntryView = () => {
         </div>
 
         {showAddState && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowAddState(false)}>
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold">Добавить состояние</h3>
                 <button onClick={() => setShowAddState(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
@@ -418,8 +433,8 @@ export const EntryView = () => {
         )}
 
         {showAddSymptom && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowAddSymptom(false)}>
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold">Добавить симптом</h3>
                 <button onClick={() => setShowAddSymptom(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
@@ -448,8 +463,8 @@ export const EntryView = () => {
         )}
 
         {showAddMedication && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowAddMedication(false)}>
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold">Добавить лекарство</h3>
                 <button onClick={() => setShowAddMedication(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
@@ -478,8 +493,8 @@ export const EntryView = () => {
         )}
 
         {showAddFeeding && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowAddFeeding(false)}>
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold">Добавить питание</h3>
                 <button onClick={() => setShowAddFeeding(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
