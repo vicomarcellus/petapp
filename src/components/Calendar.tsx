@@ -275,12 +275,12 @@ export const Calendar = () => {
               
               return (
                 <div
-                  className="fixed z-50 bg-black text-white px-4 py-3 rounded-2xl text-xs shadow-2xl pointer-events-none"
+                  className="fixed z-[9999] bg-black text-white px-4 py-3 rounded-2xl text-xs shadow-2xl pointer-events-none whitespace-nowrap"
                   style={{
                     left: `${tooltipPosition.x}px`,
                     top: `${tooltipPosition.y}px`,
-                    transform: 'translate(-50%, calc(-100% - 8px))',
-                    maxWidth: '200px',
+                    transform: 'translate(-50%, calc(-100% - 12px))',
+                    maxWidth: '250px',
                   }}
                 >
                   {states && states.length > 0 && (
