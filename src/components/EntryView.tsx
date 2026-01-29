@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
 import { STATE_COLORS, STATE_LABELS } from '../types';
 import { formatDisplayDate } from '../utils';
-import { Trash2, Plus, Activity, AlertCircle, Pill, Utensils, X, Edit2 } from 'lucide-react';
+import { Trash2, Plus, Activity, AlertCircle, Pill, Utensils, X, Edit2, ArrowLeft } from 'lucide-react';
 import { Header } from './Header';
 import type { StateEntry, SymptomEntry, MedicationEntry, FeedingEntry } from '../types';
 
@@ -26,6 +26,8 @@ export const EntryView = () => {
   const [showAddSymptom, setShowAddSymptom] = useState(false);
   const [showAddMedication, setShowAddMedication] = useState(false);
   const [showAddFeeding, setShowAddFeeding] = useState(false);
+  
+  const [editingEntry, setEditingEntry] = useState<TimelineEntry | null>(null);
   
   const [stateScore, setStateScore] = useState<1 | 2 | 3 | 4 | 5>(3);
   const [stateTime, setStateTime] = useState('');
@@ -86,27 +88,38 @@ export const EntryView = () => {
     if (!selectedDate || !currentPetId || !currentUser) return;
     
     try {
-      // Если время не указано, берем текущее
       const timeToUse = stateTime || new Date().toTimeString().slice(0, 5);
       const timestamp = new Date(`${selectedDate}T${timeToUse}`).getTime();
       
-      await supabase.from('state_entries').insert({
-        user_id: currentUser.id,
-        pet_id: currentPetId,
-        date: selectedDate,
-        time: timeToUse,
-        timestamp,
-        state_score: stateScore,
-        note: stateNote || null
-      });
+      if (editingEntry && editingEntry.type === 'state') {
+        // Обновление
+        await supabase.from('state_entries').update({
+          time: timeToUse,
+          timestamp,
+          state_score: stateScore,
+          note: stateNote || null
+        }).eq('id', editingEntry.data.id);
+      } else {
+        // Создание
+        await supabase.from('state_entries').insert({
+          user_id: currentUser.id,
+          pet_id: currentPetId,
+          date: selectedDate,
+          time: timeToUse,
+          timestamp,
+          state_score: stateScore,
+          note: stateNote || null
+        });
+      }
       
       setShowAddState(false);
+      setEditingEntry(null);
       setStateTime('');
       setStateNote('');
       setStateScore(3);
       loadData();
     } catch (error) {
-      console.error('Error adding state:', error);
+      console.error('Error saving state:', error);
     }
   };
 
@@ -114,27 +127,36 @@ export const EntryView = () => {
     if (!selectedDate || !currentPetId || !currentUser || !symptomName) return;
     
     try {
-      // Если время не указано, берем текущее
       const timeToUse = symptomTime || new Date().toTimeString().slice(0, 5);
       const timestamp = new Date(`${selectedDate}T${timeToUse}`).getTime();
       
-      await supabase.from('symptom_entries').insert({
-        user_id: currentUser.id,
-        pet_id: currentPetId,
-        date: selectedDate,
-        time: timeToUse,
-        timestamp,
-        symptom: symptomName,
-        note: symptomNote || null
-      });
+      if (editingEntry && editingEntry.type === 'symptom') {
+        await supabase.from('symptom_entries').update({
+          time: timeToUse,
+          timestamp,
+          symptom: symptomName,
+          note: symptomNote || null
+        }).eq('id', editingEntry.data.id);
+      } else {
+        await supabase.from('symptom_entries').insert({
+          user_id: currentUser.id,
+          pet_id: currentPetId,
+          date: selectedDate,
+          time: timeToUse,
+          timestamp,
+          symptom: symptomName,
+          note: symptomNote || null
+        });
+      }
       
       setShowAddSymptom(false);
+      setEditingEntry(null);
       setSymptomName('');
       setSymptomTime('');
       setSymptomNote('');
       loadData();
     } catch (error) {
-      console.error('Error adding symptom:', error);
+      console.error('Error saving symptom:', error);
     }
   };
 
@@ -142,28 +164,37 @@ export const EntryView = () => {
     if (!selectedDate || !currentPetId || !currentUser || !medicationName) return;
     
     try {
-      // Если время не указано, берем текущее
       const timeToUse = medicationTime || new Date().toTimeString().slice(0, 5);
       const timestamp = new Date(`${selectedDate}T${timeToUse}`).getTime();
       
-      await supabase.from('medication_entries').insert({
-        user_id: currentUser.id,
-        pet_id: currentPetId,
-        date: selectedDate,
-        time: timeToUse,
-        timestamp,
-        medication_name: medicationName,
-        dosage: medicationDosage,
-        color: '#8B5CF6'
-      });
+      if (editingEntry && editingEntry.type === 'medication') {
+        await supabase.from('medication_entries').update({
+          time: timeToUse,
+          timestamp,
+          medication_name: medicationName,
+          dosage: medicationDosage,
+        }).eq('id', editingEntry.data.id);
+      } else {
+        await supabase.from('medication_entries').insert({
+          user_id: currentUser.id,
+          pet_id: currentPetId,
+          date: selectedDate,
+          time: timeToUse,
+          timestamp,
+          medication_name: medicationName,
+          dosage: medicationDosage,
+          color: '#8B5CF6'
+        });
+      }
       
       setShowAddMedication(false);
+      setEditingEntry(null);
       setMedicationName('');
       setMedicationDosage('');
       setMedicationTime('');
       loadData();
     } catch (error) {
-      console.error('Error adding medication:', error);
+      console.error('Error saving medication:', error);
     }
   };
 
@@ -171,23 +202,34 @@ export const EntryView = () => {
     if (!selectedDate || !currentPetId || !currentUser || !foodName) return;
     
     try {
-      // Если время не указано, берем текущее
       const timeToUse = foodTime || new Date().toTimeString().slice(0, 5);
       const timestamp = new Date(`${selectedDate}T${timeToUse}`).getTime();
       
-      await supabase.from('feeding_entries').insert({
-        user_id: currentUser.id,
-        pet_id: currentPetId,
-        date: selectedDate,
-        time: timeToUse,
-        timestamp,
-        food_name: foodName,
-        amount: foodAmount,
-        unit: foodUnit,
-        note: foodNote || null
-      });
+      if (editingEntry && editingEntry.type === 'feeding') {
+        await supabase.from('feeding_entries').update({
+          time: timeToUse,
+          timestamp,
+          food_name: foodName,
+          amount: foodAmount,
+          unit: foodUnit,
+          note: foodNote || null
+        }).eq('id', editingEntry.data.id);
+      } else {
+        await supabase.from('feeding_entries').insert({
+          user_id: currentUser.id,
+          pet_id: currentPetId,
+          date: selectedDate,
+          time: timeToUse,
+          timestamp,
+          food_name: foodName,
+          amount: foodAmount,
+          unit: foodUnit,
+          note: foodNote || null
+        });
+      }
       
       setShowAddFeeding(false);
+      setEditingEntry(null);
       setFoodName('');
       setFoodAmount('');
       setFoodUnit('g');
@@ -195,7 +237,7 @@ export const EntryView = () => {
       setFoodNote('');
       loadData();
     } catch (error) {
-      console.error('Error adding feeding:', error);
+      console.error('Error saving feeding:', error);
     }
   };
 
@@ -218,6 +260,34 @@ export const EntryView = () => {
     }
   };
 
+  const handleEdit = (entry: TimelineEntry) => {
+    setEditingEntry(entry);
+    
+    if (entry.type === 'state') {
+      setStateScore(entry.data.state_score);
+      setStateTime(entry.data.time);
+      setStateNote(entry.data.note || '');
+      setShowAddState(true);
+    } else if (entry.type === 'symptom') {
+      setSymptomName(entry.data.symptom);
+      setSymptomTime(entry.data.time);
+      setSymptomNote(entry.data.note || '');
+      setShowAddSymptom(true);
+    } else if (entry.type === 'medication') {
+      setMedicationName(entry.data.medication_name);
+      setMedicationDosage(entry.data.dosage);
+      setMedicationTime(entry.data.time);
+      setShowAddMedication(true);
+    } else if (entry.type === 'feeding') {
+      setFoodName(entry.data.food_name);
+      setFoodAmount(entry.data.amount);
+      setFoodUnit(entry.data.unit);
+      setFoodTime(entry.data.time);
+      setFoodNote(entry.data.note || '');
+      setShowAddFeeding(true);
+    }
+  };
+
   const renderTimelineEntry = (entry: TimelineEntry) => {
     const { type, data } = entry;
     
@@ -233,7 +303,7 @@ export const EntryView = () => {
             <div className="text-sm font-medium text-black">Состояние: {STATE_LABELS[data.state_score]}</div>
             {data.note && <div className="text-xs text-gray-600 mt-1">{data.note}</div>}
           </div>
-          <button className="p-2 hover:bg-blue-100 rounded-full transition-colors text-blue-600 flex-shrink-0">
+          <button onClick={() => handleEdit(entry)} className="p-2 hover:bg-blue-100 rounded-full transition-colors text-blue-600 flex-shrink-0">
             <Edit2 size={16} />
           </button>
           <button onClick={() => handleDelete(entry)} className="p-2 hover:bg-red-100 rounded-full transition-colors text-red-600 flex-shrink-0">
@@ -255,7 +325,7 @@ export const EntryView = () => {
             <div className="text-sm font-medium text-black">Симптом: {data.symptom}</div>
             {data.note && <div className="text-xs text-gray-600 mt-1">{data.note}</div>}
           </div>
-          <button className="p-2 hover:bg-blue-100 rounded-full transition-colors text-blue-600 flex-shrink-0">
+          <button onClick={() => handleEdit(entry)} className="p-2 hover:bg-blue-100 rounded-full transition-colors text-blue-600 flex-shrink-0">
             <Edit2 size={16} />
           </button>
           <button onClick={() => handleDelete(entry)} className="p-2 hover:bg-red-100 rounded-full transition-colors text-red-600 flex-shrink-0">
@@ -276,7 +346,7 @@ export const EntryView = () => {
             <div className="text-sm font-medium text-black">Лекарство: {data.medication_name}</div>
             <div className="text-xs text-gray-600 mt-1">{data.dosage}</div>
           </div>
-          <button className="p-2 hover:bg-blue-100 rounded-full transition-colors text-blue-600 flex-shrink-0">
+          <button onClick={() => handleEdit(entry)} className="p-2 hover:bg-blue-100 rounded-full transition-colors text-blue-600 flex-shrink-0">
             <Edit2 size={16} />
           </button>
           <button onClick={() => handleDelete(entry)} className="p-2 hover:bg-red-100 rounded-full transition-colors text-red-600 flex-shrink-0">
@@ -301,7 +371,7 @@ export const EntryView = () => {
             </div>
             {data.note && <div className="text-xs text-gray-600 mt-1">{data.note}</div>}
           </div>
-          <button className="p-2 hover:bg-blue-100 rounded-full transition-colors text-blue-600 flex-shrink-0">
+          <button onClick={() => handleEdit(entry)} className="p-2 hover:bg-blue-100 rounded-full transition-colors text-blue-600 flex-shrink-0">
             <Edit2 size={16} />
           </button>
           <button onClick={() => handleDelete(entry)} className="p-2 hover:bg-red-100 rounded-full transition-colors text-red-600 flex-shrink-0">
@@ -329,12 +399,12 @@ export const EntryView = () => {
         <Header />
         
         <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setView('calendar')}
               className="p-2 hover:bg-white rounded-full transition-all"
             >
-              <X size={20} className="text-black" />
+              <ArrowLeft size={20} className="text-black" />
             </button>
             <h2 className="text-2xl font-bold text-black">{formatDisplayDate(selectedDate || '')}</h2>
           </div>
@@ -410,7 +480,7 @@ export const EntryView = () => {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowAddState(false)}>
             <div className="bg-white rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold">Добавить состояние</h3>
+                <h3 className="text-xl font-bold">{editingEntry ? 'Редактировать состояние' : 'Добавить состояние'}</h3>
                 <button onClick={() => setShowAddState(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
               </div>
 
@@ -444,7 +514,7 @@ export const EntryView = () => {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowAddSymptom(false)}>
             <div className="bg-white rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold">Добавить симптом</h3>
+                <h3 className="text-xl font-bold">{editingEntry ? 'Редактировать симптом' : 'Добавить симптом'}</h3>
                 <button onClick={() => setShowAddSymptom(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
               </div>
 
@@ -474,7 +544,7 @@ export const EntryView = () => {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowAddMedication(false)}>
             <div className="bg-white rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold">Добавить лекарство</h3>
+                <h3 className="text-xl font-bold">{editingEntry ? 'Редактировать лекарство' : 'Добавить лекарство'}</h3>
                 <button onClick={() => setShowAddMedication(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
               </div>
 
@@ -504,7 +574,7 @@ export const EntryView = () => {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowAddFeeding(false)}>
             <div className="bg-white rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold">Добавить питание</h3>
+                <h3 className="text-xl font-bold">{editingEntry ? 'Редактировать питание' : 'Добавить питание'}</h3>
                 <button onClick={() => setShowAddFeeding(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
               </div>
 
