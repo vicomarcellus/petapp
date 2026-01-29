@@ -5,6 +5,7 @@ import { Edit3, Check, X } from 'lucide-react';
 import { SYMPTOM_COLORS } from '../types';
 import { PetManager } from './PetManager';
 import { Header } from './Header';
+import { ConfirmModal } from './Modal';
 import type { SymptomTag, MedicationTag } from '../types';
 
 export const Settings = () => {
@@ -21,6 +22,8 @@ export const Settings = () => {
   
   const [symptomTags, setSymptomTags] = useState<SymptomTag[]>([]);
   const [medicationTags, setMedicationTags] = useState<MedicationTag[]>([]);
+  const [deleteSymptomConfirm, setDeleteSymptomConfirm] = useState<number | null>(null);
+  const [deleteMedConfirm, setDeleteMedConfirm] = useState<number | null>(null);
 
   useEffect(() => {
     if (currentUser && currentPetId) {
@@ -156,32 +159,30 @@ export const Settings = () => {
   };
 
   const handleDeleteSymptom = async (id: number) => {
-    if (confirm('Удалить этот тег симптома?')) {
-      try {
-        const { error } = await supabase
-          .from('symptom_tags')
-          .delete()
-          .eq('id', id);
+    try {
+      const { error } = await supabase
+        .from('symptom_tags')
+        .delete()
+        .eq('id', id);
 
-        if (error) throw error;
-      } catch (error) {
-        console.error('Error deleting symptom tag:', error);
-      }
+      if (error) throw error;
+      setDeleteSymptomConfirm(null);
+    } catch (error) {
+      console.error('Error deleting symptom tag:', error);
     }
   };
 
   const handleDeleteMed = async (id: number) => {
-    if (confirm('Удалить этот тег лекарства?')) {
-      try {
-        const { error } = await supabase
-          .from('medication_tags')
-          .delete()
-          .eq('id', id);
+    try {
+      const { error } = await supabase
+        .from('medication_tags')
+        .delete()
+        .eq('id', id);
 
-        if (error) throw error;
-      } catch (error) {
-        console.error('Error deleting medication tag:', error);
-      }
+      if (error) throw error;
+      setDeleteMedConfirm(null);
+    } catch (error) {
+      console.error('Error deleting medication tag:', error);
     }
   };
 
@@ -355,7 +356,7 @@ export const Settings = () => {
                           <Edit3 size={14} />
                         </button>
                         <button
-                          onClick={() => handleDeleteSymptom(tag.id!)}
+                          onClick={() => setDeleteSymptomConfirm(tag.id!)}
                           className="p-1.5 hover:bg-gray-100 rounded-full transition-all text-gray-600"
                         >
                           <X size={14} />
@@ -430,7 +431,7 @@ export const Settings = () => {
                           <Edit3 size={14} />
                         </button>
                         <button
-                          onClick={() => handleDeleteMed(tag.id!)}
+                          onClick={() => setDeleteMedConfirm(tag.id!)}
                           className="p-1.5 hover:bg-gray-100 rounded-full transition-all text-gray-600"
                         >
                           <X size={14} />
@@ -443,6 +444,28 @@ export const Settings = () => {
             </div>
           )}
         </div>
+
+        <ConfirmModal
+          isOpen={deleteSymptomConfirm !== null}
+          title="Удалить тег симптома?"
+          message="Это действие нельзя отменить."
+          confirmText="Удалить"
+          cancelText="Отмена"
+          danger={true}
+          onConfirm={() => deleteSymptomConfirm !== null && handleDeleteSymptom(deleteSymptomConfirm)}
+          onCancel={() => setDeleteSymptomConfirm(null)}
+        />
+
+        <ConfirmModal
+          isOpen={deleteMedConfirm !== null}
+          title="Удалить тег лекарства?"
+          message="Это действие нельзя отменить."
+          confirmText="Удалить"
+          cancelText="Отмена"
+          danger={true}
+          onConfirm={() => deleteMedConfirm !== null && handleDeleteMed(deleteMedConfirm)}
+          onCancel={() => setDeleteMedConfirm(null)}
+        />
       </div>
     </div>
   );

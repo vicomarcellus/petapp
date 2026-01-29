@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
 import { Header } from './Header';
 import { Plus, Check, Trash2, Pill, UtensilsCrossed, AlertCircle, Clock } from 'lucide-react';
+import { ConfirmModal } from './Modal';
 import type { ChecklistTask } from '../types';
 import { useTaskNotifications } from '../hooks/useTaskNotifications';
 
@@ -18,6 +19,7 @@ export const Checklist = () => {
   const [linkedItemAmount, setLinkedItemAmount] = useState('');
   const [loading, setLoading] = useState(true);
   const { NotificationModal } = useTaskNotifications();
+  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
 
   useEffect(() => {
     if (currentUser && currentPetId) {
@@ -105,11 +107,10 @@ export const Checklist = () => {
   };
 
   const handleDeleteTask = async (id: number) => {
-    if (!confirm('Удалить задачу?')) return;
-    
     try {
       await supabase.from('checklist_tasks').delete().eq('id', id);
       loadTasks();
+      setDeleteConfirm(null);
     } catch (error) {
       console.error('Error deleting task:', error);
     }
@@ -190,7 +191,7 @@ export const Checklist = () => {
               </div>
               
               <button 
-                onClick={() => handleDeleteTask(task.id!)} 
+                onClick={() => setDeleteConfirm(task.id!)} 
                 className="p-2 hover:bg-red-100 rounded-full text-red-600 flex-shrink-0"
               >
                 <Trash2 size={16} />
@@ -422,6 +423,17 @@ export const Checklist = () => {
         )}
 
         {NotificationModal && <NotificationModal />}
+
+        <ConfirmModal
+          isOpen={deleteConfirm !== null}
+          title="Удалить задачу?"
+          message="Это действие нельзя отменить."
+          confirmText="Удалить"
+          cancelText="Отмена"
+          danger={true}
+          onConfirm={() => deleteConfirm !== null && handleDeleteTask(deleteConfirm)}
+          onCancel={() => setDeleteConfirm(null)}
+        />
       </div>
     </div>
   );

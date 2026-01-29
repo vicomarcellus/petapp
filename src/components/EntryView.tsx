@@ -6,6 +6,7 @@ import { formatDisplayDate } from '../utils';
 import { Trash2, Plus, Activity, AlertCircle, Pill, Utensils, X, Edit2, ArrowLeft, Clock, Bell, Check } from 'lucide-react';
 import { Header } from './Header';
 import { useScheduledNotifications } from '../hooks/useScheduledNotifications';
+import { AlertModal, ConfirmModal } from './Modal';
 import type { StateEntry, SymptomEntry, MedicationEntry, FeedingEntry } from '../types';
 
 type TimelineEntry = 
@@ -42,6 +43,10 @@ export const EntryView = () => {
   // Поля для планирования
   const [scheduleMinutes, setScheduleMinutes] = useState<string>('');
   const [isScheduling, setIsScheduling] = useState(false);
+  
+  // Модалки
+  const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<TimelineEntry | null>(null);
 
   // Функция форматирования времени до события
   const formatTimeLeft = (scheduledTime: number) => {
@@ -394,7 +399,7 @@ export const EntryView = () => {
           
           if (error) {
             console.error('Ошибка при планировании:', error);
-            alert(`Ошибка: ${error.message}`);
+            setErrorModal({ title: 'Ошибка планирования', message: error.message });
             return;
           }
           
@@ -410,7 +415,7 @@ export const EntryView = () => {
           return;
         } catch (error) {
           console.error('Error scheduling medication:', error);
-          alert(`Ошибка: ${error}`);
+          setErrorModal({ title: 'Ошибка планирования', message: String(error) });
           return;
         }
       }
@@ -511,7 +516,7 @@ export const EntryView = () => {
           
           if (error) {
             console.error('Ошибка при планировании:', error);
-            alert(`Ошибка: ${error.message}`);
+            setErrorModal({ title: 'Ошибка планирования', message: error.message });
             return;
           }
           
@@ -529,7 +534,7 @@ export const EntryView = () => {
           return;
         } catch (error) {
           console.error('Error scheduling feeding:', error);
-          alert(`Ошибка: ${error}`);
+          setErrorModal({ title: 'Ошибка планирования', message: String(error) });
           return;
         }
       }
@@ -598,19 +603,24 @@ export const EntryView = () => {
   };
 
   const handleDelete = async (entry: TimelineEntry) => {
-    if (!confirm('Удалить запись?')) return;
+    setDeleteConfirm(entry);
+  };
+  
+  const confirmDelete = async () => {
+    if (!deleteConfirm) return;
     
     try {
-      if (entry.type === 'state') {
-        await supabase.from('state_entries').delete().eq('id', entry.data.id);
-      } else if (entry.type === 'symptom') {
-        await supabase.from('symptom_entries').delete().eq('id', entry.data.id);
-      } else if (entry.type === 'medication') {
-        await supabase.from('medication_entries').delete().eq('id', entry.data.id);
-      } else if (entry.type === 'feeding') {
-        await supabase.from('feeding_entries').delete().eq('id', entry.data.id);
+      if (deleteConfirm.type === 'state') {
+        await supabase.from('state_entries').delete().eq('id', deleteConfirm.data.id);
+      } else if (deleteConfirm.type === 'symptom') {
+        await supabase.from('symptom_entries').delete().eq('id', deleteConfirm.data.id);
+      } else if (deleteConfirm.type === 'medication') {
+        await supabase.from('medication_entries').delete().eq('id', deleteConfirm.data.id);
+      } else if (deleteConfirm.type === 'feeding') {
+        await supabase.from('feeding_entries').delete().eq('id', deleteConfirm.data.id);
       }
       loadData();
+      setDeleteConfirm(null);
     } catch (error) {
       console.error('Error deleting entry:', error);
     }
@@ -1321,6 +1331,24 @@ export const EntryView = () => {
         )}
 
         {NotificationModal && <NotificationModal />}
+
+        <AlertModal
+          isOpen={!!errorModal}
+          title={errorModal?.title || ''}
+          message={errorModal?.message || ''}
+          onClose={() => setErrorModal(null)}
+        />
+
+        <ConfirmModal
+          isOpen={deleteConfirm !== null}
+          title="Удалить запись?"
+          message="Это действие нельзя отменить."
+          confirmText="Удалить"
+          cancelText="Отмена"
+          danger={true}
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleteConfirm(null)}
+        />
 
         {/* Модалка редактирования запланированного события */}
         {editingScheduledId && (

@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
 import { Plus, Check, Trash2 } from 'lucide-react';
 import { Pet } from '../types';
+import { AlertModal, ConfirmModal } from './Modal';
 
 const PET_TYPES = [
   { value: 'cat', label: '🐱 Кот', emoji: '🐱' },
@@ -20,6 +21,8 @@ export const PetManager = () => {
   const [petType, setPetType] = useState('cat');
   const [pets, setPets] = useState<Pet[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
 
   useEffect(() => {
     if (currentUser) {
@@ -86,7 +89,7 @@ export const PetManager = () => {
       setShowAddForm(false);
     } catch (error) {
       console.error('Error adding pet:', error);
-      alert('Ошибка при добавлении питомца');
+      setErrorModal({ title: 'Ошибка', message: 'Ошибка при добавлении питомца' });
     }
   };
 
@@ -112,7 +115,6 @@ export const PetManager = () => {
   };
 
   const handleDeletePet = async (petId: number) => {
-    if (!confirm('Удалить питомца? Все данные о нем будут удалены!')) return;
     if (!currentUser) return;
 
     try {
@@ -133,9 +135,11 @@ export const PetManager = () => {
           setCurrentPetId(null);
         }
       }
+      
+      setDeleteConfirm(null);
     } catch (error) {
       console.error('Error deleting pet:', error);
-      alert('Ошибка при удалении питомца');
+      setErrorModal({ title: 'Ошибка', message: 'Ошибка при удалении питомца' });
     }
   };
 
@@ -186,7 +190,7 @@ export const PetManager = () => {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                handleDeletePet(pet.id!);
+                setDeleteConfirm(pet.id!);
               }}
               className="p-2 hover:bg-red-100 rounded-full transition-all text-red-600"
             >
@@ -264,6 +268,24 @@ export const PetManager = () => {
           Добавьте первого питомца
         </div>
       )}
+
+      <AlertModal
+        isOpen={!!errorModal}
+        title={errorModal?.title || ''}
+        message={errorModal?.message || ''}
+        onClose={() => setErrorModal(null)}
+      />
+
+      <ConfirmModal
+        isOpen={deleteConfirm !== null}
+        title="Удалить питомца?"
+        message="Все данные о нем будут удалены!"
+        confirmText="Удалить"
+        cancelText="Отмена"
+        danger={true}
+        onConfirm={() => deleteConfirm !== null && handleDeletePet(deleteConfirm)}
+        onCancel={() => setDeleteConfirm(null)}
+      />
     </div>
   );
 };

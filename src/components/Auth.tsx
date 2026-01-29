@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useStore } from '../store';
 import { supabase } from '../lib/supabase';
 import { LogOut, PawPrint } from 'lucide-react';
+import { AlertModal } from './Modal';
 
 export function Auth() {
   const { currentUser, setCurrentUser } = useStore();
@@ -11,6 +12,7 @@ export function Auth() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
     // Проверяем текущую сессию
@@ -96,7 +98,7 @@ export function Auth() {
 
         // Показываем сообщение об успешной регистрации
         setError('');
-        alert('Регистрация успешна! Проверьте email для подтверждения (если включено).');
+        setShowSuccessModal(true);
       }
     } catch (err) {
       setError('Ошибка: ' + (err as Error).message);
@@ -214,6 +216,13 @@ export function Auth() {
           </button>
         </form>
       </div>
+
+      <AlertModal
+        isOpen={showSuccessModal}
+        title="Регистрация успешна!"
+        message="Проверьте email для подтверждения (если включено)."
+        onClose={() => setShowSuccessModal(false)}
+      />
     </div>
   );
 }
