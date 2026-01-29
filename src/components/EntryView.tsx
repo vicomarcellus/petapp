@@ -20,6 +20,16 @@ export const EntryView = () => {
   const [stateTime, setStateTime] = useState('');
   const [stateNote, setStateNote] = useState('');
 
+  const [showAddSymptom, setShowAddSymptom] = useState(false);
+  const [symptomName, setSymptomName] = useState('');
+  const [symptomTime, setSymptomTime] = useState('');
+  const [symptomNote, setSymptomNote] = useState('');
+
+  const [showAddMedication, setShowAddMedication] = useState(false);
+  const [medicationName, setMedicationName] = useState('');
+  const [medicationDosage, setMedicationDosage] = useState('');
+  const [medicationTime, setMedicationTime] = useState('');
+
   useEffect(() => {
     if (selectedDate && currentPetId && currentUser) {
       loadData();
@@ -99,6 +109,71 @@ export const EntryView = () => {
     loadData();
   };
 
+  const handleAddSymptom = async () => {
+    if (!selectedDate || !currentPetId || !currentUser || !symptomTime || !symptomName) return;
+    
+    try {
+      const timestamp = new Date(`${selectedDate}T${symptomTime}`).getTime();
+      
+      await supabase.from('symptom_entries').insert({
+        user_id: currentUser.id,
+        pet_id: currentPetId,
+        date: selectedDate,
+        time: symptomTime,
+        timestamp,
+        symptom: symptomName,
+        note: symptomNote || null
+      });
+      
+      setShowAddSymptom(false);
+      setSymptomName('');
+      setSymptomTime('');
+      setSymptomNote('');
+      loadData();
+    } catch (error) {
+      console.error('Error adding symptom:', error);
+    }
+  };
+
+  const handleDeleteSymptom = async (id: number) => {
+    if (!confirm('Удалить симптом?')) return;
+    await supabase.from('symptom_entries').delete().eq('id', id);
+    loadData();
+  };
+
+  const handleAddMedication = async () => {
+    if (!selectedDate || !currentPetId || !currentUser || !medicationTime || !medicationName) return;
+    
+    try {
+      const timestamp = new Date(`${selectedDate}T${medicationTime}`).getTime();
+      
+      await supabase.from('medication_entries').insert({
+        user_id: currentUser.id,
+        pet_id: currentPetId,
+        date: selectedDate,
+        time: medicationTime,
+        timestamp,
+        medication_name: medicationName,
+        dosage: medicationDosage,
+        color: '#8B5CF6'
+      });
+      
+      setShowAddMedication(false);
+      setMedicationName('');
+      setMedicationDosage('');
+      setMedicationTime('');
+      loadData();
+    } catch (error) {
+      console.error('Error adding medication:', error);
+    }
+  };
+
+  const handleDeleteMedication = async (id: number) => {
+    if (!confirm('Удалить лекарство?')) return;
+    await supabase.from('medication_entries').delete().eq('id', id);
+    loadData();
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F5F5F7] p-3 md:p-4">
@@ -147,6 +222,62 @@ export const EntryView = () => {
           )}
         </div>
 
+        <div className="bg-white rounded-2xl p-4 mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold text-black">Симптомы</h3>
+            <button onClick={() => setShowAddSymptom(true)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+              <Plus size={20} className="text-black" />
+            </button>
+          </div>
+
+          {symptomEntries.length === 0 ? (
+            <p className="text-gray-400 text-sm text-center py-4">Нет симптомов</p>
+          ) : (
+            <div className="space-y-2">
+              {symptomEntries.map((symptom) => (
+                <div key={symptom.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
+                  <div className="text-sm font-medium text-gray-600 w-16">{symptom.time}</div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-black">{symptom.symptom}</div>
+                    {symptom.note && <div className="text-xs text-gray-600 mt-1">{symptom.note}</div>}
+                  </div>
+                  <button onClick={() => handleDeleteSymptom(symptom.id!)} className="p-2 hover:bg-red-100 rounded-full transition-colors text-red-600">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold text-black">Лекарства</h3>
+            <button onClick={() => setShowAddMedication(true)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+              <Plus size={20} className="text-black" />
+            </button>
+          </div>
+
+          {medicationEntries.length === 0 ? (
+            <p className="text-gray-400 text-sm text-center py-4">Нет лекарств</p>
+          ) : (
+            <div className="space-y-2">
+              {medicationEntries.map((med) => (
+                <div key={med.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
+                  <div className="text-sm font-medium text-gray-600 w-16">{med.time}</div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-black">{med.medication_name}</div>
+                    <div className="text-xs text-gray-600 mt-1">{med.dosage}</div>
+                  </div>
+                  <button onClick={() => handleDeleteMedication(med.id!)} className="p-2 hover:bg-red-100 rounded-full transition-colors text-red-600">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {showAddState && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl p-6 max-w-md w-full">
@@ -176,6 +307,66 @@ export const EntryView = () => {
                 </div>
 
                 <button onClick={handleAddState} disabled={!stateTime} className="w-full py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Добавить</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showAddSymptom && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold">Добавить симптом</h3>
+                <button onClick={() => setShowAddSymptom(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Время</label>
+                  <input type="time" value={symptomTime} onChange={(e) => setSymptomTime(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Симптом</label>
+                  <input type="text" value={symptomName} onChange={(e) => setSymptomName(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Например: Рвота, Дрожь..." />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Заметка (опционально)</label>
+                  <textarea value={symptomNote} onChange={(e) => setSymptomNote(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none" rows={3} placeholder="Дополнительная информация..." />
+                </div>
+
+                <button onClick={handleAddSymptom} disabled={!symptomTime || !symptomName} className="w-full py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Добавить</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showAddMedication && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold">Добавить лекарство</h3>
+                <button onClick={() => setShowAddMedication(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Время</label>
+                  <input type="time" value={medicationTime} onChange={(e) => setMedicationTime(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Название</label>
+                  <input type="text" value={medicationName} onChange={(e) => setMedicationName(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Например: Преднизолон" />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Дозировка</label>
+                  <input type="text" value={medicationDosage} onChange={(e) => setMedicationDosage(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Например: 0,3 мл" />
+                </div>
+
+                <button onClick={handleAddMedication} disabled={!medicationTime || !medicationName} className="w-full py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Добавить</button>
               </div>
             </div>
           </div>
