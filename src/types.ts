@@ -34,6 +34,8 @@ export interface MedicationEntry {
   color?: string;
   note?: string;
   is_scheduled?: boolean; // Было ли запланировано
+  completed?: boolean; // Выполнено ли (для запланированных)
+  scheduled_time?: number; // Целевое время выполнения (timestamp)
 }
 
 export interface Medication {
@@ -83,6 +85,8 @@ export interface StateEntry {
   state_score: 1 | 2 | 3 | 4 | 5;
   note?: string; // Опциональная заметка к конкретному состоянию
   is_scheduled?: boolean; // Было ли запланировано
+  completed?: boolean; // Выполнено ли (для запланированных)
+  scheduled_time?: number; // Целевое время выполнения (timestamp)
   created_at?: string;
 }
 
@@ -96,6 +100,8 @@ export interface SymptomEntry {
   symptom: string; // Название симптома
   note?: string; // Опциональная заметка
   is_scheduled?: boolean; // Было ли запланировано
+  completed?: boolean; // Выполнено ли (для запланированных)
+  scheduled_time?: number; // Целевое время выполнения (timestamp)
   created_at?: string;
 }
 
@@ -111,6 +117,8 @@ export interface FeedingEntry {
   unit: 'g' | 'ml' | 'none'; // Единица измерения
   note?: string; // Опциональная заметка
   is_scheduled?: boolean; // Было ли запланировано
+  completed?: boolean; // Выполнено ли (для запланированных)
+  scheduled_time?: number; // Целевое время выполнения (timestamp)
   created_at?: string;
 }
 

@@ -3,9 +3,9 @@ import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
 import { STATE_COLORS, STATE_LABELS } from '../types';
 import { formatDisplayDate } from '../utils';
-import { Trash2, Plus, Activity, AlertCircle, Pill, Utensils, X, Edit2, ArrowLeft, Clock, Bell } from 'lucide-react';
+import { Trash2, Plus, Activity, AlertCircle, Pill, Utensils, X, Edit2, ArrowLeft, Clock, Bell, Check } from 'lucide-react';
 import { Header } from './Header';
-import { useScheduledEvents } from '../hooks/useScheduledEvents';
+import { useScheduledNotifications } from '../hooks/useScheduledNotifications';
 import type { StateEntry, SymptomEntry, MedicationEntry, FeedingEntry } from '../types';
 
 type TimelineEntry = 
@@ -16,12 +16,15 @@ type TimelineEntry =
 
 export const EntryView = () => {
   const { selectedDate, setView, currentPetId, currentUser } = useStore();
-  const { scheduleEvent, cancelEvent, updateEvent, events, formatTimeLeft, NotificationModal } = useScheduledEvents();
+  const { showNotification, NotificationModal } = useScheduledNotifications();
   const [stateEntries, setStateEntries] = useState<StateEntry[]>([]);
   const [symptomEntries, setSymptomEntries] = useState<SymptomEntry[]>([]);
   const [medicationEntries, setMedicationEntries] = useState<MedicationEntry[]>([]);
   const [feedingEntries, setFeedingEntries] = useState<FeedingEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Таймеры для запланированных событий (обновляются каждую секунду)
+  const [, setTick] = useState(0);
   
   const [savedMedications, setSavedMedications] = useState<Array<{name: string, dosage: string}>>([]);
   const [savedFoods, setSavedFoods] = useState<Array<{name: string, amount: string, unit: 'g' | 'ml' | 'none'}>>([]);
@@ -39,6 +42,52 @@ export const EntryView = () => {
   // Поля для планирования
   const [scheduleMinutes, setScheduleMinutes] = useState<string>('');
   const [isScheduling, setIsScheduling] = useState(false);
+
+  // Функция форматирования времени до события
+  const formatTimeLeft = (scheduledTime: number) => {
+    const diff = scheduledTime - Date.now();
+    if (diff <= 0) return 'сейчас';
+    
+    const hours = Math.floor(diff / 3600000);
+    const minutes = Math.floor((diff % 3600000) / 60000);
+    const seconds = Math.floor((diff % 60000) / 1000);
+    
+    if (hours > 0) {
+      return `${hours}ч ${minutes}м ${seconds}с`;
+    } else if (minutes > 0) {
+      return `${minutes}м ${seconds}с`;
+    } else {
+      return `${seconds}с`;
+    }
+  };
+
+  // Функция выполнения запланированного события
+  const handleCompleteScheduled = async (id: number, type: 'medication' | 'feeding') => {
+    if (!currentUser) return;
+
+    try {
+      const now = Date.now();
+      const timeStr = `${new Date(now).getHours().toString().padStart(2, '0')}:${new Date(now).getMinutes().toString().padStart(2, '0')}`;
+
+      if (type === 'medication') {
+        await supabase.from('medication_entries').update({
+          completed: true,
+          time: timeStr,
+          timestamp: now
+        }).eq('id', id);
+      } else if (type === 'feeding') {
+        await supabase.from('feeding_entries').update({
+          completed: true,
+          time: timeStr,
+          timestamp: now
+        }).eq('id', id);
+      }
+
+      loadData();
+    } catch (error) {
+      console.error('Error completing event:', error);
+    }
+  };
   
   const [stateScore, setStateScore] = useState<1 | 2 | 3 | 4 | 5>(3);
   const [stateTime, setStateTime] = useState('');
@@ -65,56 +114,91 @@ export const EntryView = () => {
     }
   }, [selectedDate, currentPetId, currentUser]);
 
+  // Обновление таймеров каждую секунду
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTick(t => t + 1);
+      
+      // Проверяем запланированные события на истечение времени
+      const now = Date.now();
+      
+      medicationEntries.forEach(entry => {
+        if (!entry.completed && entry.scheduled_time && entry.scheduled_time <= now) {
+          showNotification(entry.id!, 'medication', entry);
+        }
+      });
+      
+      feedingEntries.forEach(entry => {
+        if (!entry.completed && entry.scheduled_time && entry.scheduled_time <= now) {
+          showNotification(entry.id!, 'feeding', entry);
+        }
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [medicationEntries, feedingEntries, showNotification]);
+
   // Обработчик выполнения запланированного события
   useEffect(() => {
-    const handleScheduledCompleted = async (e: any) => {
-      const event = e.detail;
-      if (!selectedDate || !currentPetId || !currentUser) return;
+    const handleComplete = async (e: any) => {
+      const { id, type } = e.detail;
+      if (!currentUser) return;
 
       try {
-        const now = new Date();
-        const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-        const timestamp = now.getTime();
+        const now = Date.now();
+        const timeStr = `${new Date(now).getHours().toString().padStart(2, '0')}:${new Date(now).getMinutes().toString().padStart(2, '0')}`;
 
-        if (event.type === 'medication') {
-          await supabase.from('medication_entries').insert({
-            user_id: currentUser.id,
-            pet_id: currentPetId,
-            date: selectedDate,
+        if (type === 'medication') {
+          await supabase.from('medication_entries').update({
+            completed: true,
             time: timeStr,
-            timestamp,
-            medication_name: event.data.medication_name,
-            dosage: event.data.dosage,
-            color: '#8B5CF6',
-            is_scheduled: true
-          });
-        } else if (event.type === 'feeding') {
-          await supabase.from('feeding_entries').insert({
-            user_id: currentUser.id,
-            pet_id: currentPetId,
-            date: selectedDate,
+            timestamp: now
+          }).eq('id', id);
+        } else if (type === 'feeding') {
+          await supabase.from('feeding_entries').update({
+            completed: true,
             time: timeStr,
-            timestamp,
-            food_name: event.data.food_name,
-            amount: event.data.amount,
-            unit: event.data.unit,
-            is_scheduled: true
-          });
+            timestamp: now
+          }).eq('id', id);
         }
 
-        // Удаляем событие из запланированных
-        cancelEvent(event.id);
-        
-        // Перезагружаем данные
         loadData();
       } catch (error) {
-        console.error('Error completing scheduled event:', error);
+        console.error('Error completing event:', error);
       }
     };
 
-    window.addEventListener('scheduledEventCompleted', handleScheduledCompleted);
-    return () => window.removeEventListener('scheduledEventCompleted', handleScheduledCompleted);
-  }, [selectedDate, currentPetId, currentUser, cancelEvent]);
+    const handlePostpone = async (e: any) => {
+      const { id, type, minutes } = e.detail;
+      if (!currentUser) return;
+
+      try {
+        const newScheduledTime = Date.now() + minutes * 60000;
+
+        if (type === 'medication') {
+          await supabase.from('medication_entries').update({
+            scheduled_time: newScheduledTime
+          }).eq('id', id);
+        } else if (type === 'feeding') {
+          await supabase.from('feeding_entries').update({
+            scheduled_time: newScheduledTime
+          }).eq('id', id);
+        }
+
+        loadData();
+      } catch (error) {
+        console.error('Error postponing event:', error);
+      }
+    };
+
+    window.addEventListener('completeScheduledEvent', handleComplete);
+    window.addEventListener('postponeScheduledEvent', handlePostpone);
+    
+    return () => {
+      window.removeEventListener('completeScheduledEvent', handleComplete);
+      window.removeEventListener('postponeScheduledEvent', handlePostpone);
+    };
+  }, [currentUser]);
 
   const loadSavedItems = async () => {
     if (!currentUser || !currentPetId) return;
@@ -280,21 +364,37 @@ export const EntryView = () => {
     if (isScheduling && scheduleMinutes) {
       const minutes = parseInt(scheduleMinutes);
       if (minutes > 0) {
-        scheduleEvent('medication', {
-          medication_name: medicationName,
-          dosage: medicationDosage
-        }, minutes);
-        
-        // Показываем подтверждение
-        alert(`Запланировано: дать ${medicationName} ${medicationDosage} через ${minutes} минут`);
-        
-        setShowAddMedication(false);
-        setIsScheduling(false);
-        setScheduleMinutes('');
-        setMedicationName('');
-        setMedicationDosage('');
-        setMedicationTime('');
-        return;
+        try {
+          const scheduledTime = Date.now() + minutes * 60000;
+          const targetDate = new Date(scheduledTime);
+          const timeStr = `${targetDate.getHours().toString().padStart(2, '0')}:${targetDate.getMinutes().toString().padStart(2, '0')}`;
+          
+          await supabase.from('medication_entries').insert({
+            user_id: currentUser.id,
+            pet_id: currentPetId,
+            date: selectedDate,
+            time: timeStr,
+            timestamp: scheduledTime,
+            medication_name: medicationName,
+            dosage: medicationDosage,
+            color: '#8B5CF6',
+            is_scheduled: true,
+            completed: false,
+            scheduled_time: scheduledTime
+          });
+          
+          setShowAddMedication(false);
+          setIsScheduling(false);
+          setScheduleMinutes('');
+          setMedicationName('');
+          setMedicationDosage('');
+          setMedicationTime('');
+          loadData();
+          return;
+        } catch (error) {
+          console.error('Error scheduling medication:', error);
+          return;
+        }
       }
     }
     
@@ -361,25 +461,40 @@ export const EntryView = () => {
     if (isScheduling && scheduleMinutes) {
       const minutes = parseInt(scheduleMinutes);
       if (minutes > 0) {
-        scheduleEvent('feeding', {
-          food_name: foodName,
-          amount: foodAmount,
-          unit: foodUnit
-        }, minutes);
-        
-        // Показываем подтверждение
-        const unitText = foodUnit === 'g' ? 'г' : foodUnit === 'ml' ? 'мл' : '';
-        alert(`Запланировано: покормить ${foodName} ${foodAmount} ${unitText} через ${minutes} минут`);
-        
-        setShowAddFeeding(false);
-        setIsScheduling(false);
-        setScheduleMinutes('');
-        setFoodName('');
-        setFoodAmount('');
-        setFoodUnit('g');
-        setFoodTime('');
-        setFoodNote('');
-        return;
+        try {
+          const scheduledTime = Date.now() + minutes * 60000;
+          const targetDate = new Date(scheduledTime);
+          const timeStr = `${targetDate.getHours().toString().padStart(2, '0')}:${targetDate.getMinutes().toString().padStart(2, '0')}`;
+          
+          await supabase.from('feeding_entries').insert({
+            user_id: currentUser.id,
+            pet_id: currentPetId,
+            date: selectedDate,
+            time: timeStr,
+            timestamp: scheduledTime,
+            food_name: foodName,
+            amount: foodAmount,
+            unit: foodUnit,
+            note: foodNote || null,
+            is_scheduled: true,
+            completed: false,
+            scheduled_time: scheduledTime
+          });
+          
+          setShowAddFeeding(false);
+          setIsScheduling(false);
+          setScheduleMinutes('');
+          setFoodName('');
+          setFoodAmount('');
+          setFoodUnit('g');
+          setFoodTime('');
+          setFoodNote('');
+          loadData();
+          return;
+        } catch (error) {
+          console.error('Error scheduling feeding:', error);
+          return;
+        }
       }
     }
     
@@ -699,26 +814,55 @@ export const EntryView = () => {
         <div className="bg-white rounded-2xl p-4">
           <h3 className="font-bold text-black mb-4">Лог дня</h3>
           
-          {timeline.length === 0 && events.length === 0 ? (
+          {timeline.length === 0 && medicationEntries.filter(e => !e.completed).length === 0 && feedingEntries.filter(e => !e.completed).length === 0 ? (
             <p className="text-gray-400 text-sm text-center py-8">Нет записей за этот день</p>
           ) : (
             <div className="space-y-4">
               {/* Объединяем запланированные и выполненные в хронологическом порядке */}
               {(() => {
-                // Создаем объединенный массив с запланированными событиями
-                const scheduledItems = events.map(event => ({
-                  isScheduled: true,
-                  timestamp: event.targetTime,
-                  event
-                }));
+                // Объединяем все записи (включая запланированные невыполненные)
+                const allItems: Array<{
+                  isScheduled: boolean;
+                  timestamp: number;
+                  entry?: TimelineEntry;
+                  scheduledEntry?: { type: 'medication' | 'feeding'; data: MedicationEntry | FeedingEntry };
+                }> = [];
                 
-                const completedItems = timeline.map(entry => ({
-                  isScheduled: false,
-                  timestamp: entry.data.timestamp,
-                  entry
-                }));
+                // Добавляем выполненные записи
+                timeline.forEach(entry => {
+                  if (!('completed' in entry.data) || entry.data.completed !== false) {
+                    allItems.push({
+                      isScheduled: false,
+                      timestamp: entry.data.timestamp,
+                      entry
+                    });
+                  }
+                });
                 
-                const allItems = [...scheduledItems, ...completedItems].sort((a, b) => a.timestamp - b.timestamp);
+                // Добавляем невыполненные запланированные лекарства
+                medicationEntries.forEach(entry => {
+                  if (entry.completed === false && entry.scheduled_time) {
+                    allItems.push({
+                      isScheduled: true,
+                      timestamp: entry.scheduled_time,
+                      scheduledEntry: { type: 'medication', data: entry }
+                    });
+                  }
+                });
+                
+                // Добавляем невыполненные запланированные кормления
+                feedingEntries.forEach(entry => {
+                  if (entry.completed === false && entry.scheduled_time) {
+                    allItems.push({
+                      isScheduled: true,
+                      timestamp: entry.scheduled_time,
+                      scheduledEntry: { type: 'feeding', data: entry }
+                    });
+                  }
+                });
+                
+                // Сортируем по времени
+                allItems.sort((a, b) => a.timestamp - b.timestamp);
                 
                 // Если больше 10 записей, сворачиваем средние
                 const shouldCollapse = allItems.length > 10;
@@ -745,24 +889,23 @@ export const EntryView = () => {
                       }
                       
                       if (item.isScheduled) {
-                        const event = 'event' in item ? item.event : null;
-                        if (!event) return null;
-                        
-                        const targetDate = new Date(event.targetTime);
+                        const scheduledEntry = item.scheduledEntry!;
+                        const data = scheduledEntry.data;
+                        const targetDate = new Date(data.scheduled_time!);
                         const timeStr = `${targetDate.getHours().toString().padStart(2, '0')}:${targetDate.getMinutes().toString().padStart(2, '0')}`;
                         
                         return (
-                          <div key={event.id} className="p-3 rounded-xl bg-gray-50 opacity-50">
+                          <div key={`scheduled-${scheduledEntry.type}-${data.id}`} className="p-3 rounded-xl bg-gray-50 opacity-50">
                             <div className="flex items-center gap-3">
                               <div className="text-sm font-medium text-gray-600 w-16 flex-shrink-0">{timeStr}</div>
                               
                               {/* Иконка как у обычных карточек */}
-                              {event.type === 'medication' && (
+                              {scheduledEntry.type === 'medication' && (
                                 <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-100 flex-shrink-0">
                                   <Pill className="text-purple-600" size={20} />
                                 </div>
                               )}
-                              {event.type === 'feeding' && (
+                              {scheduledEntry.type === 'feeding' && (
                                 <div className="w-10 h-10 rounded-full flex items-center justify-center bg-green-100 flex-shrink-0">
                                   <Utensils className="text-green-600" size={20} />
                                 </div>
@@ -770,31 +913,41 @@ export const EntryView = () => {
                               
                               <div className="flex-1 min-w-0">
                                 <div className="text-sm font-medium text-black">
-                                  {event.type === 'medication' && `Лекарство: ${event.data.medication_name}`}
-                                  {event.type === 'feeding' && `Питание: ${event.data.food_name}`}
+                                  {scheduledEntry.type === 'medication' && `Лекарство: ${(data as MedicationEntry).medication_name}`}
+                                  {scheduledEntry.type === 'feeding' && `Питание: ${(data as FeedingEntry).food_name}`}
                                 </div>
                                 <div className="text-xs text-gray-600 mt-1">
-                                  {event.type === 'medication' && event.data.dosage}
-                                  {event.type === 'feeding' && `${event.data.amount} ${event.data.unit === 'g' ? 'г' : event.data.unit === 'ml' ? 'мл' : ''}`}
+                                  {scheduledEntry.type === 'medication' && (data as MedicationEntry).dosage}
+                                  {scheduledEntry.type === 'feeding' && `${(data as FeedingEntry).amount} ${(data as FeedingEntry).unit === 'g' ? 'г' : (data as FeedingEntry).unit === 'ml' ? 'мл' : ''}`}
                                 </div>
                               </div>
                               
                               {/* Таймер справа */}
                               <div className="text-xs font-medium text-blue-600 px-2 py-1 bg-blue-100 rounded-full flex-shrink-0">
-                                {formatTimeLeft(event.minutesLeft, event.secondsLeft)}
+                                {formatTimeLeft(data.scheduled_time!)}
                               </div>
+                              
+                              {/* Кнопка "Выполнено" */}
+                              <button 
+                                onClick={() => handleCompleteScheduled(data.id!, scheduledEntry.type)} 
+                                className="p-2 hover:bg-green-100 rounded-full transition-colors text-green-600 flex-shrink-0"
+                                title="Выполнено"
+                              >
+                                <Check size={16} />
+                              </button>
                               
                               <button 
                                 onClick={() => {
-                                  setEditingScheduledId(event.id);
-                                  setScheduleMinutes(event.minutesLeft.toString());
+                                  setEditingScheduledId(data.id!.toString());
+                                  const minutesLeft = Math.ceil((data.scheduled_time! - Date.now()) / 60000);
+                                  setScheduleMinutes(Math.max(1, minutesLeft).toString());
                                 }} 
                                 className="p-2 hover:bg-blue-100 rounded-full transition-colors text-blue-600 flex-shrink-0"
                               >
                                 <Edit2 size={16} />
                               </button>
                               <button 
-                                onClick={() => cancelEvent(event.id)} 
+                                onClick={() => handleDelete({ type: scheduledEntry.type, data } as any)} 
                                 className="p-2 hover:bg-red-100 rounded-full transition-colors text-red-600 flex-shrink-0"
                               >
                                 <Trash2 size={16} />
@@ -803,8 +956,7 @@ export const EntryView = () => {
                           </div>
                         );
                       } else {
-                        const entry = 'entry' in item ? item.entry : null;
-                        if (!entry) return null;
+                        const entry = item.entry!;
                         
                         return (
                           <div key={`${entry.type}-${entry.data.id}-${idx}`} className="p-3 rounded-xl bg-gray-50">
@@ -1155,12 +1307,33 @@ export const EntryView = () => {
                 </div>
                 <div className="flex gap-2">
                   <button 
-                    onClick={() => {
+                    onClick={async () => {
                       const minutes = parseInt(scheduleMinutes);
                       if (minutes > 0) {
-                        updateEvent(editingScheduledId, minutes);
-                        setEditingScheduledId(null);
-                        setScheduleMinutes('');
+                        const newScheduledTime = Date.now() + minutes * 60000;
+                        const id = parseInt(editingScheduledId);
+                        
+                        // Определяем тип события
+                        const medEntry = medicationEntries.find(e => e.id === id);
+                        const feedEntry = feedingEntries.find(e => e.id === id);
+                        
+                        try {
+                          if (medEntry) {
+                            await supabase.from('medication_entries').update({
+                              scheduled_time: newScheduledTime
+                            }).eq('id', id);
+                          } else if (feedEntry) {
+                            await supabase.from('feeding_entries').update({
+                              scheduled_time: newScheduledTime
+                            }).eq('id', id);
+                          }
+                          
+                          setEditingScheduledId(null);
+                          setScheduleMinutes('');
+                          loadData();
+                        } catch (error) {
+                          console.error('Error updating scheduled time:', error);
+                        }
                       }
                     }}
                     disabled={!scheduleMinutes}

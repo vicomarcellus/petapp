@@ -1,117 +1,37 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Bell, X, Check, Clock } from 'lucide-react';
 
-interface ScheduledEvent {
-  id: string;
-  type: 'state' | 'symptom' | 'medication' | 'feeding';
+interface NotificationData {
+  id: number;
+  type: 'medication' | 'feeding';
   data: any;
-  targetTime: number;
-  minutesLeft: number;
-  secondsLeft: number;
 }
 
-export const useScheduledEvents = () => {
-  const [events, setEvents] = useState<ScheduledEvent[]>([]);
-  const [notification, setNotification] = useState<ScheduledEvent | null>(null);
+export const useScheduledNotifications = () => {
+  const [notification, setNotification] = useState<NotificationData | null>(null);
   const [showPostponeModal, setShowPostponeModal] = useState(false);
   const [postponeMinutes, setPostponeMinutes] = useState('');
 
-  // Загрузка событий из localStorage при инициализации
-  useEffect(() => {
-    const saved = localStorage.getItem('scheduledEvents');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setEvents(parsed);
-      } catch (error) {
-        console.error('Error loading scheduled events:', error);
-      }
-    }
-  }, []);
+  const showNotification = (id: number, type: 'medication' | 'feeding', data: any) => {
+    setNotification({ id, type, data });
+  };
 
-  // Сохранение событий в localStorage при изменении
-  useEffect(() => {
-    if (events.length > 0) {
-      localStorage.setItem('scheduledEvents', JSON.stringify(events));
-    } else {
-      localStorage.removeItem('scheduledEvents');
-    }
-  }, [events]);
-
-  // Проверка событий каждую секунду
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setEvents(prev => {
-        const now = Date.now();
-        const updated = prev.map(event => {
-          const diff = event.targetTime - now;
-          return {
-            ...event,
-            minutesLeft: Math.floor(diff / 60000),
-            secondsLeft: Math.floor((diff % 60000) / 1000)
-          };
-        });
-
-        // Проверяем, есть ли события, время которых пришло
-        const dueEvent = updated.find(e => e.minutesLeft <= 0 && e.secondsLeft <= 0 && !notification);
-        if (dueEvent) {
-          setNotification(dueEvent);
-        }
-
-        // Удаляем события с истекшим временем (даем 5 минут на реакцию)
-        return updated.filter(e => e.minutesLeft > -5);
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [notification]);
-
-  const scheduleEvent = useCallback((type: ScheduledEvent['type'], data: any, minutes: number) => {
-    const id = `${Date.now()}-${Math.random()}`;
-    const targetTime = Date.now() + minutes * 60000;
-    
-    setEvents(prev => [...prev, {
-      id,
-      type,
-      data,
-      targetTime,
-      minutesLeft: minutes,
-      secondsLeft: 0
-    }]);
-
-    return id;
-  }, []);
-
-  const cancelEvent = useCallback((id: string) => {
-    setEvents(prev => prev.filter(e => e.id !== id));
-  }, []);
-
-  const updateEvent = useCallback((id: string, minutes: number) => {
-    setEvents(prev => prev.map(e => {
-      if (e.id === id) {
-        const targetTime = Date.now() + minutes * 60000;
-        return {
-          ...e,
-          targetTime,
-          minutesLeft: minutes,
-          secondsLeft: 0
-        };
-      }
-      return e;
-    }));
-  }, []);
-
-  const handlePostpone = useCallback(() => {
+  const handlePostpone = () => {
     if (notification && postponeMinutes) {
       const minutes = parseInt(postponeMinutes);
       if (minutes > 0) {
-        updateEvent(notification.id, minutes);
+        // Отправляем событие для обновления времени
+        const event = new CustomEvent('postponeScheduledEvent', { 
+          detail: { id: notification.id, type: notification.type, minutes } 
+        });
+        window.dispatchEvent(event);
+        
         setNotification(null);
         setShowPostponeModal(false);
         setPostponeMinutes('');
       }
     }
-  }, [notification, postponeMinutes, updateEvent]);
+  };
 
   const NotificationModal = notification ? () => (
     <>
@@ -126,15 +46,10 @@ export const useScheduledEvents = () => {
               <p className="text-gray-600">
                 {notification.type === 'medication' && `Дать лекарство: ${notification.data.medication_name} ${notification.data.dosage}`}
                 {notification.type === 'feeding' && `Покормить: ${notification.data.food_name} ${notification.data.amount} ${notification.data.unit === 'g' ? 'г' : notification.data.unit === 'ml' ? 'мл' : ''}`}
-                {notification.type === 'state' && `Записать состояние`}
-                {notification.type === 'symptom' && `Проверить симптом: ${notification.data.symptom}`}
               </p>
             </div>
             <button 
-              onClick={() => {
-                cancelEvent(notification.id);
-                setNotification(null);
-              }}
+              onClick={() => setNotification(null)}
               className="p-1 hover:bg-gray-100 rounded-full flex-shrink-0"
             >
               <X size={20} />
@@ -143,8 +58,10 @@ export const useScheduledEvents = () => {
           <div className="flex gap-2">
             <button
               onClick={() => {
-                // Событие "выполнено" будет обработано в EntryView
-                const event = new CustomEvent('scheduledEventCompleted', { detail: notification });
+                // Событие "выполнено"
+                const event = new CustomEvent('completeScheduledEvent', { 
+                  detail: { id: notification.id, type: notification.type } 
+                });
                 window.dispatchEvent(event);
                 setNotification(null);
               }}
@@ -207,31 +124,8 @@ export const useScheduledEvents = () => {
     </>
   ) : null;
 
-  const formatTimeLeft = useCallback((minutesLeft: number, secondsLeft: number) => {
-    if (minutesLeft < 0 || (minutesLeft === 0 && secondsLeft <= 0)) {
-      return 'сейчас';
-    }
-    
-    const hours = Math.floor(minutesLeft / 60);
-    const mins = minutesLeft % 60;
-    const secs = Math.max(0, secondsLeft);
-    
-    if (hours > 0) {
-      return `${hours}ч ${mins}м ${secs}с`;
-    } else if (mins > 0) {
-      return `${mins}м ${secs}с`;
-    } else {
-      return `${secs}с`;
-    }
-  }, []);
-
   return {
-    events,
-    scheduleEvent,
-    cancelEvent,
-    updateEvent,
-    formatTimeLeft,
-    NotificationModal,
-    hasNotification: !!notification
+    showNotification,
+    NotificationModal
   };
 };
