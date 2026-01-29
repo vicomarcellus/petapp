@@ -367,12 +367,21 @@ export const EntryView = () => {
         try {
           const scheduledTime = Date.now() + minutes * 60000;
           const targetDate = new Date(scheduledTime);
+          const dateStr = targetDate.toISOString().split('T')[0]; // Используем дату из scheduledTime
           const timeStr = `${targetDate.getHours().toString().padStart(2, '0')}:${targetDate.getMinutes().toString().padStart(2, '0')}`;
           
-          await supabase.from('medication_entries').insert({
+          console.log('Планирование лекарства:', {
+            scheduledTime,
+            dateStr,
+            timeStr,
+            medicationName,
+            medicationDosage
+          });
+          
+          const { data, error } = await supabase.from('medication_entries').insert({
             user_id: currentUser.id,
             pet_id: currentPetId,
-            date: selectedDate,
+            date: dateStr, // Используем правильную дату
             time: timeStr,
             timestamp: scheduledTime,
             medication_name: medicationName,
@@ -381,7 +390,15 @@ export const EntryView = () => {
             is_scheduled: true,
             completed: false,
             scheduled_time: scheduledTime
-          });
+          }).select();
+          
+          if (error) {
+            console.error('Ошибка при планировании:', error);
+            alert(`Ошибка: ${error.message}`);
+            return;
+          }
+          
+          console.log('Запланировано успешно:', data);
           
           setShowAddMedication(false);
           setIsScheduling(false);
@@ -393,6 +410,7 @@ export const EntryView = () => {
           return;
         } catch (error) {
           console.error('Error scheduling medication:', error);
+          alert(`Ошибка: ${error}`);
           return;
         }
       }
@@ -464,12 +482,22 @@ export const EntryView = () => {
         try {
           const scheduledTime = Date.now() + minutes * 60000;
           const targetDate = new Date(scheduledTime);
+          const dateStr = targetDate.toISOString().split('T')[0]; // Используем дату из scheduledTime
           const timeStr = `${targetDate.getHours().toString().padStart(2, '0')}:${targetDate.getMinutes().toString().padStart(2, '0')}`;
           
-          await supabase.from('feeding_entries').insert({
+          console.log('Планирование питания:', {
+            scheduledTime,
+            dateStr,
+            timeStr,
+            foodName,
+            foodAmount,
+            foodUnit
+          });
+          
+          const { data, error } = await supabase.from('feeding_entries').insert({
             user_id: currentUser.id,
             pet_id: currentPetId,
-            date: selectedDate,
+            date: dateStr, // Используем правильную дату
             time: timeStr,
             timestamp: scheduledTime,
             food_name: foodName,
@@ -479,7 +507,15 @@ export const EntryView = () => {
             is_scheduled: true,
             completed: false,
             scheduled_time: scheduledTime
-          });
+          }).select();
+          
+          if (error) {
+            console.error('Ошибка при планировании:', error);
+            alert(`Ошибка: ${error.message}`);
+            return;
+          }
+          
+          console.log('Запланировано успешно:', data);
           
           setShowAddFeeding(false);
           setIsScheduling(false);
@@ -493,6 +529,7 @@ export const EntryView = () => {
           return;
         } catch (error) {
           console.error('Error scheduling feeding:', error);
+          alert(`Ошибка: ${error}`);
           return;
         }
       }
