@@ -312,35 +312,46 @@ export const EntryView = () => {
         </div>
 
         {showAddMenu && (
-          <div className="bg-white rounded-2xl p-3 mb-4 grid grid-cols-2 gap-2">
-            <button
-              onClick={() => { setShowAddState(true); setShowAddMenu(false); }}
-              className="flex items-center gap-2 p-3 rounded-xl hover:bg-gray-50 transition-colors"
-            >
-              <Activity size={18} className="text-blue-600" />
-              <span className="text-sm font-medium">Состояние</span>
-            </button>
-            <button
-              onClick={() => { setShowAddSymptom(true); setShowAddMenu(false); }}
-              className="flex items-center gap-2 p-3 rounded-xl hover:bg-gray-50 transition-colors"
-            >
-              <AlertCircle size={18} className="text-red-600" />
-              <span className="text-sm font-medium">Симптом</span>
-            </button>
-            <button
-              onClick={() => { setShowAddMedication(true); setShowAddMenu(false); }}
-              className="flex items-center gap-2 p-3 rounded-xl hover:bg-gray-50 transition-colors"
-            >
-              <Pill size={18} className="text-purple-600" />
-              <span className="text-sm font-medium">Лекарство</span>
-            </button>
-            <button
-              onClick={() => { setShowAddFeeding(true); setShowAddMenu(false); }}
-              className="flex items-center gap-2 p-3 rounded-xl hover:bg-gray-50 transition-colors"
-            >
-              <Utensils size={18} className="text-green-600" />
-              <span className="text-sm font-medium">Питание</span>
-            </button>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold">Добавить запись</h3>
+                <button onClick={() => setShowAddMenu(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => { setShowAddState(true); setShowAddMenu(false); }}
+                  className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-gray-50 transition-colors border-2 border-gray-100"
+                >
+                  <Activity size={24} className="text-blue-600" />
+                  <span className="text-sm font-medium">Состояние</span>
+                </button>
+                <button
+                  onClick={() => { setShowAddSymptom(true); setShowAddMenu(false); }}
+                  className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-gray-50 transition-colors border-2 border-gray-100"
+                >
+                  <AlertCircle size={24} className="text-red-600" />
+                  <span className="text-sm font-medium">Симптом</span>
+                </button>
+                <button
+                  onClick={() => { setShowAddMedication(true); setShowAddMenu(false); }}
+                  className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-gray-50 transition-colors border-2 border-gray-100"
+                >
+                  <Pill size={24} className="text-purple-600" />
+                  <span className="text-sm font-medium">Лекарство</span>
+                </button>
+                <button
+                  onClick={() => { setShowAddFeeding(true); setShowAddMenu(false); }}
+                  className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-gray-50 transition-colors border-2 border-gray-100"
+                >
+                  <Utensils size={24} className="text-green-600" />
+                  <span className="text-sm font-medium">Питание</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
