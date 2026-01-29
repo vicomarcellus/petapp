@@ -25,3 +25,9 @@ CREATE INDEX IF NOT EXISTS idx_medication_scheduled ON medication_entries(pet_id
 CREATE INDEX IF NOT EXISTS idx_feeding_scheduled ON feeding_entries(pet_id, completed, scheduled_time) WHERE completed = false;
 CREATE INDEX IF NOT EXISTS idx_state_scheduled ON state_entries(pet_id, completed, scheduled_time) WHERE completed = false;
 CREATE INDEX IF NOT EXISTS idx_symptom_scheduled ON symptom_entries(pet_id, completed, scheduled_time) WHERE completed = false;
+
+-- Обновляем существующие записи: если is_scheduled не установлен, ставим false
+UPDATE medication_entries SET is_scheduled = false WHERE is_scheduled IS NULL;
+UPDATE feeding_entries SET is_scheduled = false WHERE is_scheduled IS NULL;
+UPDATE state_entries SET is_scheduled = false WHERE is_scheduled IS NULL;
+UPDATE symptom_entries SET is_scheduled = false WHERE is_scheduled IS NULL;

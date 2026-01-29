@@ -661,7 +661,7 @@ export const EntryView = () => {
               {data.is_scheduled && (
                 <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center gap-1">
                   <Bell size={10} />
-                  запланировано
+                  по таймеру
                 </span>
               )}
             </div>
@@ -691,7 +691,7 @@ export const EntryView = () => {
               {data.is_scheduled && (
                 <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center gap-1">
                   <Bell size={10} />
-                  запланировано
+                  по таймеру
                 </span>
               )}
             </div>
@@ -720,7 +720,7 @@ export const EntryView = () => {
               {data.is_scheduled && (
                 <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center gap-1">
                   <Bell size={10} />
-                  запланировано
+                  по таймеру
                 </span>
               )}
             </div>
@@ -750,7 +750,7 @@ export const EntryView = () => {
               {data.is_scheduled && (
                 <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center gap-1">
                   <Bell size={10} />
-                  запланировано
+                  по таймеру
                 </span>
               )}
             </div>
@@ -932,7 +932,7 @@ export const EntryView = () => {
                         const timeStr = `${targetDate.getHours().toString().padStart(2, '0')}:${targetDate.getMinutes().toString().padStart(2, '0')}`;
                         
                         return (
-                          <div key={`scheduled-${scheduledEntry.type}-${data.id}`} className="p-3 rounded-xl bg-gray-50 opacity-50">
+                          <div key={`scheduled-${scheduledEntry.type}-${data.id}`} className="p-3 rounded-xl bg-gray-50">
                             <div className="flex items-center gap-3">
                               <div className="text-sm font-medium text-gray-600 w-16 flex-shrink-0">{timeStr}</div>
                               
@@ -960,7 +960,7 @@ export const EntryView = () => {
                               </div>
                               
                               {/* Таймер справа */}
-                              <div className="text-xs font-medium text-blue-600 px-2 py-1 bg-blue-100 rounded-full flex-shrink-0">
+                              <div className="text-xs font-medium text-gray-600 px-2 py-1 bg-gray-200 rounded-full flex-shrink-0">
                                 {formatTimeLeft(data.scheduled_time!)}
                               </div>
                               

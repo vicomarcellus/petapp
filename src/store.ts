@@ -20,17 +20,27 @@ interface AppState {
 
 export const useStore = create<AppState>((set) => ({
   currentUser: null,
-  selectedDate: null,
+  selectedDate: localStorage.getItem('selectedDate') || null,
   currentYear: new Date().getFullYear(),
   currentMonth: new Date().getMonth(),
   currentPetId: null,
-  view: 'calendar',
+  view: (localStorage.getItem('currentView') as any) || 'calendar',
   editingEntry: null,
   setCurrentUser: (user) => set({ currentUser: user }),
-  setSelectedDate: (date) => set({ selectedDate: date }),
+  setSelectedDate: (date) => {
+    if (date) {
+      localStorage.setItem('selectedDate', date);
+    } else {
+      localStorage.removeItem('selectedDate');
+    }
+    set({ selectedDate: date });
+  },
   setCurrentYear: (year) => set({ currentYear: year }),
   setCurrentMonth: (month) => set({ currentMonth: month }),
   setCurrentPetId: (petId) => set({ currentPetId: petId }),
-  setView: (view) => set({ view }),
+  setView: (view) => {
+    localStorage.setItem('currentView', view);
+    set({ view });
+  },
   setEditingEntry: (entry) => set({ editingEntry: entry }),
 }));
