@@ -19,7 +19,7 @@ export const Settings = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  
+
   const [symptomTags, setSymptomTags] = useState<SymptomTag[]>([]);
   const [medicationTags, setMedicationTags] = useState<MedicationTag[]>([]);
   const [deleteSymptomConfirm, setDeleteSymptomConfirm] = useState<number | null>(null);
@@ -28,11 +28,11 @@ export const Settings = () => {
   useEffect(() => {
     if (currentUser && currentPetId) {
       loadTags();
-      
+
       // Подписка на изменения
       const symptomChannel = supabase
         .channel('symptom_tags_changes')
-        .on('postgres_changes', 
+        .on('postgres_changes',
           { event: '*', schema: 'public', table: 'symptom_tags', filter: `pet_id=eq.${currentPetId}` },
           () => loadTags()
         )
@@ -40,7 +40,7 @@ export const Settings = () => {
 
       const medChannel = supabase
         .channel('medication_tags_changes')
-        .on('postgres_changes', 
+        .on('postgres_changes',
           { event: '*', schema: 'public', table: 'medication_tags', filter: `pet_id=eq.${currentPetId}` },
           () => loadTags()
         )
@@ -55,7 +55,7 @@ export const Settings = () => {
 
   const loadTags = async () => {
     if (!currentUser || !currentPetId) return;
-    
+
     try {
       const [symptomsRes, medsRes] = await Promise.all([
         supabase
@@ -79,34 +79,34 @@ export const Settings = () => {
 
   const handleChangePassword = async () => {
     setPasswordError('');
-    
+
     if (!newPassword || !confirmPassword) {
       setPasswordError('Заполните все поля');
       return;
     }
-    
+
     if (newPassword.length < 6) {
       setPasswordError('Пароль должен быть минимум 6 символов');
       return;
     }
-    
+
     if (newPassword !== confirmPassword) {
       setPasswordError('Пароли не совпадают');
       return;
     }
-    
+
     try {
       const { error } = await supabase.auth.updateUser({
         password: newPassword
       });
 
       if (error) throw error;
-      
+
       setStatusMessage('Пароль успешно изменен');
       setChangingPassword(false);
       setNewPassword('');
       setConfirmPassword('');
-      
+
       setTimeout(() => setStatusMessage(null), 3000);
     } catch (error) {
       setPasswordError('Ошибка при изменении пароля: ' + (error as Error).message);
@@ -122,7 +122,7 @@ export const Settings = () => {
           .eq('id', editingSymptom);
 
         if (error) throw error;
-        
+
         setEditingSymptom(null);
         setEditName('');
         setEditColor('');
@@ -141,7 +141,7 @@ export const Settings = () => {
           .eq('id', editingMed);
 
         if (error) throw error;
-        
+
         setEditingMed(null);
         setEditName('');
         setEditColor('');
@@ -210,12 +210,12 @@ export const Settings = () => {
               <h2 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide px-1">
                 Профиль
               </h2>
-              <div className="bg-white rounded-2xl p-4 space-y-3">
+              <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-4 space-y-3">
                 <div>
                   <div className="text-xs font-semibold text-gray-500 mb-1">Email</div>
                   <div className="text-sm text-gray-900">{currentUser.username}</div>
                 </div>
-                
+
                 {!changingPassword ? (
                   <button
                     onClick={() => setChangingPassword(true)}
@@ -237,7 +237,7 @@ export const Settings = () => {
                         className="w-full px-3 py-2 bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-black transition-all text-sm outline-none"
                       />
                     </div>
-                    
+
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 mb-1">
                         Подтвердите пароль
@@ -250,11 +250,11 @@ export const Settings = () => {
                         className="w-full px-3 py-2 bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-black transition-all text-sm outline-none"
                       />
                     </div>
-                    
+
                     {passwordError && (
                       <div className="text-xs text-red-600">{passwordError}</div>
                     )}
-                    
+
                     <div className="flex gap-2">
                       <button
                         onClick={handleChangePassword}
@@ -300,7 +300,7 @@ export const Settings = () => {
               <h2 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide px-1">
                 Теги симптомов
               </h2>
-              <div className="bg-white rounded-2xl p-3 space-y-1.5">
+              <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-3 space-y-1.5">
                 {symptomTags.map((tag) => (
                   <div key={tag.id}>
                     {editingSymptom === tag.id ? (
@@ -317,9 +317,8 @@ export const Settings = () => {
                             <button
                               key={color}
                               onClick={() => setEditColor(color)}
-                              className={`w-7 h-7 rounded-full transition-all ${
-                                editColor === color ? 'ring-2 ring-black scale-110' : ''
-                              }`}
+                              className={`w-7 h-7 rounded-full transition-all ${editColor === color ? 'ring-2 ring-black scale-110' : ''
+                                }`}
                               style={{ backgroundColor: color }}
                             />
                           ))}
@@ -375,7 +374,7 @@ export const Settings = () => {
               <h2 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide px-1">
                 Теги лекарств
               </h2>
-              <div className="bg-white rounded-2xl p-3 space-y-1.5">
+              <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-3 space-y-1.5">
                 {medicationTags.map((tag) => (
                   <div key={tag.id}>
                     {editingMed === tag.id ? (
@@ -392,9 +391,8 @@ export const Settings = () => {
                             <button
                               key={color}
                               onClick={() => setEditColor(color)}
-                              className={`w-7 h-7 rounded-full transition-all ${
-                                editColor === color ? 'ring-2 ring-black scale-110' : ''
-                              }`}
+                              className={`w-7 h-7 rounded-full transition-all ${editColor === color ? 'ring-2 ring-black scale-110' : ''
+                                }`}
                               style={{ backgroundColor: color }}
                             />
                           ))}

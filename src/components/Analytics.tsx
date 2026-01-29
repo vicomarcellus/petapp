@@ -25,7 +25,7 @@ export const Analytics = () => {
 
   const loadAnalytics = async () => {
     if (!currentUser || !currentPetId) return;
-    
+
     try {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -40,7 +40,7 @@ export const Analytics = () => {
         .order('date', { ascending: true });
 
       if (error) throw error;
-      
+
       if (data && data.length > 0) {
         const avg = data.reduce((sum, e) => sum + e.state_score, 0) / data.length;
         setAvgScore(Number(avg.toFixed(1)));
@@ -149,7 +149,7 @@ export const Analytics = () => {
             const x = padding.left + index * xStep;
             const y = padding.top + chartHeight - (point.avgScore * yScale);
             const color = STATE_COLORS[Math.round(point.avgScore) as 1 | 2 | 3 | 4 | 5];
-            
+
             return (
               <g key={index}>
                 <circle
@@ -204,13 +204,13 @@ export const Analytics = () => {
       <div className="max-w-5xl mx-auto">
         <Header />
 
-        <div className="bg-white rounded-2xl p-6 mb-4">
+        <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6 mb-4">
           <h2 className="text-xl font-bold mb-4">График состояния</h2>
           {renderChart()}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white rounded-2xl p-6">
+          <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
                 <TrendingUp className="text-blue-600" size={24} />
@@ -223,7 +223,7 @@ export const Analytics = () => {
             <div className="text-sm text-gray-600">За последние 30 дней</div>
           </div>
 
-          <div className="bg-white rounded-2xl p-6">
+          <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center">
                 <Activity className="text-green-600" size={24} />

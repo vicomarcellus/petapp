@@ -9,7 +9,7 @@ import { useScheduledNotifications } from '../hooks/useScheduledNotifications';
 import { AlertModal, ConfirmModal } from './Modal';
 import type { StateEntry, SymptomEntry, MedicationEntry, FeedingEntry } from '../types';
 
-type TimelineEntry = 
+type TimelineEntry =
   | { type: 'state'; data: StateEntry }
   | { type: 'symptom'; data: SymptomEntry }
   | { type: 'medication'; data: MedicationEntry }
@@ -23,27 +23,27 @@ export const EntryView = () => {
   const [medicationEntries, setMedicationEntries] = useState<MedicationEntry[]>([]);
   const [feedingEntries, setFeedingEntries] = useState<FeedingEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Таймеры для запланированных событий (обновляются каждую секунду)
   const [, setTick] = useState(0);
-  
-  const [savedMedications, setSavedMedications] = useState<Array<{name: string, dosage: string}>>([]);
-  const [savedFoods, setSavedFoods] = useState<Array<{name: string, amount: string, unit: 'g' | 'ml' | 'none'}>>([]);
+
+  const [savedMedications, setSavedMedications] = useState<Array<{ name: string, dosage: string }>>([]);
+  const [savedFoods, setSavedFoods] = useState<Array<{ name: string, amount: string, unit: 'g' | 'ml' | 'none' }>>([]);
   const [savedSymptoms, setSavedSymptoms] = useState<string[]>([]);
-  
+
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showAddState, setShowAddState] = useState(false);
   const [showAddSymptom, setShowAddSymptom] = useState(false);
   const [showAddMedication, setShowAddMedication] = useState(false);
   const [showAddFeeding, setShowAddFeeding] = useState(false);
-  
+
   const [editingEntry, setEditingEntry] = useState<TimelineEntry | null>(null);
   const [editingScheduledId, setEditingScheduledId] = useState<string | null>(null);
-  
+
   // Поля для планирования
   const [scheduleMinutes, setScheduleMinutes] = useState<string>('');
   const [isScheduling, setIsScheduling] = useState(false);
-  
+
   // Модалки
   const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<TimelineEntry | null>(null);
@@ -52,11 +52,11 @@ export const EntryView = () => {
   const formatTimeLeft = (scheduledTime: number) => {
     const diff = scheduledTime - Date.now();
     if (diff <= 0) return 'сейчас';
-    
+
     const hours = Math.floor(diff / 3600000);
     const minutes = Math.floor((diff % 3600000) / 60000);
     const seconds = Math.floor((diff % 60000) / 1000);
-    
+
     if (hours > 0) {
       return `${hours}ч ${minutes}м ${seconds}с`;
     } else if (minutes > 0) {
@@ -93,7 +93,7 @@ export const EntryView = () => {
       console.error('Error completing event:', error);
     }
   };
-  
+
   const [stateScore, setStateScore] = useState<1 | 2 | 3 | 4 | 5>(3);
   const [stateTime, setStateTime] = useState('');
   const [stateNote, setStateNote] = useState('');
@@ -123,16 +123,16 @@ export const EntryView = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       setTick(t => t + 1);
-      
+
       // Проверяем запланированные события на истечение времени
       const now = Date.now();
-      
+
       medicationEntries.forEach(entry => {
         if (!entry.completed && entry.scheduled_time && entry.scheduled_time <= now) {
           showNotification(entry.id!, 'medication', entry);
         }
       });
-      
+
       feedingEntries.forEach(entry => {
         if (!entry.completed && entry.scheduled_time && entry.scheduled_time <= now) {
           showNotification(entry.id!, 'feeding', entry);
@@ -198,7 +198,7 @@ export const EntryView = () => {
 
     window.addEventListener('completeScheduledEvent', handleComplete);
     window.addEventListener('postponeScheduledEvent', handlePostpone);
-    
+
     return () => {
       window.removeEventListener('completeScheduledEvent', handleComplete);
       window.removeEventListener('postponeScheduledEvent', handlePostpone);
@@ -207,7 +207,7 @@ export const EntryView = () => {
 
   const loadSavedItems = async () => {
     if (!currentUser || !currentPetId) return;
-    
+
     try {
       // Загружаем уникальные лекарства
       const { data: meds } = await supabase
@@ -217,7 +217,7 @@ export const EntryView = () => {
         .eq('pet_id', currentPetId)
         .order('timestamp', { ascending: false })
         .limit(50);
-      
+
       if (meds) {
         const uniqueMeds = Array.from(new Map(meds.map(m => [m.medication_name, { name: m.medication_name, dosage: m.dosage }])).values());
         setSavedMedications(uniqueMeds);
@@ -231,7 +231,7 @@ export const EntryView = () => {
         .eq('pet_id', currentPetId)
         .order('timestamp', { ascending: false })
         .limit(50);
-      
+
       if (foods) {
         const uniqueFoods = Array.from(new Map(foods.map(f => [f.food_name, { name: f.food_name, amount: f.amount, unit: f.unit }])).values());
         setSavedFoods(uniqueFoods);
@@ -245,7 +245,7 @@ export const EntryView = () => {
         .eq('pet_id', currentPetId)
         .order('timestamp', { ascending: false })
         .limit(50);
-      
+
       if (symptoms) {
         const uniqueSymptoms = Array.from(new Set(symptoms.map(s => s.symptom)));
         setSavedSymptoms(uniqueSymptoms);
@@ -257,7 +257,7 @@ export const EntryView = () => {
 
   const loadData = async () => {
     if (!selectedDate || !currentPetId || !currentUser) return;
-    
+
     try {
       setLoading(true);
       const [stateRes, symptomRes, medRes, feedRes] = await Promise.all([
@@ -288,11 +288,11 @@ export const EntryView = () => {
 
   const handleAddState = async () => {
     if (!selectedDate || !currentPetId || !currentUser) return;
-    
+
     try {
       const timeToUse = stateTime || new Date().toTimeString().slice(0, 5);
       const timestamp = new Date(`${selectedDate}T${timeToUse}`).getTime();
-      
+
       if (editingEntry && editingEntry.type === 'state') {
         // Обновление
         await supabase.from('state_entries').update({
@@ -313,7 +313,7 @@ export const EntryView = () => {
           note: stateNote || null
         });
       }
-      
+
       setShowAddState(false);
       setEditingEntry(null);
       setStateTime('');
@@ -327,11 +327,11 @@ export const EntryView = () => {
 
   const handleAddSymptom = async () => {
     if (!selectedDate || !currentPetId || !currentUser || !symptomName) return;
-    
+
     try {
       const timeToUse = symptomTime || new Date().toTimeString().slice(0, 5);
       const timestamp = new Date(`${selectedDate}T${timeToUse}`).getTime();
-      
+
       if (editingEntry && editingEntry.type === 'symptom') {
         await supabase.from('symptom_entries').update({
           time: timeToUse,
@@ -350,7 +350,7 @@ export const EntryView = () => {
           note: symptomNote || null
         });
       }
-      
+
       setShowAddSymptom(false);
       setEditingEntry(null);
       setSymptomName('');
@@ -364,7 +364,7 @@ export const EntryView = () => {
 
   const handleAddMedication = async () => {
     if (!selectedDate || !currentPetId || !currentUser || !medicationName) return;
-    
+
     // Если планируем событие
     if (isScheduling && scheduleMinutes) {
       const minutes = parseInt(scheduleMinutes);
@@ -374,7 +374,7 @@ export const EntryView = () => {
           const targetDate = new Date(scheduledTime);
           const dateStr = targetDate.toISOString().split('T')[0]; // Используем дату из scheduledTime
           const timeStr = `${targetDate.getHours().toString().padStart(2, '0')}:${targetDate.getMinutes().toString().padStart(2, '0')}`;
-          
+
           console.log('Планирование лекарства:', {
             scheduledTime,
             dateStr,
@@ -382,7 +382,7 @@ export const EntryView = () => {
             medicationName,
             medicationDosage
           });
-          
+
           const { data, error } = await supabase.from('medication_entries').insert({
             user_id: currentUser.id,
             pet_id: currentPetId,
@@ -396,15 +396,15 @@ export const EntryView = () => {
             completed: false,
             scheduled_time: scheduledTime
           }).select();
-          
+
           if (error) {
             console.error('Ошибка при планировании:', error);
             setErrorModal({ title: 'Ошибка планирования', message: error.message });
             return;
           }
-          
+
           console.log('Запланировано успешно:', data);
-          
+
           setShowAddMedication(false);
           setIsScheduling(false);
           setScheduleMinutes('');
@@ -420,11 +420,11 @@ export const EntryView = () => {
         }
       }
     }
-    
+
     try {
       const timeToUse = medicationTime || new Date().toTimeString().slice(0, 5);
       const timestamp = new Date(`${selectedDate}T${timeToUse}`).getTime();
-      
+
       if (editingEntry && editingEntry.type === 'medication') {
         await supabase.from('medication_entries').update({
           time: timeToUse,
@@ -463,7 +463,7 @@ export const EntryView = () => {
           });
         }
       }
-      
+
       setShowAddMedication(false);
       setEditingEntry(null);
       setIsScheduling(false);
@@ -479,7 +479,7 @@ export const EntryView = () => {
 
   const handleAddFeeding = async () => {
     if (!selectedDate || !currentPetId || !currentUser || !foodName) return;
-    
+
     // Если планируем событие
     if (isScheduling && scheduleMinutes) {
       const minutes = parseInt(scheduleMinutes);
@@ -489,7 +489,7 @@ export const EntryView = () => {
           const targetDate = new Date(scheduledTime);
           const dateStr = targetDate.toISOString().split('T')[0]; // Используем дату из scheduledTime
           const timeStr = `${targetDate.getHours().toString().padStart(2, '0')}:${targetDate.getMinutes().toString().padStart(2, '0')}`;
-          
+
           console.log('Планирование питания:', {
             scheduledTime,
             dateStr,
@@ -498,7 +498,7 @@ export const EntryView = () => {
             foodAmount,
             foodUnit
           });
-          
+
           const { data, error } = await supabase.from('feeding_entries').insert({
             user_id: currentUser.id,
             pet_id: currentPetId,
@@ -513,15 +513,15 @@ export const EntryView = () => {
             completed: false,
             scheduled_time: scheduledTime
           }).select();
-          
+
           if (error) {
             console.error('Ошибка при планировании:', error);
             setErrorModal({ title: 'Ошибка планирования', message: error.message });
             return;
           }
-          
+
           console.log('Запланировано успешно:', data);
-          
+
           setShowAddFeeding(false);
           setIsScheduling(false);
           setScheduleMinutes('');
@@ -539,11 +539,11 @@ export const EntryView = () => {
         }
       }
     }
-    
+
     try {
       const timeToUse = foodTime || new Date().toTimeString().slice(0, 5);
       const timestamp = new Date(`${selectedDate}T${timeToUse}`).getTime();
-      
+
       if (editingEntry && editingEntry.type === 'feeding') {
         await supabase.from('feeding_entries').update({
           time: timeToUse,
@@ -586,7 +586,7 @@ export const EntryView = () => {
           });
         }
       }
-      
+
       setShowAddFeeding(false);
       setEditingEntry(null);
       setIsScheduling(false);
@@ -605,10 +605,10 @@ export const EntryView = () => {
   const handleDelete = async (entry: TimelineEntry) => {
     setDeleteConfirm(entry);
   };
-  
+
   const confirmDelete = async () => {
     if (!deleteConfirm) return;
-    
+
     try {
       if (deleteConfirm.type === 'state') {
         await supabase.from('state_entries').delete().eq('id', deleteConfirm.data.id);
@@ -628,7 +628,7 @@ export const EntryView = () => {
 
   const handleEdit = (entry: TimelineEntry) => {
     setEditingEntry(entry);
-    
+
     if (entry.type === 'state') {
       setStateScore(entry.data.state_score);
       setStateTime(entry.data.time);
@@ -656,7 +656,7 @@ export const EntryView = () => {
 
   const renderTimelineEntry = (entry: TimelineEntry) => {
     const { type, data } = entry;
-    
+
     if (type === 'state') {
       const hasSecondLine = !!data.note || !!data.is_scheduled;
       return (
@@ -686,7 +686,7 @@ export const EntryView = () => {
         </div>
       );
     }
-    
+
     if (type === 'symptom') {
       const hasSecondLine = !!data.note || !!data.is_scheduled;
       return (
@@ -716,7 +716,7 @@ export const EntryView = () => {
         </div>
       );
     }
-    
+
     if (type === 'medication') {
       return (
         <div className="flex items-center gap-3">
@@ -745,7 +745,7 @@ export const EntryView = () => {
         </div>
       );
     }
-    
+
     if (type === 'feeding') {
       const hasNote = !!data.note || !!data.is_scheduled;
       return (
@@ -795,7 +795,7 @@ export const EntryView = () => {
     <div className="min-h-screen bg-[#F5F5F7] p-3 md:p-4 pb-28">
       <div className="max-w-5xl mx-auto">
         <Header />
-        
+
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button
@@ -806,7 +806,7 @@ export const EntryView = () => {
             </button>
             <h2 className="text-2xl font-bold text-black">{formatDisplayDate(selectedDate || '')}</h2>
           </div>
-          <button 
+          <button
             onClick={() => setShowAddMenu(!showAddMenu)}
             className="p-3 bg-black text-white rounded-full hover:bg-gray-800 transition-colors"
           >
@@ -815,15 +815,15 @@ export const EntryView = () => {
         </div>
 
         {showAddMenu && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowAddMenu(false)}>
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowAddMenu(false)}>
+            <div className="bg-white border border-white/60 rounded-[32px] p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold">Добавить запись</h3>
                 <button onClick={() => setShowAddMenu(false)} className="p-2 hover:bg-gray-100 rounded-full">
                   <X size={20} />
                 </button>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => { setShowAddState(true); setShowAddMenu(false); }}
@@ -858,9 +858,9 @@ export const EntryView = () => {
           </div>
         )}
 
-        <div className="bg-white rounded-2xl p-4">
+        <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-4">
           <h3 className="font-bold text-black mb-4">Лог дня</h3>
-          
+
           {timeline.length === 0 && medicationEntries.filter(e => !e.completed).length === 0 && feedingEntries.filter(e => !e.completed).length === 0 ? (
             <p className="text-gray-400 text-sm text-center py-8">Нет записей за этот день</p>
           ) : (
@@ -874,7 +874,7 @@ export const EntryView = () => {
                   entry?: TimelineEntry;
                   scheduledEntry?: { type: 'medication' | 'feeding'; data: MedicationEntry | FeedingEntry };
                 }> = [];
-                
+
                 // Добавляем выполненные записи
                 timeline.forEach(entry => {
                   if (!('completed' in entry.data) || entry.data.completed !== false) {
@@ -885,7 +885,7 @@ export const EntryView = () => {
                     });
                   }
                 });
-                
+
                 // Добавляем невыполненные запланированные лекарства
                 medicationEntries.forEach(entry => {
                   if (entry.completed === false && entry.scheduled_time) {
@@ -896,7 +896,7 @@ export const EntryView = () => {
                     });
                   }
                 });
-                
+
                 // Добавляем невыполненные запланированные кормления
                 feedingEntries.forEach(entry => {
                   if (entry.completed === false && entry.scheduled_time) {
@@ -907,17 +907,17 @@ export const EntryView = () => {
                     });
                   }
                 });
-                
+
                 // Сортируем по времени
                 allItems.sort((a, b) => a.timestamp - b.timestamp);
-                
+
                 // Если больше 10 записей, сворачиваем средние
                 const shouldCollapse = allItems.length > 10;
-                const visibleItems = shouldCollapse 
+                const visibleItems = shouldCollapse
                   ? [...allItems.slice(0, 5), ...allItems.slice(-5)]
                   : allItems;
                 const hiddenCount = shouldCollapse ? allItems.length - 10 : 0;
-                
+
                 return (
                   <>
                     {visibleItems.map((item, idx) => {
@@ -925,8 +925,8 @@ export const EntryView = () => {
                       if (shouldCollapse && idx === 5) {
                         return (
                           <div key="divider" className="py-2">
-                            <button 
-                              onClick={() => {/* TODO: развернуть */}}
+                            <button
+                              onClick={() => {/* TODO: развернуть */ }}
                               className="w-full text-center text-sm text-gray-400 hover:text-gray-600 transition-colors"
                             >
                               ... еще {hiddenCount} записей ...
@@ -934,18 +934,18 @@ export const EntryView = () => {
                           </div>
                         );
                       }
-                      
+
                       if (item.isScheduled) {
                         const scheduledEntry = item.scheduledEntry!;
                         const data = scheduledEntry.data;
                         const targetDate = new Date(data.scheduled_time!);
                         const timeStr = `${targetDate.getHours().toString().padStart(2, '0')}:${targetDate.getMinutes().toString().padStart(2, '0')}`;
-                        
+
                         return (
                           <div key={`scheduled-${scheduledEntry.type}-${data.id}`} className="p-3 rounded-xl bg-gray-50">
                             <div className="flex items-center gap-3">
                               <div className="text-sm font-medium text-gray-600 w-16 flex-shrink-0 opacity-50">{timeStr}</div>
-                              
+
                               {/* Иконка как у обычных карточек */}
                               {scheduledEntry.type === 'medication' && (
                                 <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-100 flex-shrink-0 opacity-50">
@@ -957,7 +957,7 @@ export const EntryView = () => {
                                   <Utensils className="text-green-600" size={20} />
                                 </div>
                               )}
-                              
+
                               <div className="flex-1 min-w-0 opacity-50">
                                 <div className="text-sm font-medium text-black">
                                   {scheduledEntry.type === 'medication' && `Лекарство: ${(data as MedicationEntry).medication_name}`}
@@ -968,33 +968,33 @@ export const EntryView = () => {
                                   {scheduledEntry.type === 'feeding' && `${(data as FeedingEntry).amount} ${(data as FeedingEntry).unit === 'g' ? 'г' : (data as FeedingEntry).unit === 'ml' ? 'мл' : ''}`}
                                 </div>
                               </div>
-                              
+
                               {/* Таймер справа - БЕЗ opacity */}
                               <div className="text-xs font-medium text-gray-600 px-2 py-1 bg-gray-200 rounded-full flex-shrink-0">
                                 {formatTimeLeft(data.scheduled_time!)}
                               </div>
-                              
+
                               {/* Кнопки - БЕЗ opacity */}
-                              <button 
-                                onClick={() => handleCompleteScheduled(data.id!, scheduledEntry.type)} 
+                              <button
+                                onClick={() => handleCompleteScheduled(data.id!, scheduledEntry.type)}
                                 className="p-2 hover:bg-green-100 rounded-full transition-colors text-green-600 flex-shrink-0"
                                 title="Выполнено"
                               >
                                 <Check size={16} />
                               </button>
-                              
-                              <button 
+
+                              <button
                                 onClick={() => {
                                   setEditingScheduledId(data.id!.toString());
                                   const minutesLeft = Math.ceil((data.scheduled_time! - Date.now()) / 60000);
                                   setScheduleMinutes(Math.max(1, minutesLeft).toString());
-                                }} 
+                                }}
                                 className="p-2 hover:bg-blue-100 rounded-full transition-colors text-blue-600 flex-shrink-0"
                               >
                                 <Edit2 size={16} />
                               </button>
-                              <button 
-                                onClick={() => handleDelete({ type: scheduledEntry.type, data } as any)} 
+                              <button
+                                onClick={() => handleDelete({ type: scheduledEntry.type, data } as any)}
                                 className="p-2 hover:bg-red-100 rounded-full transition-colors text-red-600 flex-shrink-0"
                               >
                                 <Trash2 size={16} />
@@ -1004,7 +1004,7 @@ export const EntryView = () => {
                         );
                       } else {
                         const entry = item.entry!;
-                        
+
                         return (
                           <div key={`${entry.type}-${entry.data.id}-${idx}`} className="p-3 rounded-xl bg-gray-50">
                             {renderTimelineEntry(entry)}
@@ -1020,8 +1020,8 @@ export const EntryView = () => {
         </div>
 
         {showAddState && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowAddState(false)}>
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowAddState(false)}>
+            <div className="bg-white border border-white/60 rounded-[32px] p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold">{editingEntry ? 'Редактировать состояние' : 'Добавить состояние'}</h3>
                 <button onClick={() => setShowAddState(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
@@ -1054,8 +1054,8 @@ export const EntryView = () => {
         )}
 
         {showAddSymptom && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowAddSymptom(false)}>
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowAddSymptom(false)}>
+            <div className="bg-white border border-white/60 rounded-[32px] p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold">{editingEntry ? 'Редактировать симптом' : 'Добавить симптом'}</h3>
                 <button onClick={() => setShowAddSymptom(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
@@ -1069,13 +1069,13 @@ export const EntryView = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Симптом</label>
-                  <input 
-                    type="text" 
-                    value={symptomName} 
-                    onChange={(e) => setSymptomName(e.target.value)} 
+                  <input
+                    type="text"
+                    value={symptomName}
+                    onChange={(e) => setSymptomName(e.target.value)}
                     list="symptoms-list"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
-                    placeholder="Например: Рвота, Дрожь..." 
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="Например: Рвота, Дрожь..."
                   />
                   {savedSymptoms.length > 0 && (
                     <datalist id="symptoms-list">
@@ -1112,8 +1112,8 @@ export const EntryView = () => {
         )}
 
         {showAddMedication && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowAddMedication(false)}>
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowAddMedication(false)}>
+            <div className="bg-white border border-white/60 rounded-[32px] p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold">{editingEntry ? 'Редактировать лекарство' : 'Добавить лекарство'}</h3>
                 <button onClick={() => setShowAddMedication(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
@@ -1127,9 +1127,9 @@ export const EntryView = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Название</label>
-                  <input 
-                    type="text" 
-                    value={medicationName} 
+                  <input
+                    type="text"
+                    value={medicationName}
                     onChange={(e) => {
                       setMedicationName(e.target.value);
                       // Автозаполнение дозировки при выборе из списка
@@ -1139,8 +1139,8 @@ export const EntryView = () => {
                       }
                     }}
                     list="medications-list"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
-                    placeholder="Например: Преднизолон" 
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="Например: Преднизолон"
                   />
                   {savedMedications.length > 0 && (
                     <datalist id="medications-list">
@@ -1176,8 +1176,8 @@ export const EntryView = () => {
                 {!editingEntry && (
                   <div className="border-t pt-4">
                     <div className="flex items-center gap-2 mb-3">
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         id="schedule-med"
                         checked={isScheduling}
                         onChange={(e) => setIsScheduling(e.target.checked)}
@@ -1191,11 +1191,11 @@ export const EntryView = () => {
                     {isScheduling && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Дать через (минут)</label>
-                        <input 
-                          type="number" 
-                          value={scheduleMinutes} 
-                          onChange={(e) => setScheduleMinutes(e.target.value)} 
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+                        <input
+                          type="number"
+                          value={scheduleMinutes}
+                          onChange={(e) => setScheduleMinutes(e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                           placeholder="Например: 30"
                           min="1"
                         />
@@ -1213,8 +1213,8 @@ export const EntryView = () => {
         )}
 
         {showAddFeeding && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowAddFeeding(false)}>
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowAddFeeding(false)}>
+            <div className="bg-white border border-white/60 rounded-[32px] p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold">{editingEntry ? 'Редактировать питание' : 'Добавить питание'}</h3>
                 <button onClick={() => setShowAddFeeding(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
@@ -1222,15 +1222,23 @@ export const EntryView = () => {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Время (необязательно)</label>
-                  <input type="time" value={foodTime} onChange={(e) => setFoodTime(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Время (необязательно)</label>
+                  <div className="relative">
+                    <input 
+                      type="time" 
+                      value={foodTime} 
+                      onChange={(e) => setFoodTime(e.target.value)} 
+                      className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900"
+                    />
+                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Название</label>
-                  <input 
-                    type="text" 
-                    value={foodName} 
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Название</label>
+                  <input
+                    type="text"
+                    value={foodName}
                     onChange={(e) => {
                       setFoodName(e.target.value);
                       // Автозаполнение количества и единицы
@@ -1241,8 +1249,8 @@ export const EntryView = () => {
                       }
                     }}
                     list="foods-list"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
-                    placeholder="Например: Корм, Вода" 
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
+                    placeholder="Например: Корм, Вода"
                   />
                   {savedFoods.length > 0 && (
                     <datalist id="foods-list">
@@ -1273,12 +1281,22 @@ export const EntryView = () => {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Количество</label>
-                    <input type="text" value={foodAmount} onChange={(e) => setFoodAmount(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="50" />
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Количество</label>
+                    <input 
+                      type="text" 
+                      value={foodAmount} 
+                      onChange={(e) => setFoodAmount(e.target.value)} 
+                      className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400" 
+                      placeholder="50" 
+                    />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Единица</label>
-                    <select value={foodUnit} onChange={(e) => setFoodUnit(e.target.value as 'g' | 'ml' | 'none')} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Единица</label>
+                    <select 
+                      value={foodUnit} 
+                      onChange={(e) => setFoodUnit(e.target.value as 'g' | 'ml' | 'none')} 
+                      className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 appearance-none cursor-pointer"
+                    >
                       <option value="g">г</option>
                       <option value="ml">мл</option>
                       <option value="none">-</option>
@@ -1287,33 +1305,39 @@ export const EntryView = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Заметка (опционально)</label>
-                  <textarea value={foodNote} onChange={(e) => setFoodNote(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none" rows={2} placeholder="Дополнительная информация..." />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Заметка (опционально)</label>
+                  <textarea 
+                    value={foodNote} 
+                    onChange={(e) => setFoodNote(e.target.value)} 
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none resize-none text-gray-900 placeholder-gray-400" 
+                    rows={2} 
+                    placeholder="Дополнительная информация..." 
+                  />
                 </div>
 
                 {!editingEntry && (
-                  <div className="border-t pt-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <input 
-                        type="checkbox" 
+                  <div className="border-t border-gray-200 pt-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <input
+                        type="checkbox"
                         id="schedule-feed"
                         checked={isScheduling}
                         onChange={(e) => setIsScheduling(e.target.checked)}
-                        className="w-4 h-4"
+                        className="w-5 h-5 rounded border-gray-300 text-black focus:ring-black cursor-pointer"
                       />
-                      <label htmlFor="schedule-feed" className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                        <Clock size={16} />
+                      <label htmlFor="schedule-feed" className="text-sm font-semibold text-gray-700 flex items-center gap-2 cursor-pointer">
+                        <Clock size={18} />
                         Запланировать
                       </label>
                     </div>
                     {isScheduling && (
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Покормить через (минут)</label>
-                        <input 
-                          type="number" 
-                          value={scheduleMinutes} 
-                          onChange={(e) => setScheduleMinutes(e.target.value)} 
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Покормить через (минут)</label>
+                        <input
+                          type="number"
+                          value={scheduleMinutes}
+                          onChange={(e) => setScheduleMinutes(e.target.value)}
+                          className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
                           placeholder="Например: 30"
                           min="1"
                         />
@@ -1322,7 +1346,11 @@ export const EntryView = () => {
                   </div>
                 )}
 
-                <button onClick={handleAddFeeding} disabled={!foodName || (isScheduling && !scheduleMinutes)} className="w-full py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                <button 
+                  onClick={handleAddFeeding} 
+                  disabled={!foodName || (isScheduling && !scheduleMinutes)} 
+                  className="w-full py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                >
                   {isScheduling ? 'Запланировать' : 'Добавить'}
                 </button>
               </div>
@@ -1352,36 +1380,36 @@ export const EntryView = () => {
 
         {/* Модалка редактирования запланированного события */}
         {editingScheduledId && (
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             onClick={() => setEditingScheduledId(null)}
           >
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white border border-white/60 rounded-[32px] p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
               <h3 className="text-xl font-bold mb-4">Изменить время</h3>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Через сколько минут</label>
-                  <input 
-                    type="number" 
-                    value={scheduleMinutes} 
-                    onChange={(e) => setScheduleMinutes(e.target.value)} 
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+                  <input
+                    type="number"
+                    value={scheduleMinutes}
+                    onChange={(e) => setScheduleMinutes(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     placeholder="Например: 30"
                     min="1"
                   />
                 </div>
                 <div className="flex gap-2">
-                  <button 
+                  <button
                     onClick={async () => {
                       const minutes = parseInt(scheduleMinutes);
                       if (minutes > 0) {
                         const newScheduledTime = Date.now() + minutes * 60000;
                         const id = parseInt(editingScheduledId);
-                        
+
                         // Определяем тип события
                         const medEntry = medicationEntries.find(e => e.id === id);
                         const feedEntry = feedingEntries.find(e => e.id === id);
-                        
+
                         try {
                           if (medEntry) {
                             await supabase.from('medication_entries').update({
@@ -1392,7 +1420,7 @@ export const EntryView = () => {
                               scheduled_time: newScheduledTime
                             }).eq('id', id);
                           }
-                          
+
                           setEditingScheduledId(null);
                           setScheduleMinutes('');
                           loadData();
@@ -1406,7 +1434,7 @@ export const EntryView = () => {
                   >
                     Сохранить
                   </button>
-                  <button 
+                  <button
                     onClick={() => {
                       setEditingScheduledId(null);
                       setScheduleMinutes('');

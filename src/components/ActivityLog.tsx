@@ -29,7 +29,7 @@ export const ActivityLog = () => {
 
   const loadLog = async () => {
     if (!currentUser || !currentPetId) return;
-    
+
     try {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -44,7 +44,7 @@ export const ActivityLog = () => {
 
       // Группируем по дням
       const daysMap = new Map<string, DaySummary>();
-      
+
       (stateRes.data || []).forEach(entry => {
         if (!daysMap.has(entry.date)) {
           daysMap.set(entry.date, { date: entry.date, stateEntries: [], symptomEntries: [], medicationEntries: [], feedingEntries: [] });
@@ -122,9 +122,9 @@ export const ActivityLog = () => {
       <div className="max-w-5xl mx-auto">
         <Header />
 
-        <div className="bg-white rounded-2xl p-4">
-          <h2 className="text-xl font-bold mb-4">Лог активности</h2>
-          
+        <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-4">
+          <h2 className="text-xl font-bold mb-4 px-2">Лог активности</h2>
+
           {daySummaries.length === 0 ? (
             <p className="text-gray-400 text-center py-8">Нет записей</p>
           ) : (
@@ -133,7 +133,7 @@ export const ActivityLog = () => {
                 <button
                   key={day.date}
                   onClick={() => handleDayClick(day.date)}
-                  className="w-full text-left p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
+                  className="w-full text-left p-4 rounded-[24px] bg-white/40 hover:bg-white/60 border border-transparent hover:border-white/60 transition-all"
                 >
                   <div className="flex items-center gap-3">
                     <div className="flex-shrink-0 w-24">
@@ -151,7 +151,7 @@ export const ActivityLog = () => {
                             <span className="text-sm text-gray-700">{day.stateEntries.length}x</span>
                           </div>
                         )}
-                        
+
                         {day.symptomEntries.length > 0 && (
                           <div className="flex items-center gap-1.5">
                             <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
@@ -160,7 +160,7 @@ export const ActivityLog = () => {
                             <span className="text-sm text-gray-700">{day.symptomEntries.length}x</span>
                           </div>
                         )}
-                        
+
                         {day.medicationEntries.length > 0 && (
                           <div className="flex items-center gap-1.5">
                             <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
@@ -169,7 +169,7 @@ export const ActivityLog = () => {
                             <span className="text-sm text-gray-700">{day.medicationEntries.length}x</span>
                           </div>
                         )}
-                        
+
                         {day.feedingEntries.length > 0 && (
                           <div className="flex items-center gap-1.5">
                             <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">

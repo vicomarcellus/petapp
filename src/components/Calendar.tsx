@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
+import { createPortal } from 'react-dom';
 import { useStore } from '../store';
 import { formatDate } from '../utils';
 import { STATE_COLORS } from '../types';
@@ -19,30 +20,30 @@ export const Calendar = () => {
   const [stateEntries, setStateEntries] = useState<StateEntry[]>([]);
   const [medicationEntries, setMedicationEntries] = useState<MedicationEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   const currentDate = new Date(currentYear, currentMonth, 1);
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
-  
+
   const startDateStr = format(monthStart, 'yyyy-MM-dd');
   const endDateStr = format(monthEnd, 'yyyy-MM-dd');
 
   useEffect(() => {
     if (currentUser && currentPetId) {
       loadData();
-      
+
       // Подписка на изменения
       const channel = supabase
         .channel('calendar_changes')
-        .on('postgres_changes', 
+        .on('postgres_changes',
           { event: '*', schema: 'public', table: 'day_entries', filter: `pet_id=eq.${currentPetId}` },
           () => loadData()
         )
-        .on('postgres_changes', 
+        .on('postgres_changes',
           { event: '*', schema: 'public', table: 'state_entries', filter: `pet_id=eq.${currentPetId}` },
           () => loadData()
         )
-        .on('postgres_changes', 
+        .on('postgres_changes',
           { event: '*', schema: 'public', table: 'medication_entries', filter: `pet_id=eq.${currentPetId}` },
           () => loadData()
         )
@@ -56,7 +57,7 @@ export const Calendar = () => {
 
   const loadData = async () => {
     if (!currentUser || !currentPetId) return;
-    
+
     try {
       setLoading(true);
       const [dayRes, stateRes, medRes] = await Promise.all([
@@ -93,11 +94,11 @@ export const Calendar = () => {
     }
   };
 
-  const entriesMap = useMemo(() => 
+  const entriesMap = useMemo(() =>
     new Map(entries.map(e => [e.date, e])),
     [entries]
   );
-  
+
   const statesMap = useMemo(() => {
     const map = new Map<string, StateEntry[]>();
     stateEntries.forEach(state => {
@@ -108,7 +109,7 @@ export const Calendar = () => {
     });
     return map;
   }, [stateEntries]);
-  
+
   const medsMap = useMemo(() => {
     const map = new Map<string, MedicationEntry[]>();
     medicationEntries.forEach(med => {
@@ -119,7 +120,7 @@ export const Calendar = () => {
     });
     return map;
   }, [medicationEntries]);
-  
+
   const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
   const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
@@ -146,10 +147,10 @@ export const Calendar = () => {
 
   const thisMonthEntries = entries.filter(e => {
     const entryDate = new Date(e.date);
-    return entryDate.getMonth() === currentDate.getMonth() && 
-           entryDate.getFullYear() === currentYear;
+    return entryDate.getMonth() === currentDate.getMonth() &&
+      entryDate.getFullYear() === currentYear;
   });
-  
+
   const avgScore = thisMonthEntries.length > 0
     ? (thisMonthEntries.reduce((sum, e) => sum + e.state_score, 0) / thisMonthEntries.length).toFixed(1)
     : '0';
@@ -158,8 +159,8 @@ export const Calendar = () => {
 
   const thisMonthStateEntries = stateEntries.filter(s => {
     const stateDate = new Date(s.date);
-    return stateDate.getMonth() === currentDate.getMonth() && 
-           stateDate.getFullYear() === currentYear;
+    return stateDate.getMonth() === currentDate.getMonth() &&
+      stateDate.getFullYear() === currentYear;
   });
 
   if (loading) {
@@ -214,7 +215,7 @@ export const Calendar = () => {
                 const dayMeds = medsMap.get(dateStr);
                 const isCurrentMonth = isSameMonth(date, currentDate);
                 const isTodayDate = isToday(date);
-                
+
                 const avgDayScore = dayStates && dayStates.length > 0
                   ? Math.round(dayStates.reduce((sum, s) => sum + s.state_score, 0) / dayStates.length) as 1 | 2 | 3 | 4 | 5
                   : entry?.state_score;
@@ -227,10 +228,12 @@ export const Calendar = () => {
                       if ((dayMeds && dayMeds.length > 0) || entry || (dayStates && dayStates.length > 0)) {
                         setHoveredDate(dateStr);
                         const rect = e.currentTarget.getBoundingClientRect();
-                        setTooltipPosition({ 
-                          x: rect.left + rect.width / 2, 
+                        const pos = {
+                          x: rect.left + rect.width / 2,
                           y: rect.top
-                        });
+                        };
+                        console.log('Tooltip position:', pos, 'rect:', rect);
+                        setTooltipPosition(pos);
                         setTimeout(() => setShowTooltip(true), 300);
                       }
                     }}
@@ -255,7 +258,7 @@ export const Calendar = () => {
                         {format(date, 'd')}
                       </span>
                       {avgDayScore && isCurrentMonth && (
-                        <div 
+                        <div
                           className="w-1 h-1 rounded-full"
                           style={{ backgroundColor: STATE_COLORS[avgDayScore] }}
                         />
@@ -266,63 +269,67 @@ export const Calendar = () => {
               })}
             </div>
 
-            {hoveredDate && showTooltip && (() => {
-              const entry = entriesMap.get(hoveredDate);
-              const states = statesMap.get(hoveredDate);
-              const meds = medsMap.get(hoveredDate);
-              
-              if (!entry && !states && !meds) return null;
-              
-              // Тултип над датой
-              return (
-                <div
-                  className="fixed z-50 bg-black text-white px-4 py-3 rounded-2xl text-xs shadow-2xl pointer-events-none"
-                  style={{
-                    left: `${tooltipPosition.x}px`,
-                    top: `${tooltipPosition.y}px`,
-                    transform: 'translate(-50%, calc(-100% - 16px))',
-                    maxWidth: '200px',
-                  }}
-                >
-                  {states && states.length > 0 && (
-                    <div className="mb-2">
-                      <div className="font-semibold mb-1">
-                        Состояние ({states.length} записей):
-                      </div>
-                      {states.map((state, idx) => (
-                        <div key={idx} className="text-xs text-gray-300 mb-0.5">
-                          {state.time}: {state.state_score}/5
+            {hoveredDate && showTooltip && createPortal(
+              (() => {
+                const entry = entriesMap.get(hoveredDate);
+                const states = statesMap.get(hoveredDate);
+                const meds = medsMap.get(hoveredDate);
+
+                if (!entry && !states && !meds) return null;
+
+                // Тултип над датой
+                return (
+                  <div
+                    className="fixed z-50 bg-black text-white p-4 rounded-2xl text-sm shadow-2xl pointer-events-none"
+                    style={{
+                      left: `${tooltipPosition.x}px`,
+                      top: `${tooltipPosition.y}px`,
+                      transform: 'translate(-50%, calc(-100% - 16px))',
+                      maxWidth: '300px',
+                      width: 'max-content',
+                    }}
+                  >
+                    {states && states.length > 0 && (
+                      <div className="mb-3 last:mb-0">
+                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">
+                          Состояние ({states.length}):
                         </div>
-                      ))}
-                    </div>
-                  )}
-                  {entry && entry.symptoms && entry.symptoms.length > 0 && (
-                    <div className="mb-2">
-                      <div className="font-semibold mb-1">Симптомы:</div>
-                      <div className="text-xs text-gray-300">
-                        {entry.symptoms.join(', ')}
+                        {states.map((state, idx) => (
+                          <div key={idx} className="text-sm text-white font-medium mb-1">
+                            {state.time}: {state.state_score}/5
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                  )}
-                  {meds && meds.length > 0 && (
-                    <div>
-                      <div className="font-semibold mb-1">Лекарства:</div>
-                      {meds.map((med, idx) => (
-                        <div key={idx} className="flex items-center gap-2 mb-0.5">
-                          <div
-                            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: med.color }}
-                          />
-                          <span className="text-xs">
-                            {med.medication_name} {med.dosage} • {med.time}
-                          </span>
+                    )}
+                    {entry && entry.symptoms && entry.symptoms.length > 0 && (
+                      <div className="mb-3 last:mb-0">
+                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Симптомы:</div>
+                        <div className="text-sm text-white font-medium leading-relaxed">
+                          {entry.symptoms.join(', ')}
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
+                      </div>
+                    )}
+                    {meds && meds.length > 0 && (
+                      <div className="last:mb-0">
+                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Лекарства:</div>
+                        {meds.map((med, idx) => (
+                          <div key={idx} className="flex items-center gap-2 mb-1 last:mb-0">
+                            <div
+                              className="w-2 h-2 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: med.color }}
+                            />
+                            <span className="text-sm text-white font-medium whitespace-nowrap">
+                              {med.medication_name} {med.dosage} • {med.time}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })(),
+              document.body
+            )}
           </div>
 
           <div className="space-y-3">

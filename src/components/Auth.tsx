@@ -130,16 +130,16 @@ export function Auth() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
+    <div className="min-h-screen bg-[#F5F5F7] flex items-center justify-center p-4">
+      <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-8 max-w-md w-full">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-            <PawPrint className="w-8 h-8 text-blue-600" />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-[24px] mb-4 shadow-sm">
+            <PawPrint className="w-8 h-8 text-black" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Дневник здоровья питомца
+          <h1 className="text-3xl font-bold text-black mb-2">
+            Дневник здоровья
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-500">
             {isLogin ? 'Войдите в аккаунт' : 'Создайте аккаунт'}
           </p>
         </div>
@@ -154,7 +154,7 @@ export function Auth() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                className="w-full px-4 py-3 bg-white/50 border border-white/60 rounded-2xl focus:border-black transition-all outline-none text-black placeholder-gray-400"
                 placeholder="Ваше имя"
                 disabled={loading}
               />
@@ -169,7 +169,7 @@ export function Auth() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              className="w-full px-4 py-3 bg-white/50 border border-white/60 rounded-2xl focus:border-black transition-all outline-none text-black placeholder-gray-400"
               placeholder="your@email.com"
               disabled={loading}
             />
@@ -183,7 +183,7 @@ export function Auth() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              className="w-full px-4 py-3 bg-white/50 border border-white/60 rounded-2xl focus:border-black transition-all outline-none text-black placeholder-gray-400"
               placeholder="••••••••"
               disabled={loading}
             />
@@ -198,7 +198,7 @@ export function Auth() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-black hover:bg-gray-800 text-white font-bold py-3.5 px-4 rounded-2xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Загрузка...' : isLogin ? 'Войти' : 'Зарегистрироваться'}
           </button>
@@ -210,7 +210,7 @@ export function Auth() {
               setError('');
             }}
             disabled={loading}
-            className="w-full text-blue-500 hover:text-blue-600 text-sm font-medium"
+            className="w-full text-gray-500 hover:text-black text-sm font-medium transition-colors"
           >
             {isLogin ? 'Нет аккаунта? Зарегистрируйтесь' : 'Уже есть аккаунт? Войдите'}
           </button>

@@ -10,7 +10,7 @@ import { usePetInit } from './hooks/usePetInit';
 
 function App() {
   const { view, currentUser, currentPetId } = useStore();
-  
+
   // Инициализация текущего питомца
   usePetInit();
 
@@ -25,7 +25,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-stone-100">
+    <div className="min-h-screen bg-[#F5F5F7]">
       {view === 'calendar' && <Calendar />}
       {(view === 'add' || view === 'edit' || view === 'view') && <EntryView />}
       {view === 'log' && <ActivityLog />}
