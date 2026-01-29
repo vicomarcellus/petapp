@@ -265,7 +265,7 @@ export const QuickChat = () => {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-transform z-50"
+        className="fixed bottom-6 right-6 w-14 h-14 bg-black rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-transform z-50"
       >
         <Sparkles className="text-white" size={24} />
       </button>
@@ -273,8 +273,8 @@ export const QuickChat = () => {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 w-96 bg-white rounded-2xl shadow-2xl z-50 flex flex-col max-h-[600px]">
-      <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-4 rounded-t-2xl flex-shrink-0">
+    <div className="fixed bottom-6 right-6 w-96 bg-white rounded-2xl shadow-2xl z-50 flex flex-col max-h-[600px] border border-gray-200">
+      <div className="bg-black p-4 rounded-t-2xl flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="text-white" size={20} />
@@ -289,7 +289,7 @@ export const QuickChat = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 min-h-0">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#F5F5F7] min-h-0">
         {messages.length === 0 ? (
           <div className="text-center text-gray-400 text-sm py-8">
             Привет! Я AI помощник.
@@ -305,7 +305,7 @@ export const QuickChat = () => {
               <div
                 className={`max-w-[80%] px-4 py-2 rounded-2xl ${
                   msg.role === 'user'
-                    ? 'bg-purple-500 text-white'
+                    ? 'bg-black text-white'
                     : 'bg-white text-gray-800 border border-gray-200'
                 }`}
               >
@@ -313,7 +313,7 @@ export const QuickChat = () => {
                 {msg.actionButton && (
                   <button
                     onClick={() => handleViewDay(msg.actionButton!.date)}
-                    className="mt-2 w-full px-3 py-2 bg-purple-500 text-white rounded-lg text-xs font-medium hover:bg-purple-600 transition-colors"
+                    className="mt-2 w-full px-3 py-2 bg-black text-white rounded-lg text-xs font-medium hover:bg-gray-800 transition-colors"
                   >
                     {msg.actionButton.text}
                   </button>
@@ -325,14 +325,14 @@ export const QuickChat = () => {
         {loading && (
           <div className="flex justify-start">
             <div className="bg-white px-4 py-2 rounded-2xl border border-gray-200">
-              <Loader2 className="animate-spin text-purple-500" size={20} />
+              <Loader2 className="animate-spin text-black" size={20} />
             </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-4 border-t flex-shrink-0">
+      <div className="p-4 border-t flex-shrink-0 bg-white rounded-b-2xl">
         <div className="flex gap-2">
           <input
             type="text"
@@ -341,12 +341,12 @@ export const QuickChat = () => {
             onKeyPress={(e) => e.key === 'Enter' && !loading && handleSend()}
             placeholder="Спросите что-нибудь..."
             disabled={loading}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-black text-sm"
           />
           <button
             onClick={handleSend}
             disabled={loading || !message.trim()}
-            className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white hover:bg-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+            className="w-10 h-10 bg-black rounded-full flex items-center justify-center text-white hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
           >
             {loading ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
           </button>
