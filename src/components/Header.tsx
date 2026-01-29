@@ -98,39 +98,35 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
   };
 
   return (
-    <div className="mb-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3">
+    <header className="mb-8">
+      {/* Top Bar */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
           {showBackButton && onBack && (
             <button
               onClick={onBack}
-              className="p-2 hover:bg-white rounded-full transition-all"
+              className="p-2 hover:bg-black/5 rounded-xl transition-all"
             >
               <ArrowLeft size={20} className="text-black" />
             </button>
           )}
-          <h1 className="text-2xl font-bold text-black">
-            Трекер здоровья
-          </h1>
+          <div>
+            <h1 className="text-3xl font-bold text-black tracking-tight">
+              Трекер здоровья
+            </h1>
+          </div>
         </div>
         
         <div className="flex items-center gap-3">
           {/* User Info */}
           {currentUser && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-full">
-              {currentUser.photoUrl && (
-                <img
-                  src={currentUser.photoUrl}
-                  alt={currentUser.firstName}
-                  className="w-6 h-6 rounded-full"
-                />
-              )}
-              <span className="text-sm text-gray-700">
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-500 font-medium">
                 {currentUser.firstName}
               </span>
               <button
                 onClick={handleLogout}
-                className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                className="p-2 text-gray-400 hover:text-black hover:bg-black/5 rounded-xl transition-all"
                 title="Выйти"
               >
                 <LogOut className="w-4 h-4" />
@@ -143,12 +139,12 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
             <div className="relative">
               <button
                 onClick={() => pets.length > 1 && setShowPetMenu(!showPetMenu)}
-                className={`flex items-center gap-2 px-4 py-2 bg-white rounded-full transition-all ${
-                  pets.length > 1 ? 'hover:shadow-md cursor-pointer' : 'cursor-default'
+                className={`flex items-center gap-3 px-5 py-2.5 bg-white border border-gray-200 rounded-2xl transition-all ${
+                  pets.length > 1 ? 'hover:border-black cursor-pointer' : 'cursor-default'
                 }`}
               >
                 <span className="text-2xl">{PET_EMOJIS[currentPet.type] || '🐾'}</span>
-                <span className="font-semibold text-black">{currentPet.name}</span>
+                <span className="font-semibold text-black text-base">{currentPet.name}</span>
                 {pets.length > 1 && (
                   <ChevronDown size={16} className={`text-gray-400 transition-transform ${showPetMenu ? 'rotate-180' : ''}`} />
                 )}
@@ -160,12 +156,12 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
                     className="fixed inset-0 z-40" 
                     onClick={() => setShowPetMenu(false)}
                   />
-                  <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-2xl py-2 min-w-[220px] z-50 border border-gray-100">
+                  <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-xl py-2 min-w-[240px] z-50 border border-gray-200">
                     {pets.map((pet) => (
                       <button
                         key={pet.id}
                         onClick={() => handleSelectPet(pet.id!)}
-                        className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-all ${
+                        className={`w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-all ${
                           pet.id === currentPetId ? 'bg-gray-50' : ''
                         }`}
                       >
@@ -174,7 +170,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
                           {pet.name}
                         </span>
                         {pet.id === currentPetId && (
-                          <div className="w-2 h-2 rounded-full bg-black" />
+                          <div className="w-1.5 h-1.5 rounded-full bg-black" />
                         )}
                       </button>
                     ))}
@@ -187,52 +183,52 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
       </div>
 
       {/* Navigation Menu */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+      <nav className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-hide">
         <button
           onClick={goToToday}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-full transition-all font-medium text-sm whitespace-nowrap ${
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-medium text-sm whitespace-nowrap ${
             view === 'calendar' || view === 'add' || view === 'edit' || view === 'view'
-              ? 'bg-black text-white hover:bg-gray-800'
-              : 'bg-white text-black hover:bg-gray-50'
+              ? 'bg-black text-white'
+              : 'text-gray-600 hover:text-black hover:bg-black/5'
           }`}
         >
-          <CalendarIcon size={16} />
+          <CalendarIcon size={18} />
           Календарь
         </button>
         <button
           onClick={() => setView('analytics')}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-full transition-all font-medium text-sm whitespace-nowrap ${
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-medium text-sm whitespace-nowrap ${
             view === 'analytics'
-              ? 'bg-black text-white hover:bg-gray-800'
-              : 'bg-white text-black hover:bg-gray-50'
+              ? 'bg-black text-white'
+              : 'text-gray-600 hover:text-black hover:bg-black/5'
           }`}
         >
-          <BarChart3 size={16} />
+          <BarChart3 size={18} />
           Аналитика
         </button>
         <button
           onClick={() => setView('log')}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-full transition-all font-medium text-sm whitespace-nowrap ${
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-medium text-sm whitespace-nowrap ${
             view === 'log'
-              ? 'bg-black text-white hover:bg-gray-800'
-              : 'bg-white text-black hover:bg-gray-50'
+              ? 'bg-black text-white'
+              : 'text-gray-600 hover:text-black hover:bg-black/5'
           }`}
         >
-          <ClipboardList size={16} />
+          <ClipboardList size={18} />
           Лог
         </button>
         <button
           onClick={() => setView('settings')}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-full transition-all font-medium text-sm whitespace-nowrap ${
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-medium text-sm whitespace-nowrap ${
             view === 'settings' || view === 'history'
-              ? 'bg-black text-white hover:bg-gray-800'
-              : 'bg-white text-black hover:bg-gray-50'
+              ? 'bg-black text-white'
+              : 'text-gray-600 hover:text-black hover:bg-black/5'
           }`}
         >
-          <Settings size={16} />
+          <Settings size={18} />
           Настройки
         </button>
-      </div>
-    </div>
+      </nav>
+    </header>
   );
 };
