@@ -2,12 +2,23 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
 import { Header } from './Header';
+import { Activity, AlertCircle, Pill, Utensils, ChevronRight } from 'lucide-react';
 import { STATE_COLORS } from '../types';
-import type { StateEntry, MedicationEntry, SymptomEntry } from '../types';
+import type { StateEntry, MedicationEntry, SymptomEntry, FeedingEntry } from '../types';
+
+interface DaySummary {
+  date: string;
+  stateEntries: StateEntry[];
+  symptomEntries: SymptomEntry[];
+  medicationEntries: MedicationEntry[];
+  feedingEntries: FeedingEntry[];
+  avgScore?: number;
+  aiSummary?: string;
+}
 
 export const ActivityLog = () => {
-  const { currentUser, currentPetId } = useStore();
-  const [entries, setEntries] = useState<any[]>([]);
+  const { currentUser, currentPetId, setSelectedDate, setView } = useStore();
+  const [daySummaries, setDaySummaries] = useState<DaySummary[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,24 +35,75 @@ export const ActivityLog = () => {
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const startDate = thirtyDaysAgo.toISOString().split('T')[0];
 
-      const [stateRes, medRes, symptomRes] = await Promise.all([
-        supabase.from('state_entries').select('*').eq('user_id', currentUser.id).eq('pet_id', currentPetId).gte('date', startDate).order('timestamp', { ascending: false }).limit(50),
-        supabase.from('medication_entries').select('*').eq('user_id', currentUser.id).eq('pet_id', currentPetId).gte('date', startDate).order('timestamp', { ascending: false }).limit(50),
-        supabase.from('symptom_entries').select('*').eq('user_id', currentUser.id).eq('pet_id', currentPetId).gte('date', startDate).order('timestamp', { ascending: false }).limit(50)
+      const [stateRes, medRes, symptomRes, feedRes] = await Promise.all([
+        supabase.from('state_entries').select('*').eq('user_id', currentUser.id).eq('pet_id', currentPetId).gte('date', startDate).order('date', { ascending: false }),
+        supabase.from('medication_entries').select('*').eq('user_id', currentUser.id).eq('pet_id', currentPetId).gte('date', startDate).order('date', { ascending: false }),
+        supabase.from('symptom_entries').select('*').eq('user_id', currentUser.id).eq('pet_id', currentPetId).gte('date', startDate).order('date', { ascending: false }),
+        supabase.from('feeding_entries').select('*').eq('user_id', currentUser.id).eq('pet_id', currentPetId).gte('date', startDate).order('date', { ascending: false })
       ]);
 
-      const allEntries = [
-        ...(stateRes.data || []).map(e => ({ ...e, type: 'state' })),
-        ...(medRes.data || []).map(e => ({ ...e, type: 'medication' })),
-        ...(symptomRes.data || []).map(e => ({ ...e, type: 'symptom' }))
-      ].sort((a, b) => b.timestamp - a.timestamp).slice(0, 100);
+      // Группируем по дням
+      const daysMap = new Map<string, DaySummary>();
+      
+      (stateRes.data || []).forEach(entry => {
+        if (!daysMap.has(entry.date)) {
+          daysMap.set(entry.date, { date: entry.date, stateEntries: [], symptomEntries: [], medicationEntries: [], feedingEntries: [] });
+        }
+        daysMap.get(entry.date)!.stateEntries.push(entry);
+      });
 
-      setEntries(allEntries);
+      (symptomRes.data || []).forEach(entry => {
+        if (!daysMap.has(entry.date)) {
+          daysMap.set(entry.date, { date: entry.date, stateEntries: [], symptomEntries: [], medicationEntries: [], feedingEntries: [] });
+        }
+        daysMap.get(entry.date)!.symptomEntries.push(entry);
+      });
+
+      (medRes.data || []).forEach(entry => {
+        if (!daysMap.has(entry.date)) {
+          daysMap.set(entry.date, { date: entry.date, stateEntries: [], symptomEntries: [], medicationEntries: [], feedingEntries: [] });
+        }
+        daysMap.get(entry.date)!.medicationEntries.push(entry);
+      });
+
+      (feedRes.data || []).forEach(entry => {
+        if (!daysMap.has(entry.date)) {
+          daysMap.set(entry.date, { date: entry.date, stateEntries: [], symptomEntries: [], medicationEntries: [], feedingEntries: [] });
+        }
+        daysMap.get(entry.date)!.feedingEntries.push(entry);
+      });
+
+      // Вычисляем средние оценки
+      const summaries = Array.from(daysMap.values()).map(day => {
+        if (day.stateEntries.length > 0) {
+          day.avgScore = Math.round(day.stateEntries.reduce((sum, e) => sum + e.state_score, 0) / day.stateEntries.length);
+        }
+        return day;
+      }).sort((a, b) => b.date.localeCompare(a.date));
+
+      setDaySummaries(summaries);
     } catch (error) {
       console.error('Error loading log:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDayClick = (date: string) => {
+    setSelectedDate(date);
+    setView('view');
+  };
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (dateStr === today.toISOString().split('T')[0]) return 'Сегодня';
+    if (dateStr === yesterday.toISOString().split('T')[0]) return 'Вчера';
+
+    return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
   };
 
   if (loading) {
@@ -63,29 +125,65 @@ export const ActivityLog = () => {
         <div className="bg-white rounded-2xl p-4">
           <h2 className="text-xl font-bold mb-4">Лог активности</h2>
           
-          {entries.length === 0 ? (
+          {daySummaries.length === 0 ? (
             <p className="text-gray-400 text-center py-8">Нет записей</p>
           ) : (
-            <div className="space-y-2">
-              {entries.map((entry, idx) => (
-                <div key={idx} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
-                  <div className="text-xs text-gray-500 w-24">{entry.date} {entry.time}</div>
-                  {entry.type === 'state' && (
-                    <>
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: STATE_COLORS[entry.state_score] }}>{entry.state_score}</div>
-                      <div className="flex-1 text-sm">Состояние</div>
-                    </>
-                  )}
-                  {entry.type === 'medication' && (
-                    <>
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
-                      <div className="flex-1 text-sm">{entry.medication_name} {entry.dosage}</div>
-                    </>
-                  )}
-                  {entry.type === 'symptom' && (
-                    <div className="flex-1 text-sm">Симптом: {entry.symptom}</div>
-                  )}
-                </div>
+            <div className="space-y-3">
+              {daySummaries.map((day) => (
+                <button
+                  key={day.date}
+                  onClick={() => handleDayClick(day.date)}
+                  className="w-full text-left p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-24">
+                      <div className="text-sm font-medium text-gray-900">{formatDate(day.date)}</div>
+                      <div className="text-xs text-gray-500">{day.date}</div>
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        {day.avgScore && (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: STATE_COLORS[day.avgScore] }}>
+                              <Activity className="text-white" size={14} />
+                            </div>
+                            <span className="text-sm text-gray-700">{day.stateEntries.length}x</span>
+                          </div>
+                        )}
+                        
+                        {day.symptomEntries.length > 0 && (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                              <AlertCircle className="text-red-600" size={14} />
+                            </div>
+                            <span className="text-sm text-gray-700">{day.symptomEntries.length}x</span>
+                          </div>
+                        )}
+                        
+                        {day.medicationEntries.length > 0 && (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                              <Pill className="text-purple-600" size={14} />
+                            </div>
+                            <span className="text-sm text-gray-700">{day.medicationEntries.length}x</span>
+                          </div>
+                        )}
+                        
+                        {day.feedingEntries.length > 0 && (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                              <Utensils className="text-green-600" size={14} />
+                            </div>
+                            <span className="text-sm text-gray-700">{day.feedingEntries.length}x</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <ChevronRight className="flex-shrink-0 text-gray-400" size={20} />
+                  </div>
+                </button>
               ))}
             </div>
           )}
