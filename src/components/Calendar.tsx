@@ -229,7 +229,7 @@ export const Calendar = () => {
                         const rect = e.currentTarget.getBoundingClientRect();
                         setTooltipPosition({ 
                           x: rect.left + rect.width / 2, 
-                          y: rect.top + window.scrollY 
+                          y: rect.top
                         });
                         setTimeout(() => setShowTooltip(true), 300);
                       }
@@ -275,11 +275,11 @@ export const Calendar = () => {
               
               return (
                 <div
-                  className="absolute z-50 bg-black text-white px-4 py-3 rounded-2xl text-xs shadow-2xl pointer-events-none"
+                  className="fixed z-50 bg-black text-white px-4 py-3 rounded-2xl text-xs shadow-2xl pointer-events-none"
                   style={{
                     left: `${tooltipPosition.x}px`,
-                    top: `${tooltipPosition.y - 10}px`,
-                    transform: 'translate(-50%, -100%)',
+                    top: `${tooltipPosition.y}px`,
+                    transform: 'translate(-50%, calc(-100% - 8px))',
                     maxWidth: '200px',
                   }}
                 >
