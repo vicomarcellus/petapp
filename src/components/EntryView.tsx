@@ -1029,25 +1029,40 @@ export const EntryView = () => {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Время (необязательно)</label>
-                  <input type="time" value={stateTime} onChange={(e) => setStateTime(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Текущее время" />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Время (необязательно)</label>
+                  <div className="relative">
+                    <input 
+                      type="time" 
+                      value={stateTime} 
+                      onChange={(e) => setStateTime(e.target.value)} 
+                      className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 [&::-webkit-calendar-picker-indicator]:hidden"
+                      placeholder="Текущее время" 
+                    />
+                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Оценка состояния</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Оценка состояния</label>
                   <div className="flex gap-2">
                     {[1, 2, 3, 4, 5].map((score) => (
-                      <button key={score} onClick={() => setStateScore(score as 1 | 2 | 3 | 4 | 5)} className={`flex-1 py-3 rounded-xl font-bold transition-all ${stateScore === score ? 'text-white scale-105' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`} style={{ backgroundColor: stateScore === score ? STATE_COLORS[score] : undefined }}>{score}</button>
+                      <button key={score} onClick={() => setStateScore(score as 1 | 2 | 3 | 4 | 5)} className={`flex-1 py-3 rounded-2xl font-bold transition-all ${stateScore === score ? 'text-white scale-105' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`} style={{ backgroundColor: stateScore === score ? STATE_COLORS[score] : undefined }}>{score}</button>
                     ))}
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Заметка (опционально)</label>
-                  <textarea value={stateNote} onChange={(e) => setStateNote(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none" rows={3} placeholder="Дополнительная информация..." />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Заметка (опционально)</label>
+                  <textarea 
+                    value={stateNote} 
+                    onChange={(e) => setStateNote(e.target.value)} 
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none resize-none text-gray-900 placeholder-gray-400" 
+                    rows={3} 
+                    placeholder="Дополнительная информация..." 
+                  />
                 </div>
 
-                <button onClick={handleAddState} className="w-full py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors">Добавить</button>
+                <button onClick={handleAddState} className="w-full py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all shadow-sm">Добавить</button>
               </div>
             </div>
           </div>
@@ -1063,18 +1078,26 @@ export const EntryView = () => {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Время (необязательно)</label>
-                  <input type="time" value={symptomTime} onChange={(e) => setSymptomTime(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Время (необязательно)</label>
+                  <div className="relative">
+                    <input 
+                      type="time" 
+                      value={symptomTime} 
+                      onChange={(e) => setSymptomTime(e.target.value)} 
+                      className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 [&::-webkit-calendar-picker-indicator]:hidden"
+                    />
+                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Симптом</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Симптом</label>
                   <input
                     type="text"
                     value={symptomName}
                     onChange={(e) => setSymptomName(e.target.value)}
                     list="symptoms-list"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
                     placeholder="Например: Рвота, Дрожь..."
                   />
                   {savedSymptoms.length > 0 && (
@@ -1101,11 +1124,17 @@ export const EntryView = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Заметка (опционально)</label>
-                  <textarea value={symptomNote} onChange={(e) => setSymptomNote(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none" rows={3} placeholder="Дополнительная информация..." />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Заметка (опционально)</label>
+                  <textarea 
+                    value={symptomNote} 
+                    onChange={(e) => setSymptomNote(e.target.value)} 
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none resize-none text-gray-900 placeholder-gray-400" 
+                    rows={3} 
+                    placeholder="Дополнительная информация..." 
+                  />
                 </div>
 
-                <button onClick={handleAddSymptom} disabled={!symptomName} className="w-full py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Добавить</button>
+                <button onClick={handleAddSymptom} disabled={!symptomName} className="w-full py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">Добавить</button>
               </div>
             </div>
           </div>
@@ -1121,12 +1150,20 @@ export const EntryView = () => {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Время (необязательно)</label>
-                  <input type="time" value={medicationTime} onChange={(e) => setMedicationTime(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Время (необязательно)</label>
+                  <div className="relative">
+                    <input 
+                      type="time" 
+                      value={medicationTime} 
+                      onChange={(e) => setMedicationTime(e.target.value)} 
+                      className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 [&::-webkit-calendar-picker-indicator]:hidden"
+                    />
+                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Название</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Название</label>
                   <input
                     type="text"
                     value={medicationName}
@@ -1139,7 +1176,7 @@ export const EntryView = () => {
                       }
                     }}
                     list="medications-list"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
                     placeholder="Например: Преднизолон"
                   />
                   {savedMedications.length > 0 && (
@@ -1169,33 +1206,39 @@ export const EntryView = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Дозировка</label>
-                  <input type="text" value={medicationDosage} onChange={(e) => setMedicationDosage(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Например: 0,3 мл" />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Дозировка</label>
+                  <input 
+                    type="text" 
+                    value={medicationDosage} 
+                    onChange={(e) => setMedicationDosage(e.target.value)} 
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400" 
+                    placeholder="Например: 0,3 мл" 
+                  />
                 </div>
 
                 {!editingEntry && (
-                  <div className="border-t pt-4">
-                    <div className="flex items-center gap-2 mb-3">
+                  <div className="border-t border-gray-200 pt-4">
+                    <div className="flex items-center gap-3 mb-3">
                       <input
                         type="checkbox"
                         id="schedule-med"
                         checked={isScheduling}
                         onChange={(e) => setIsScheduling(e.target.checked)}
-                        className="w-4 h-4"
+                        className="w-5 h-5 rounded border-gray-300 text-black focus:ring-black cursor-pointer"
                       />
-                      <label htmlFor="schedule-med" className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                        <Clock size={16} />
+                      <label htmlFor="schedule-med" className="text-sm font-semibold text-gray-700 flex items-center gap-2 cursor-pointer">
+                        <Clock size={18} />
                         Запланировать
                       </label>
                     </div>
                     {isScheduling && (
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Дать через (минут)</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Дать через (минут)</label>
                         <input
                           type="number"
                           value={scheduleMinutes}
                           onChange={(e) => setScheduleMinutes(e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
                           placeholder="Например: 30"
                           min="1"
                         />
@@ -1204,7 +1247,7 @@ export const EntryView = () => {
                   </div>
                 )}
 
-                <button onClick={handleAddMedication} disabled={!medicationName || (isScheduling && !scheduleMinutes)} className="w-full py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                <button onClick={handleAddMedication} disabled={!medicationName || (isScheduling && !scheduleMinutes)} className="w-full py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
                   {isScheduling ? 'Запланировать' : 'Добавить'}
                 </button>
               </div>
@@ -1228,9 +1271,9 @@ export const EntryView = () => {
                       type="time" 
                       value={foodTime} 
                       onChange={(e) => setFoodTime(e.target.value)} 
-                      className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900"
+                      className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 [&::-webkit-calendar-picker-indicator]:hidden"
                     />
-                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
                   </div>
                 </div>
 
