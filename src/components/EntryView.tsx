@@ -3,32 +3,47 @@ import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
 import { STATE_COLORS, STATE_LABELS } from '../types';
 import { formatDisplayDate } from '../utils';
-import { Trash2, Plus, X } from 'lucide-react';
+import { Trash2, Plus, Activity, AlertCircle, Pill, Utensils, X } from 'lucide-react';
 import { Header } from './Header';
-import type { DayEntry, StateEntry, SymptomEntry, MedicationEntry } from '../types';
+import type { StateEntry, SymptomEntry, MedicationEntry, FeedingEntry } from '../types';
+
+type TimelineEntry = 
+  | { type: 'state'; data: StateEntry }
+  | { type: 'symptom'; data: SymptomEntry }
+  | { type: 'medication'; data: MedicationEntry }
+  | { type: 'feeding'; data: FeedingEntry };
 
 export const EntryView = () => {
   const { selectedDate, setView, currentPetId, currentUser } = useStore();
-  const [entry, setEntry] = useState<DayEntry | null>(null);
   const [stateEntries, setStateEntries] = useState<StateEntry[]>([]);
   const [symptomEntries, setSymptomEntries] = useState<SymptomEntry[]>([]);
   const [medicationEntries, setMedicationEntries] = useState<MedicationEntry[]>([]);
+  const [feedingEntries, setFeedingEntries] = useState<FeedingEntry[]>([]);
   const [loading, setLoading] = useState(true);
   
+  const [showAddMenu, setShowAddMenu] = useState(false);
   const [showAddState, setShowAddState] = useState(false);
+  const [showAddSymptom, setShowAddSymptom] = useState(false);
+  const [showAddMedication, setShowAddMedication] = useState(false);
+  const [showAddFeeding, setShowAddFeeding] = useState(false);
+  
   const [stateScore, setStateScore] = useState<1 | 2 | 3 | 4 | 5>(3);
   const [stateTime, setStateTime] = useState('');
   const [stateNote, setStateNote] = useState('');
 
-  const [showAddSymptom, setShowAddSymptom] = useState(false);
   const [symptomName, setSymptomName] = useState('');
   const [symptomTime, setSymptomTime] = useState('');
   const [symptomNote, setSymptomNote] = useState('');
 
-  const [showAddMedication, setShowAddMedication] = useState(false);
   const [medicationName, setMedicationName] = useState('');
   const [medicationDosage, setMedicationDosage] = useState('');
   const [medicationTime, setMedicationTime] = useState('');
+
+  const [foodName, setFoodName] = useState('');
+  const [foodAmount, setFoodAmount] = useState('');
+  const [foodUnit, setFoodUnit] = useState<'g' | 'ml' | 'none'>('g');
+  const [foodTime, setFoodTime] = useState('');
+  const [foodNote, setFoodNote] = useState('');
 
   useEffect(() => {
     if (selectedDate && currentPetId && currentUser) {
@@ -41,17 +56,17 @@ export const EntryView = () => {
     
     try {
       setLoading(true);
-      const [dayRes, stateRes, symptomRes, medRes] = await Promise.all([
-        supabase.from('day_entries').select('*').eq('user_id', currentUser.id).eq('pet_id', currentPetId).eq('date', selectedDate).single(),
+      const [stateRes, symptomRes, medRes, feedRes] = await Promise.all([
         supabase.from('state_entries').select('*').eq('user_id', currentUser.id).eq('pet_id', currentPetId).eq('date', selectedDate).order('timestamp', { ascending: true }),
         supabase.from('symptom_entries').select('*').eq('user_id', currentUser.id).eq('pet_id', currentPetId).eq('date', selectedDate).order('timestamp', { ascending: true }),
-        supabase.from('medication_entries').select('*').eq('user_id', currentUser.id).eq('pet_id', currentPetId).eq('date', selectedDate).order('timestamp', { ascending: true })
+        supabase.from('medication_entries').select('*').eq('user_id', currentUser.id).eq('pet_id', currentPetId).eq('date', selectedDate).order('timestamp', { ascending: true }),
+        supabase.from('feeding_entries').select('*').eq('user_id', currentUser.id).eq('pet_id', currentPetId).eq('date', selectedDate).order('timestamp', { ascending: true })
       ]);
 
-      if (dayRes.data) setEntry(dayRes.data);
       if (stateRes.data) setStateEntries(stateRes.data);
       if (symptomRes.data) setSymptomEntries(symptomRes.data);
       if (medRes.data) setMedicationEntries(medRes.data);
+      if (feedRes.data) setFeedingEntries(feedRes.data);
     } catch (error) {
       console.error('Error loading entry data:', error);
     } finally {
@@ -59,12 +74,19 @@ export const EntryView = () => {
     }
   };
 
+  // Объединяем все записи в единый таймлайн
+  const timeline: TimelineEntry[] = [
+    ...stateEntries.map(data => ({ type: 'state' as const, data })),
+    ...symptomEntries.map(data => ({ type: 'symptom' as const, data })),
+    ...medicationEntries.map(data => ({ type: 'medication' as const, data })),
+    ...feedingEntries.map(data => ({ type: 'feeding' as const, data }))
+  ].sort((a, b) => a.data.timestamp - b.data.timestamp);
+
   const handleAddState = async () => {
     if (!selectedDate || !currentPetId || !currentUser || !stateTime) return;
     
     try {
       const timestamp = new Date(`${selectedDate}T${stateTime}`).getTime();
-      
       await supabase.from('state_entries').insert({
         user_id: currentUser.id,
         pet_id: currentPetId,
@@ -75,7 +97,6 @@ export const EntryView = () => {
         note: stateNote || null
       });
       
-      await updateDayEntry();
       setShowAddState(false);
       setStateTime('');
       setStateNote('');
@@ -86,35 +107,11 @@ export const EntryView = () => {
     }
   };
 
-  const updateDayEntry = async () => {
-    if (!selectedDate || !currentPetId || !currentUser) return;
-    
-    const { data: states } = await supabase.from('state_entries').select('state_score').eq('user_id', currentUser.id).eq('pet_id', currentPetId).eq('date', selectedDate);
-    if (!states || states.length === 0) return;
-    
-    const avgScore = Math.round(states.reduce((sum, s) => sum + s.state_score, 0) / states.length) as 1 | 2 | 3 | 4 | 5;
-    const { data: existing } = await supabase.from('day_entries').select('id').eq('user_id', currentUser.id).eq('pet_id', currentPetId).eq('date', selectedDate).single();
-
-    if (existing) {
-      await supabase.from('day_entries').update({ state_score: avgScore }).eq('id', existing.id);
-    } else {
-      await supabase.from('day_entries').insert({ user_id: currentUser.id, pet_id: currentPetId, date: selectedDate, state_score: avgScore, note: '', symptoms: [] });
-    }
-  };
-
-  const handleDeleteState = async (id: number) => {
-    if (!confirm('Удалить запись?')) return;
-    await supabase.from('state_entries').delete().eq('id', id);
-    await updateDayEntry();
-    loadData();
-  };
-
   const handleAddSymptom = async () => {
     if (!selectedDate || !currentPetId || !currentUser || !symptomTime || !symptomName) return;
     
     try {
       const timestamp = new Date(`${selectedDate}T${symptomTime}`).getTime();
-      
       await supabase.from('symptom_entries').insert({
         user_id: currentUser.id,
         pet_id: currentPetId,
@@ -135,18 +132,11 @@ export const EntryView = () => {
     }
   };
 
-  const handleDeleteSymptom = async (id: number) => {
-    if (!confirm('Удалить симптом?')) return;
-    await supabase.from('symptom_entries').delete().eq('id', id);
-    loadData();
-  };
-
   const handleAddMedication = async () => {
     if (!selectedDate || !currentPetId || !currentUser || !medicationTime || !medicationName) return;
     
     try {
       const timestamp = new Date(`${selectedDate}T${medicationTime}`).getTime();
-      
       await supabase.from('medication_entries').insert({
         user_id: currentUser.id,
         pet_id: currentPetId,
@@ -168,10 +158,131 @@ export const EntryView = () => {
     }
   };
 
-  const handleDeleteMedication = async (id: number) => {
-    if (!confirm('Удалить лекарство?')) return;
-    await supabase.from('medication_entries').delete().eq('id', id);
-    loadData();
+  const handleAddFeeding = async () => {
+    if (!selectedDate || !currentPetId || !currentUser || !foodTime || !foodName) return;
+    
+    try {
+      const timestamp = new Date(`${selectedDate}T${foodTime}`).getTime();
+      await supabase.from('feeding_entries').insert({
+        user_id: currentUser.id,
+        pet_id: currentPetId,
+        date: selectedDate,
+        time: foodTime,
+        timestamp,
+        food_name: foodName,
+        amount: foodAmount,
+        unit: foodUnit,
+        note: foodNote || null
+      });
+      
+      setShowAddFeeding(false);
+      setFoodName('');
+      setFoodAmount('');
+      setFoodUnit('g');
+      setFoodTime('');
+      setFoodNote('');
+      loadData();
+    } catch (error) {
+      console.error('Error adding feeding:', error);
+    }
+  };
+
+  const handleDelete = async (entry: TimelineEntry) => {
+    if (!confirm('Удалить запись?')) return;
+    
+    try {
+      if (entry.type === 'state') {
+        await supabase.from('state_entries').delete().eq('id', entry.data.id);
+      } else if (entry.type === 'symptom') {
+        await supabase.from('symptom_entries').delete().eq('id', entry.data.id);
+      } else if (entry.type === 'medication') {
+        await supabase.from('medication_entries').delete().eq('id', entry.data.id);
+      } else if (entry.type === 'feeding') {
+        await supabase.from('feeding_entries').delete().eq('id', entry.data.id);
+      }
+      loadData();
+    } catch (error) {
+      console.error('Error deleting entry:', error);
+    }
+  };
+
+  const renderTimelineEntry = (entry: TimelineEntry) => {
+    const { type, data } = entry;
+    
+    if (type === 'state') {
+      return (
+        <div className="flex items-start gap-3">
+          <div className="text-sm font-medium text-gray-600 w-16 flex-shrink-0">{data.time}</div>
+          <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: STATE_COLORS[data.state_score] }}>
+            <Activity className="text-white" size={20} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-black">Состояние: {STATE_LABELS[data.state_score]}</div>
+            {data.note && <div className="text-xs text-gray-600 mt-1">{data.note}</div>}
+          </div>
+          <button onClick={() => handleDelete(entry)} className="p-2 hover:bg-red-100 rounded-full transition-colors text-red-600 flex-shrink-0">
+            <Trash2 size={16} />
+          </button>
+        </div>
+      );
+    }
+    
+    if (type === 'symptom') {
+      return (
+        <div className="flex items-start gap-3">
+          <div className="text-sm font-medium text-gray-600 w-16 flex-shrink-0">{data.time}</div>
+          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-red-100 flex-shrink-0">
+            <AlertCircle className="text-red-600" size={20} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-black">Симптом: {data.symptom}</div>
+            {data.note && <div className="text-xs text-gray-600 mt-1">{data.note}</div>}
+          </div>
+          <button onClick={() => handleDelete(entry)} className="p-2 hover:bg-red-100 rounded-full transition-colors text-red-600 flex-shrink-0">
+            <Trash2 size={16} />
+          </button>
+        </div>
+      );
+    }
+    
+    if (type === 'medication') {
+      return (
+        <div className="flex items-start gap-3">
+          <div className="text-sm font-medium text-gray-600 w-16 flex-shrink-0">{data.time}</div>
+          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-100 flex-shrink-0">
+            <Pill className="text-purple-600" size={20} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-black">Лекарство: {data.medication_name}</div>
+            <div className="text-xs text-gray-600 mt-1">{data.dosage}</div>
+          </div>
+          <button onClick={() => handleDelete(entry)} className="p-2 hover:bg-red-100 rounded-full transition-colors text-red-600 flex-shrink-0">
+            <Trash2 size={16} />
+          </button>
+        </div>
+      );
+    }
+    
+    if (type === 'feeding') {
+      return (
+        <div className="flex items-start gap-3">
+          <div className="text-sm font-medium text-gray-600 w-16 flex-shrink-0">{data.time}</div>
+          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-green-100 flex-shrink-0">
+            <Utensils className="text-green-600" size={20} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-black">Питание: {data.food_name}</div>
+            <div className="text-xs text-gray-600 mt-1">
+              {data.amount} {data.unit === 'g' ? 'г' : data.unit === 'ml' ? 'мл' : ''}
+            </div>
+            {data.note && <div className="text-xs text-gray-600 mt-1">{data.note}</div>}
+          </div>
+          <button onClick={() => handleDelete(entry)} className="p-2 hover:bg-red-100 rounded-full transition-colors text-red-600 flex-shrink-0">
+            <Trash2 size={16} />
+          </button>
+        </div>
+      );
+    }
   };
 
   if (loading) {
@@ -189,89 +300,60 @@ export const EntryView = () => {
     <div className="min-h-screen bg-[#F5F5F7] p-3 md:p-4 pb-28">
       <div className="max-w-5xl mx-auto">
         <Header showBackButton onBack={() => setView('calendar')} />
-        <div className="mb-4">
+        
+        <div className="mb-4 flex items-center justify-between">
           <h2 className="text-2xl font-bold text-black">{formatDisplayDate(selectedDate || '')}</h2>
+          <button 
+            onClick={() => setShowAddMenu(!showAddMenu)}
+            className="p-3 bg-black text-white rounded-full hover:bg-gray-800 transition-colors"
+          >
+            <Plus size={20} />
+          </button>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-black">Состояние</h3>
-            <button onClick={() => setShowAddState(true)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-              <Plus size={20} className="text-black" />
+        {showAddMenu && (
+          <div className="bg-white rounded-2xl p-3 mb-4 grid grid-cols-2 gap-2">
+            <button
+              onClick={() => { setShowAddState(true); setShowAddMenu(false); }}
+              className="flex items-center gap-2 p-3 rounded-xl hover:bg-gray-50 transition-colors"
+            >
+              <Activity size={18} className="text-blue-600" />
+              <span className="text-sm font-medium">Состояние</span>
+            </button>
+            <button
+              onClick={() => { setShowAddSymptom(true); setShowAddMenu(false); }}
+              className="flex items-center gap-2 p-3 rounded-xl hover:bg-gray-50 transition-colors"
+            >
+              <AlertCircle size={18} className="text-red-600" />
+              <span className="text-sm font-medium">Симптом</span>
+            </button>
+            <button
+              onClick={() => { setShowAddMedication(true); setShowAddMenu(false); }}
+              className="flex items-center gap-2 p-3 rounded-xl hover:bg-gray-50 transition-colors"
+            >
+              <Pill size={18} className="text-purple-600" />
+              <span className="text-sm font-medium">Лекарство</span>
+            </button>
+            <button
+              onClick={() => { setShowAddFeeding(true); setShowAddMenu(false); }}
+              className="flex items-center gap-2 p-3 rounded-xl hover:bg-gray-50 transition-colors"
+            >
+              <Utensils size={18} className="text-green-600" />
+              <span className="text-sm font-medium">Питание</span>
             </button>
           </div>
+        )}
 
-          {stateEntries.length === 0 ? (
-            <p className="text-gray-400 text-sm text-center py-4">Нет записей состояния</p>
+        <div className="bg-white rounded-2xl p-4">
+          <h3 className="font-bold text-black mb-4">Лог дня</h3>
+          
+          {timeline.length === 0 ? (
+            <p className="text-gray-400 text-sm text-center py-8">Нет записей за этот день</p>
           ) : (
-            <div className="space-y-2">
-              {stateEntries.map((state) => (
-                <div key={state.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
-                  <div className="text-sm font-medium text-gray-600 w-16">{state.time}</div>
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm" style={{ backgroundColor: STATE_COLORS[state.state_score] }}>{state.state_score}</div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-black">{STATE_LABELS[state.state_score]}</div>
-                    {state.note && <div className="text-xs text-gray-600 mt-1">{state.note}</div>}
-                  </div>
-                  <button onClick={() => handleDeleteState(state.id!)} className="p-2 hover:bg-red-100 rounded-full transition-colors text-red-600">
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white rounded-2xl p-4 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-black">Симптомы</h3>
-            <button onClick={() => setShowAddSymptom(true)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-              <Plus size={20} className="text-black" />
-            </button>
-          </div>
-
-          {symptomEntries.length === 0 ? (
-            <p className="text-gray-400 text-sm text-center py-4">Нет симптомов</p>
-          ) : (
-            <div className="space-y-2">
-              {symptomEntries.map((symptom) => (
-                <div key={symptom.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
-                  <div className="text-sm font-medium text-gray-600 w-16">{symptom.time}</div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-black">{symptom.symptom}</div>
-                    {symptom.note && <div className="text-xs text-gray-600 mt-1">{symptom.note}</div>}
-                  </div>
-                  <button onClick={() => handleDeleteSymptom(symptom.id!)} className="p-2 hover:bg-red-100 rounded-full transition-colors text-red-600">
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white rounded-2xl p-4 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-black">Лекарства</h3>
-            <button onClick={() => setShowAddMedication(true)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-              <Plus size={20} className="text-black" />
-            </button>
-          </div>
-
-          {medicationEntries.length === 0 ? (
-            <p className="text-gray-400 text-sm text-center py-4">Нет лекарств</p>
-          ) : (
-            <div className="space-y-2">
-              {medicationEntries.map((med) => (
-                <div key={med.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
-                  <div className="text-sm font-medium text-gray-600 w-16">{med.time}</div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-black">{med.medication_name}</div>
-                    <div className="text-xs text-gray-600 mt-1">{med.dosage}</div>
-                  </div>
-                  <button onClick={() => handleDeleteMedication(med.id!)} className="p-2 hover:bg-red-100 rounded-full transition-colors text-red-600">
-                    <Trash2 size={16} />
-                  </button>
+            <div className="space-y-4">
+              {timeline.map((entry, idx) => (
+                <div key={`${entry.type}-${entry.data.id}-${idx}`} className="p-3 rounded-xl bg-gray-50">
+                  {renderTimelineEntry(entry)}
                 </div>
               ))}
             </div>
@@ -367,6 +449,51 @@ export const EntryView = () => {
                 </div>
 
                 <button onClick={handleAddMedication} disabled={!medicationTime || !medicationName} className="w-full py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Добавить</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showAddFeeding && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold">Добавить питание</h3>
+                <button onClick={() => setShowAddFeeding(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Время</label>
+                  <input type="time" value={foodTime} onChange={(e) => setFoodTime(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Название</label>
+                  <input type="text" value={foodName} onChange={(e) => setFoodName(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Например: Корм, Вода" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Количество</label>
+                    <input type="text" value={foodAmount} onChange={(e) => setFoodAmount(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="50" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Единица</label>
+                    <select value={foodUnit} onChange={(e) => setFoodUnit(e.target.value as 'g' | 'ml' | 'none')} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                      <option value="g">г</option>
+                      <option value="ml">мл</option>
+                      <option value="none">-</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Заметка (опционально)</label>
+                  <textarea value={foodNote} onChange={(e) => setFoodNote(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none" rows={2} placeholder="Дополнительная информация..." />
+                </div>
+
+                <button onClick={handleAddFeeding} disabled={!foodTime || !foodName} className="w-full py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Добавить</button>
               </div>
             </div>
           </div>
