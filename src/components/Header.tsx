@@ -98,49 +98,83 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
   };
 
   return (
-    <header className="mb-10">
-      {/* Top Bar - Minimalist */}
-      <div className="flex items-start justify-between mb-8">
-        <div className="flex items-center gap-4">
+    <header className="mb-6 pb-6 border-b border-gray-200">
+      {/* Top Bar - Clean and Horizontal */}
+      <div className="flex items-center justify-between mb-6">
+        {/* Left: Logo/Title */}
+        <div className="flex items-center gap-6">
           {showBackButton && onBack && (
             <button
               onClick={onBack}
-              className="mt-1 p-2.5 hover:bg-black/5 rounded-2xl transition-all"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-all"
             >
-              <ArrowLeft size={22} className="text-black" />
+              <ArrowLeft size={20} className="text-gray-600" />
             </button>
           )}
-          <div>
-            <h1 className="text-4xl md:text-5xl font-bold text-black tracking-tight leading-none">
-              Трекер здоровья
-            </h1>
-            {currentPet && (
-              <p className="text-gray-400 text-sm mt-2 font-medium">
-                Дневник для {currentPet.name}
-              </p>
-            )}
-          </div>
+          <h1 className="text-xl font-semibold text-gray-900">
+            Трекер здоровья
+          </h1>
         </div>
-        
-        <div className="flex items-center gap-2">
-          {/* Pet Selector - Prominent */}
+
+        {/* Center: Navigation */}
+        <nav className="flex items-center gap-1">
+          <button
+            onClick={goToToday}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              view === 'calendar' || view === 'add' || view === 'edit' || view === 'view'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            Календарь
+          </button>
+          <button
+            onClick={() => setView('analytics')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              view === 'analytics'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            Аналитика
+          </button>
+          <button
+            onClick={() => setView('log')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              view === 'log'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            Лог
+          </button>
+          <button
+            onClick={() => setView('settings')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              view === 'settings' || view === 'history'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            Настройки
+          </button>
+        </nav>
+
+        {/* Right: Pet Selector + User */}
+        <div className="flex items-center gap-3">
+          {/* Pet Selector */}
           {pets.length > 0 && currentPet && (
             <div className="relative">
               <button
                 onClick={() => pets.length > 1 && setShowPetMenu(!showPetMenu)}
-                className={`flex items-center gap-3 px-6 py-3 bg-white border-2 border-gray-900 rounded-2xl transition-all hover:shadow-lg ${
+                className={`flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-all ${
                   pets.length > 1 ? 'cursor-pointer' : 'cursor-default'
                 }`}
               >
-                <span className="text-3xl leading-none">{PET_EMOJIS[currentPet.type] || '🐾'}</span>
-                <div className="flex flex-col items-start">
-                  <span className="font-bold text-black text-base leading-tight">{currentPet.name}</span>
-                  {pets.length > 1 && (
-                    <span className="text-xs text-gray-400 font-medium">Сменить</span>
-                  )}
-                </div>
+                <span className="text-lg">{PET_EMOJIS[currentPet.type] || '🐾'}</span>
+                <span className="font-medium text-gray-900 text-sm">{currentPet.name}</span>
                 {pets.length > 1 && (
-                  <ChevronDown size={18} className={`text-gray-400 transition-transform ml-1 ${showPetMenu ? 'rotate-180' : ''}`} />
+                  <ChevronDown size={14} className={`text-gray-400 transition-transform ${showPetMenu ? 'rotate-180' : ''}`} />
                 )}
               </button>
 
@@ -150,21 +184,21 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
                     className="fixed inset-0 z-40" 
                     onClick={() => setShowPetMenu(false)}
                   />
-                  <div className="absolute top-full right-0 mt-3 bg-white rounded-2xl shadow-2xl py-3 min-w-[260px] z-50 border-2 border-gray-900">
+                  <div className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-lg py-1 min-w-[180px] z-50 border border-gray-200">
                     {pets.map((pet) => (
                       <button
                         key={pet.id}
                         onClick={() => handleSelectPet(pet.id!)}
-                        className={`w-full flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition-all ${
+                        className={`w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition-all ${
                           pet.id === currentPetId ? 'bg-gray-50' : ''
                         }`}
                       >
-                        <span className="text-3xl leading-none">{PET_EMOJIS[pet.type] || '🐾'}</span>
-                        <span className="flex-1 text-left font-bold text-black text-base">
+                        <span className="text-lg">{PET_EMOJIS[pet.type] || '🐾'}</span>
+                        <span className="flex-1 text-left font-medium text-gray-900 text-sm">
                           {pet.name}
                         </span>
                         {pet.id === currentPetId && (
-                          <div className="w-2 h-2 rounded-full bg-black" />
+                          <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                         )}
                       </button>
                     ))}
@@ -174,66 +208,28 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
             </div>
           )}
 
-          {/* User Menu - Subtle */}
+          {/* User Avatar/Logout */}
           {currentUser && (
             <button
               onClick={handleLogout}
-              className="p-3 text-gray-400 hover:text-black hover:bg-black/5 rounded-2xl transition-all"
+              className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-all"
               title="Выйти"
             >
-              <LogOut className="w-5 h-5" />
+              {currentUser.photoUrl ? (
+                <img
+                  src={currentUser.photoUrl}
+                  alt={currentUser.firstName}
+                  className="w-full h-full rounded-full object-cover"
+                />
+              ) : (
+                <span className="text-sm font-medium text-gray-600">
+                  {currentUser.firstName.charAt(0).toUpperCase()}
+                </span>
+              )}
             </button>
           )}
         </div>
       </div>
-
-      {/* Navigation - Bold Pills */}
-      <nav className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-        <button
-          onClick={goToToday}
-          className={`group flex items-center gap-2.5 px-6 py-3.5 rounded-2xl transition-all font-bold text-sm whitespace-nowrap ${
-            view === 'calendar' || view === 'add' || view === 'edit' || view === 'view'
-              ? 'bg-black text-white shadow-lg shadow-black/20'
-              : 'text-gray-400 hover:text-black hover:bg-gray-100'
-          }`}
-        >
-          <CalendarIcon size={20} strokeWidth={2.5} />
-          Календарь
-        </button>
-        <button
-          onClick={() => setView('analytics')}
-          className={`group flex items-center gap-2.5 px-6 py-3.5 rounded-2xl transition-all font-bold text-sm whitespace-nowrap ${
-            view === 'analytics'
-              ? 'bg-black text-white shadow-lg shadow-black/20'
-              : 'text-gray-400 hover:text-black hover:bg-gray-100'
-          }`}
-        >
-          <BarChart3 size={20} strokeWidth={2.5} />
-          Аналитика
-        </button>
-        <button
-          onClick={() => setView('log')}
-          className={`group flex items-center gap-2.5 px-6 py-3.5 rounded-2xl transition-all font-bold text-sm whitespace-nowrap ${
-            view === 'log'
-              ? 'bg-black text-white shadow-lg shadow-black/20'
-              : 'text-gray-400 hover:text-black hover:bg-gray-100'
-          }`}
-        >
-          <ClipboardList size={20} strokeWidth={2.5} />
-          Лог
-        </button>
-        <button
-          onClick={() => setView('settings')}
-          className={`group flex items-center gap-2.5 px-6 py-3.5 rounded-2xl transition-all font-bold text-sm whitespace-nowrap ${
-            view === 'settings' || view === 'history'
-              ? 'bg-black text-white shadow-lg shadow-black/20'
-              : 'text-gray-400 hover:text-black hover:bg-gray-100'
-          }`}
-        >
-          <Settings size={20} strokeWidth={2.5} />
-          Настройки
-        </button>
-      </nav>
     </header>
   );
 };
