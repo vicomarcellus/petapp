@@ -106,7 +106,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
           {showBackButton && onBack && (
             <button
               onClick={onBack}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-all"
+              className="p-2 hover:bg-gray-100 rounded-full transition-all"
             >
               <ArrowLeft size={20} className="text-gray-600" />
             </button>
@@ -116,11 +116,11 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
           </h1>
         </div>
 
-        {/* Center: Navigation */}
-        <nav className="flex items-center gap-1">
+        {/* Center: Navigation - Pill Buttons */}
+        <nav className="flex items-center gap-2">
           <button
             onClick={goToToday}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
               view === 'calendar' || view === 'add' || view === 'edit' || view === 'view'
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -130,7 +130,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
           </button>
           <button
             onClick={() => setView('analytics')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
               view === 'analytics'
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -140,7 +140,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
           </button>
           <button
             onClick={() => setView('log')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
               view === 'log'
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -150,7 +150,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
           </button>
           <button
             onClick={() => setView('settings')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
               view === 'settings' || view === 'history'
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -167,7 +167,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
             <div className="relative">
               <button
                 onClick={() => pets.length > 1 && setShowPetMenu(!showPetMenu)}
-                className={`flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-all ${
+                className={`flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full hover:border-gray-300 transition-all ${
                   pets.length > 1 ? 'cursor-pointer' : 'cursor-default'
                 }`}
               >
@@ -184,12 +184,12 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
                     className="fixed inset-0 z-40" 
                     onClick={() => setShowPetMenu(false)}
                   />
-                  <div className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-lg py-1 min-w-[180px] z-50 border border-gray-200">
+                  <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-lg py-2 min-w-[180px] z-50 border border-gray-200">
                     {pets.map((pet) => (
                       <button
                         key={pet.id}
                         onClick={() => handleSelectPet(pet.id!)}
-                        className={`w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition-all ${
+                        className={`w-full flex items-center gap-2 px-4 py-2.5 hover:bg-gray-50 transition-all ${
                           pet.id === currentPetId ? 'bg-gray-50' : ''
                         }`}
                       >
@@ -208,12 +208,12 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
             </div>
           )}
 
-          {/* User Avatar/Logout */}
+          {/* User Avatar - Visible Circle */}
           {currentUser && (
             <button
               onClick={handleLogout}
-              className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-all"
-              title="Выйти"
+              className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 flex items-center justify-center transition-all shadow-sm hover:shadow-md"
+              title={`Выйти (${currentUser.firstName})`}
             >
               {currentUser.photoUrl ? (
                 <img
@@ -222,7 +222,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
                   className="w-full h-full rounded-full object-cover"
                 />
               ) : (
-                <span className="text-sm font-medium text-gray-600">
+                <span className="text-sm font-semibold text-white">
                   {currentUser.firstName.charAt(0).toUpperCase()}
                 </span>
               )}
