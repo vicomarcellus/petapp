@@ -273,13 +273,15 @@ export const Calendar = () => {
               
               if (!entry && !states && !meds) return null;
               
+              // Тултип над датой
               return (
                 <div
-                  className="fixed z-[9999] bg-black text-white px-4 py-3 rounded-2xl text-xs shadow-2xl pointer-events-none"
+                  className="fixed z-50 bg-black text-white px-4 py-3 rounded-2xl text-xs shadow-2xl pointer-events-none"
                   style={{
                     left: `${tooltipPosition.x}px`,
                     top: `${tooltipPosition.y}px`,
-                    transform: 'translate(-50%, calc(-100% - 8px))',
+                    transform: 'translate(-50%, calc(-100% - 16px))',
+                    maxWidth: '200px',
                   }}
                 >
                   {states && states.length > 0 && (
