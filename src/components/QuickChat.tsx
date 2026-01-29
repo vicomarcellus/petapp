@@ -8,6 +8,10 @@ import { formatDate } from '../utils';
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  actionButton?: {
+    text: string;
+    date: string;
+  };
 }
 
 export const QuickChat = () => {
@@ -218,18 +222,21 @@ export const QuickChat = () => {
           }]);
         }
       } else if (parsed.action === 'chat') {
-        // Просто ответ от AI
-        setMessages(prev => [...prev, { 
+        // Просто ответ от AI с возможной кнопкой перехода
+        const messageData: Message = { 
           role: 'assistant', 
-          content: parsed.message || 'Нет ответа' 
-        }]);
+          content: parsed.message || 'Нет ответа'
+        };
 
-        if (parsed.navigateToDate) {
-          setSelectedDate(parsed.navigateToDate);
-          if (parsed.showDetails) {
-            setView('view');
-          }
+        // Если есть дата для перехода, добавляем кнопку вместо автоматического перехода
+        if (parsed.navigateToDate && parsed.showDetails) {
+          messageData.actionButton = {
+            text: 'Посмотреть подробнее',
+            date: parsed.navigateToDate
+          };
         }
+
+        setMessages(prev => [...prev, messageData]);
       } else {
         // Неизвестная команда
         setMessages(prev => [...prev, { 
@@ -246,6 +253,12 @@ export const QuickChat = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleViewDay = (date: string) => {
+    setSelectedDate(date);
+    setView('view');
+    setIsOpen(false); // Закрываем чат при переходе
   };
 
   if (!isOpen) {
@@ -297,6 +310,14 @@ export const QuickChat = () => {
                 }`}
               >
                 <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                {msg.actionButton && (
+                  <button
+                    onClick={() => handleViewDay(msg.actionButton!.date)}
+                    className="mt-2 w-full px-3 py-2 bg-purple-500 text-white rounded-lg text-xs font-medium hover:bg-purple-600 transition-colors"
+                  >
+                    {msg.actionButton.text}
+                  </button>
+                )}
               </div>
             </div>
           ))
