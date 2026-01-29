@@ -16,7 +16,7 @@ type TimelineEntry =
 
 export const EntryView = () => {
   const { selectedDate, setView, currentPetId, currentUser } = useStore();
-  const { scheduleEvent, NotificationModal } = useScheduledEvents();
+  const { scheduleEvent, cancelEvent, events, NotificationModal } = useScheduledEvents();
   const [stateEntries, setStateEntries] = useState<StateEntry[]>([]);
   const [symptomEntries, setSymptomEntries] = useState<SymptomEntry[]>([]);
   const [medicationEntries, setMedicationEntries] = useState<MedicationEntry[]>([]);
@@ -233,6 +233,9 @@ export const EntryView = () => {
           dosage: medicationDosage
         }, minutes);
         
+        // Показываем подтверждение
+        alert(`Запланировано: дать ${medicationName} ${medicationDosage} через ${minutes} минут`);
+        
         setShowAddMedication(false);
         setIsScheduling(false);
         setScheduleMinutes('');
@@ -311,6 +314,10 @@ export const EntryView = () => {
           amount: foodAmount,
           unit: foodUnit
         }, minutes);
+        
+        // Показываем подтверждение
+        const unitText = foodUnit === 'g' ? 'г' : foodUnit === 'ml' ? 'мл' : '';
+        alert(`Запланировано: покормить ${foodName} ${foodAmount} ${unitText} через ${minutes} минут`);
         
         setShowAddFeeding(false);
         setIsScheduling(false);
@@ -640,15 +647,56 @@ export const EntryView = () => {
         <div className="bg-white rounded-2xl p-4">
           <h3 className="font-bold text-black mb-4">Лог дня</h3>
           
-          {timeline.length === 0 ? (
+          {timeline.length === 0 && events.length === 0 ? (
             <p className="text-gray-400 text-sm text-center py-8">Нет записей за этот день</p>
           ) : (
             <div className="space-y-4">
-              {timeline.map((entry, idx) => (
-                <div key={`${entry.type}-${entry.data.id}-${idx}`} className="p-3 rounded-xl bg-gray-50">
-                  {renderTimelineEntry(entry)}
+              {/* Запланированные события */}
+              {events.length > 0 && (
+                <div className="space-y-3">
+                  <div className="text-xs font-semibold text-gray-500 uppercase">Запланировано</div>
+                  {events.map((event) => (
+                    <div key={event.id} className="p-3 rounded-xl bg-blue-50 border-2 border-blue-200">
+                      <div className="flex items-center gap-3">
+                        <div className="text-sm font-medium text-blue-600 w-16 flex-shrink-0">
+                          {event.minutesLeft > 0 ? `через ${event.minutesLeft}м` : 'сейчас!'}
+                        </div>
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center bg-blue-100 flex-shrink-0">
+                          <Bell className="text-blue-600" size={20} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-black">
+                            {event.type === 'medication' && `Дать лекарство: ${event.data.medication_name}`}
+                            {event.type === 'feeding' && `Покормить: ${event.data.food_name}`}
+                          </div>
+                          <div className="text-xs text-gray-600 mt-1">
+                            {event.type === 'medication' && event.data.dosage}
+                            {event.type === 'feeding' && `${event.data.amount} ${event.data.unit === 'g' ? 'г' : event.data.unit === 'ml' ? 'мл' : ''}`}
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => cancelEvent(event.id)} 
+                          className="p-2 hover:bg-red-100 rounded-full transition-colors text-red-600 flex-shrink-0"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
+
+              {/* Выполненные записи */}
+              {timeline.length > 0 && (
+                <>
+                  {events.length > 0 && <div className="text-xs font-semibold text-gray-500 uppercase mt-6">Выполнено</div>}
+                  {timeline.map((entry, idx) => (
+                    <div key={`${entry.type}-${entry.data.id}-${idx}`} className="p-3 rounded-xl bg-gray-50">
+                      {renderTimelineEntry(entry)}
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
           )}
         </div>
