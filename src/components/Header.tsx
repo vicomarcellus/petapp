@@ -98,32 +98,32 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
   };
 
   return (
-    <header className="mb-6 pb-6 border-b border-gray-200">
-      {/* Top Bar - Clean and Horizontal */}
+    <header className="mb-8">
+      {/* Top Bar - Glass Morphism Style */}
       <div className="flex items-center justify-between mb-6">
         {/* Left: Logo/Title */}
         <div className="flex items-center gap-6">
           {showBackButton && onBack && (
             <button
               onClick={onBack}
-              className="p-2 hover:bg-gray-100 rounded-full transition-all"
+              className="p-2.5 hover:bg-white/60 rounded-full transition-all backdrop-blur-sm"
             >
-              <ArrowLeft size={20} className="text-gray-600" />
+              <ArrowLeft size={20} className="text-gray-700" />
             </button>
           )}
-          <h1 className="text-xl font-semibold text-gray-900">
+          <h1 className="text-2xl font-semibold text-gray-800">
             Трекер здоровья
           </h1>
         </div>
 
-        {/* Center: Navigation - Pill Buttons */}
-        <nav className="flex items-center gap-2">
+        {/* Center: Navigation - Glass Pills */}
+        <nav className="flex items-center gap-2 bg-white/40 backdrop-blur-md rounded-full p-1.5 shadow-sm border border-white/60">
           <button
             onClick={goToToday}
             className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
               view === 'calendar' || view === 'add' || view === 'edit' || view === 'view'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                ? 'bg-white text-gray-900 shadow-md'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
             }`}
           >
             Календарь
@@ -132,8 +132,8 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
             onClick={() => setView('analytics')}
             className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
               view === 'analytics'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                ? 'bg-white text-gray-900 shadow-md'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
             }`}
           >
             Аналитика
@@ -142,8 +142,8 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
             onClick={() => setView('log')}
             className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
               view === 'log'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                ? 'bg-white text-gray-900 shadow-md'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
             }`}
           >
             Лог
@@ -152,8 +152,8 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
             onClick={() => setView('settings')}
             className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
               view === 'settings' || view === 'history'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                ? 'bg-white text-gray-900 shadow-md'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
             }`}
           >
             Настройки
@@ -162,19 +162,19 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
 
         {/* Right: Pet Selector + User */}
         <div className="flex items-center gap-3">
-          {/* Pet Selector */}
+          {/* Pet Selector - Glass Style */}
           {pets.length > 0 && currentPet && (
             <div className="relative">
               <button
                 onClick={() => pets.length > 1 && setShowPetMenu(!showPetMenu)}
-                className={`flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full hover:border-gray-300 transition-all ${
+                className={`flex items-center gap-2.5 px-4 py-2.5 bg-white/60 backdrop-blur-md border border-white/80 rounded-full hover:bg-white/80 transition-all shadow-sm ${
                   pets.length > 1 ? 'cursor-pointer' : 'cursor-default'
                 }`}
               >
-                <span className="text-lg">{PET_EMOJIS[currentPet.type] || '🐾'}</span>
+                <span className="text-xl">{PET_EMOJIS[currentPet.type] || '🐾'}</span>
                 <span className="font-medium text-gray-900 text-sm">{currentPet.name}</span>
                 {pets.length > 1 && (
-                  <ChevronDown size={14} className={`text-gray-400 transition-transform ${showPetMenu ? 'rotate-180' : ''}`} />
+                  <ChevronDown size={14} className={`text-gray-500 transition-transform ${showPetMenu ? 'rotate-180' : ''}`} />
                 )}
               </button>
 
@@ -184,21 +184,21 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
                     className="fixed inset-0 z-40" 
                     onClick={() => setShowPetMenu(false)}
                   />
-                  <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-lg py-2 min-w-[180px] z-50 border border-gray-200">
+                  <div className="absolute top-full right-0 mt-2 bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl py-2 min-w-[200px] z-50 border border-white/60">
                     {pets.map((pet) => (
                       <button
                         key={pet.id}
                         onClick={() => handleSelectPet(pet.id!)}
-                        className={`w-full flex items-center gap-2 px-4 py-2.5 hover:bg-gray-50 transition-all ${
-                          pet.id === currentPetId ? 'bg-gray-50' : ''
+                        className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-white/60 transition-all ${
+                          pet.id === currentPetId ? 'bg-white/60' : ''
                         }`}
                       >
-                        <span className="text-lg">{PET_EMOJIS[pet.type] || '🐾'}</span>
+                        <span className="text-xl">{PET_EMOJIS[pet.type] || '🐾'}</span>
                         <span className="flex-1 text-left font-medium text-gray-900 text-sm">
                           {pet.name}
                         </span>
                         {pet.id === currentPetId && (
-                          <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                          <div className="w-2 h-2 rounded-full bg-blue-500" />
                         )}
                       </button>
                     ))}
@@ -208,11 +208,11 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
             </div>
           )}
 
-          {/* User Avatar - Visible Circle */}
+          {/* User Avatar - Glass Circle */}
           {currentUser && (
             <button
               onClick={handleLogout}
-              className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 flex items-center justify-center transition-all shadow-sm hover:shadow-md"
+              className="w-11 h-11 rounded-full bg-white/60 backdrop-blur-md border border-white/80 hover:bg-white/80 flex items-center justify-center transition-all shadow-sm"
               title={`Выйти (${currentUser.firstName})`}
             >
               {currentUser.photoUrl ? (
@@ -222,7 +222,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
                   className="w-full h-full rounded-full object-cover"
                 />
               ) : (
-                <span className="text-sm font-semibold text-white">
+                <span className="text-sm font-semibold text-gray-700">
                   {currentUser.firstName.charAt(0).toUpperCase()}
                 </span>
               )}

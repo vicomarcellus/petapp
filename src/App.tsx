@@ -25,7 +25,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {view === 'calendar' && <Calendar />}
       {(view === 'add' || view === 'edit' || view === 'view') && <EntryView />}
       {view === 'log' && <ActivityLog />}
