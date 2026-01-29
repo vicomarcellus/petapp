@@ -184,7 +184,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
                     className="fixed inset-0 z-40" 
                     onClick={() => setShowPetMenu(false)}
                   />
-                  <div className="absolute top-full right-0 mt-2 bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl py-2 min-w-[200px] z-50 border border-white/60">
+                  <div className="absolute top-full right-0 mt-2 bg-white/90 backdrop-blur-xl rounded-[32px] shadow-xl py-2 min-w-[200px] z-50 border border-white/60">
                     {pets.map((pet) => (
                       <button
                         key={pet.id}
