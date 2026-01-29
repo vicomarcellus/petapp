@@ -56,6 +56,20 @@ export const useScheduledEvents = () => {
     setEvents(prev => prev.filter(e => e.id !== id));
   }, []);
 
+  const updateEvent = useCallback((id: string, minutes: number) => {
+    setEvents(prev => prev.map(e => {
+      if (e.id === id) {
+        const targetTime = Date.now() + minutes * 60000;
+        return {
+          ...e,
+          targetTime,
+          minutesLeft: minutes
+        };
+      }
+      return e;
+    }));
+  }, []);
+
   const dismissNotification = useCallback(() => {
     if (notification) {
       setEvents(prev => prev.filter(e => e.id !== notification.id));
@@ -65,7 +79,7 @@ export const useScheduledEvents = () => {
 
   const NotificationModal = notification ? () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl animate-bounce">
+      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
         <div className="flex items-start gap-3 mb-4">
           <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
             <Bell size={24} className="text-blue-600" />
@@ -100,6 +114,7 @@ export const useScheduledEvents = () => {
     events,
     scheduleEvent,
     cancelEvent,
+    updateEvent,
     NotificationModal,
     hasNotification: !!notification
   };

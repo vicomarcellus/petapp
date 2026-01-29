@@ -16,7 +16,7 @@ type TimelineEntry =
 
 export const EntryView = () => {
   const { selectedDate, setView, currentPetId, currentUser } = useStore();
-  const { scheduleEvent, cancelEvent, events, NotificationModal } = useScheduledEvents();
+  const { scheduleEvent, cancelEvent, updateEvent, events, NotificationModal } = useScheduledEvents();
   const [stateEntries, setStateEntries] = useState<StateEntry[]>([]);
   const [symptomEntries, setSymptomEntries] = useState<SymptomEntry[]>([]);
   const [medicationEntries, setMedicationEntries] = useState<MedicationEntry[]>([]);
@@ -34,6 +34,7 @@ export const EntryView = () => {
   const [showAddFeeding, setShowAddFeeding] = useState(false);
   
   const [editingEntry, setEditingEntry] = useState<TimelineEntry | null>(null);
+  const [editingScheduledId, setEditingScheduledId] = useState<string | null>(null);
   
   // Поля для планирования
   const [scheduleMinutes, setScheduleMinutes] = useState<string>('');
@@ -651,52 +652,119 @@ export const EntryView = () => {
             <p className="text-gray-400 text-sm text-center py-8">Нет записей за этот день</p>
           ) : (
             <div className="space-y-4">
-              {/* Запланированные события */}
-              {events.length > 0 && (
-                <div className="space-y-3">
-                  <div className="text-xs font-semibold text-gray-500 uppercase">Запланировано</div>
-                  {events.map((event) => (
-                    <div key={event.id} className="p-3 rounded-xl bg-blue-50 border-2 border-blue-200">
-                      <div className="flex items-center gap-3">
-                        <div className="text-sm font-medium text-blue-600 w-16 flex-shrink-0">
-                          {event.minutesLeft > 0 ? `через ${event.minutesLeft}м` : 'сейчас!'}
-                        </div>
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center bg-blue-100 flex-shrink-0">
-                          <Bell className="text-blue-600" size={20} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-black">
-                            {event.type === 'medication' && `Дать лекарство: ${event.data.medication_name}`}
-                            {event.type === 'feeding' && `Покормить: ${event.data.food_name}`}
+              {/* Объединяем запланированные и выполненные в хронологическом порядке */}
+              {(() => {
+                // Создаем объединенный массив с запланированными событиями
+                const scheduledItems = events.map(event => ({
+                  isScheduled: true,
+                  timestamp: event.targetTime,
+                  event
+                }));
+                
+                const completedItems = timeline.map(entry => ({
+                  isScheduled: false,
+                  timestamp: entry.data.timestamp,
+                  entry
+                }));
+                
+                const allItems = [...scheduledItems, ...completedItems].sort((a, b) => a.timestamp - b.timestamp);
+                
+                // Если больше 10 записей, сворачиваем средние
+                const shouldCollapse = allItems.length > 10;
+                const visibleItems = shouldCollapse 
+                  ? [...allItems.slice(0, 5), ...allItems.slice(-5)]
+                  : allItems;
+                const hiddenCount = shouldCollapse ? allItems.length - 10 : 0;
+                
+                return (
+                  <>
+                    {visibleItems.map((item, idx) => {
+                      // Показываем разделитель после первых 5 элементов
+                      if (shouldCollapse && idx === 5) {
+                        return (
+                          <div key="divider" className="py-2">
+                            <button 
+                              onClick={() => {/* TODO: развернуть */}}
+                              className="w-full text-center text-sm text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                              ... еще {hiddenCount} записей ...
+                            </button>
                           </div>
-                          <div className="text-xs text-gray-600 mt-1">
-                            {event.type === 'medication' && event.data.dosage}
-                            {event.type === 'feeding' && `${event.data.amount} ${event.data.unit === 'g' ? 'г' : event.data.unit === 'ml' ? 'мл' : ''}`}
+                        );
+                      }
+                      
+                      if (item.isScheduled) {
+                        const event = 'event' in item ? item.event : null;
+                        if (!event) return null;
+                        
+                        const targetDate = new Date(event.targetTime);
+                        const timeStr = `${targetDate.getHours().toString().padStart(2, '0')}:${targetDate.getMinutes().toString().padStart(2, '0')}`;
+                        
+                        return (
+                          <div key={event.id} className="p-3 rounded-xl bg-gray-50 opacity-50">
+                            <div className="flex items-center gap-3">
+                              <div className="text-sm font-medium text-gray-600 w-16 flex-shrink-0">{timeStr}</div>
+                              
+                              {/* Иконка как у обычных карточек */}
+                              {event.type === 'medication' && (
+                                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-100 flex-shrink-0">
+                                  <Pill className="text-purple-600" size={20} />
+                                </div>
+                              )}
+                              {event.type === 'feeding' && (
+                                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-green-100 flex-shrink-0">
+                                  <Utensils className="text-green-600" size={20} />
+                                </div>
+                              )}
+                              
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-black">
+                                  {event.type === 'medication' && `Лекарство: ${event.data.medication_name}`}
+                                  {event.type === 'feeding' && `Питание: ${event.data.food_name}`}
+                                </div>
+                                <div className="text-xs text-gray-600 mt-1">
+                                  {event.type === 'medication' && event.data.dosage}
+                                  {event.type === 'feeding' && `${event.data.amount} ${event.data.unit === 'g' ? 'г' : event.data.unit === 'ml' ? 'мл' : ''}`}
+                                </div>
+                              </div>
+                              
+                              {/* Таймер справа */}
+                              <div className="text-xs font-medium text-blue-600 px-2 py-1 bg-blue-100 rounded-full flex-shrink-0">
+                                {event.minutesLeft > 0 ? `${event.minutesLeft}м` : 'сейчас'}
+                              </div>
+                              
+                              <button 
+                                onClick={() => {
+                                  setEditingScheduledId(event.id);
+                                  setScheduleMinutes(event.minutesLeft.toString());
+                                }} 
+                                className="p-2 hover:bg-blue-100 rounded-full transition-colors text-blue-600 flex-shrink-0"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                              <button 
+                                onClick={() => cancelEvent(event.id)} 
+                                className="p-2 hover:bg-red-100 rounded-full transition-colors text-red-600 flex-shrink-0"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                        <button 
-                          onClick={() => cancelEvent(event.id)} 
-                          className="p-2 hover:bg-red-100 rounded-full transition-colors text-red-600 flex-shrink-0"
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Выполненные записи */}
-              {timeline.length > 0 && (
-                <>
-                  {events.length > 0 && <div className="text-xs font-semibold text-gray-500 uppercase mt-6">Выполнено</div>}
-                  {timeline.map((entry, idx) => (
-                    <div key={`${entry.type}-${entry.data.id}-${idx}`} className="p-3 rounded-xl bg-gray-50">
-                      {renderTimelineEntry(entry)}
-                    </div>
-                  ))}
-                </>
-              )}
+                        );
+                      } else {
+                        const entry = 'entry' in item ? item.entry : null;
+                        if (!entry) return null;
+                        
+                        return (
+                          <div key={`${entry.type}-${entry.data.id}-${idx}`} className="p-3 rounded-xl bg-gray-50">
+                            {renderTimelineEntry(entry)}
+                          </div>
+                        );
+                      }
+                    })}
+                  </>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -1013,6 +1081,56 @@ export const EntryView = () => {
         )}
 
         {NotificationModal && <NotificationModal />}
+
+        {/* Модалка редактирования запланированного события */}
+        {editingScheduledId && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={() => setEditingScheduledId(null)}
+          >
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-xl font-bold mb-4">Изменить время</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Через сколько минут</label>
+                  <input 
+                    type="number" 
+                    value={scheduleMinutes} 
+                    onChange={(e) => setScheduleMinutes(e.target.value)} 
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+                    placeholder="Например: 30"
+                    min="1"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => {
+                      const minutes = parseInt(scheduleMinutes);
+                      if (minutes > 0) {
+                        updateEvent(editingScheduledId, minutes);
+                        setEditingScheduledId(null);
+                        setScheduleMinutes('');
+                      }
+                    }}
+                    disabled={!scheduleMinutes}
+                    className="flex-1 py-2 bg-black text-white rounded-full disabled:opacity-50"
+                  >
+                    Сохранить
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setEditingScheduledId(null);
+                      setScheduleMinutes('');
+                    }}
+                    className="px-4 py-2 bg-gray-200 rounded-full"
+                  >
+                    Отмена
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
