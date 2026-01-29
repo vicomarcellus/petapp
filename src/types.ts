@@ -33,6 +33,7 @@ export interface MedicationEntry {
   timestamp: number; // полный timestamp
   color?: string;
   note?: string;
+  is_scheduled?: boolean; // Было ли запланировано
 }
 
 export interface Medication {
@@ -81,6 +82,7 @@ export interface StateEntry {
   timestamp: number; // полный timestamp для сортировки
   state_score: 1 | 2 | 3 | 4 | 5;
   note?: string; // Опциональная заметка к конкретному состоянию
+  is_scheduled?: boolean; // Было ли запланировано
   created_at?: string;
 }
 
@@ -93,6 +95,7 @@ export interface SymptomEntry {
   timestamp: number; // полный timestamp для сортировки
   symptom: string; // Название симптома
   note?: string; // Опциональная заметка
+  is_scheduled?: boolean; // Было ли запланировано
   created_at?: string;
 }
 
@@ -107,6 +110,7 @@ export interface FeedingEntry {
   amount: string; // Количество (например "50 г" или "100 мл")
   unit: 'g' | 'ml' | 'none'; // Единица измерения
   note?: string; // Опциональная заметка
+  is_scheduled?: boolean; // Было ли запланировано
   created_at?: string;
 }
 

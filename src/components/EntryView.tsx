@@ -3,8 +3,9 @@ import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
 import { STATE_COLORS, STATE_LABELS } from '../types';
 import { formatDisplayDate } from '../utils';
-import { Trash2, Plus, Activity, AlertCircle, Pill, Utensils, X, Edit2, ArrowLeft } from 'lucide-react';
+import { Trash2, Plus, Activity, AlertCircle, Pill, Utensils, X, Edit2, ArrowLeft, Clock, Bell } from 'lucide-react';
 import { Header } from './Header';
+import { useScheduledEvents } from '../hooks/useScheduledEvents';
 import type { StateEntry, SymptomEntry, MedicationEntry, FeedingEntry } from '../types';
 
 type TimelineEntry = 
@@ -15,6 +16,7 @@ type TimelineEntry =
 
 export const EntryView = () => {
   const { selectedDate, setView, currentPetId, currentUser } = useStore();
+  const { scheduleEvent, NotificationModal } = useScheduledEvents();
   const [stateEntries, setStateEntries] = useState<StateEntry[]>([]);
   const [symptomEntries, setSymptomEntries] = useState<SymptomEntry[]>([]);
   const [medicationEntries, setMedicationEntries] = useState<MedicationEntry[]>([]);
@@ -32,6 +34,10 @@ export const EntryView = () => {
   const [showAddFeeding, setShowAddFeeding] = useState(false);
   
   const [editingEntry, setEditingEntry] = useState<TimelineEntry | null>(null);
+  
+  // Поля для планирования
+  const [scheduleMinutes, setScheduleMinutes] = useState<string>('');
+  const [isScheduling, setIsScheduling] = useState(false);
   
   const [stateScore, setStateScore] = useState<1 | 2 | 3 | 4 | 5>(3);
   const [stateTime, setStateTime] = useState('');
@@ -218,6 +224,25 @@ export const EntryView = () => {
   const handleAddMedication = async () => {
     if (!selectedDate || !currentPetId || !currentUser || !medicationName) return;
     
+    // Если планируем событие
+    if (isScheduling && scheduleMinutes) {
+      const minutes = parseInt(scheduleMinutes);
+      if (minutes > 0) {
+        scheduleEvent('medication', {
+          medication_name: medicationName,
+          dosage: medicationDosage
+        }, minutes);
+        
+        setShowAddMedication(false);
+        setIsScheduling(false);
+        setScheduleMinutes('');
+        setMedicationName('');
+        setMedicationDosage('');
+        setMedicationTime('');
+        return;
+      }
+    }
+    
     try {
       const timeToUse = medicationTime || new Date().toTimeString().slice(0, 5);
       const timestamp = new Date(`${selectedDate}T${timeToUse}`).getTime();
@@ -239,7 +264,8 @@ export const EntryView = () => {
           timestamp,
           medication_name: medicationName,
           dosage: medicationDosage,
-          color: '#8B5CF6'
+          color: '#8B5CF6',
+          is_scheduled: false // Добавлено сейчас, не было запланировано
         }).select().single();
 
         // Автоматически создаем задачу в чеклисте
@@ -262,6 +288,8 @@ export const EntryView = () => {
       
       setShowAddMedication(false);
       setEditingEntry(null);
+      setIsScheduling(false);
+      setScheduleMinutes('');
       setMedicationName('');
       setMedicationDosage('');
       setMedicationTime('');
@@ -273,6 +301,28 @@ export const EntryView = () => {
 
   const handleAddFeeding = async () => {
     if (!selectedDate || !currentPetId || !currentUser || !foodName) return;
+    
+    // Если планируем событие
+    if (isScheduling && scheduleMinutes) {
+      const minutes = parseInt(scheduleMinutes);
+      if (minutes > 0) {
+        scheduleEvent('feeding', {
+          food_name: foodName,
+          amount: foodAmount,
+          unit: foodUnit
+        }, minutes);
+        
+        setShowAddFeeding(false);
+        setIsScheduling(false);
+        setScheduleMinutes('');
+        setFoodName('');
+        setFoodAmount('');
+        setFoodUnit('g');
+        setFoodTime('');
+        setFoodNote('');
+        return;
+      }
+    }
     
     try {
       const timeToUse = foodTime || new Date().toTimeString().slice(0, 5);
@@ -298,7 +348,8 @@ export const EntryView = () => {
           food_name: foodName,
           amount: foodAmount,
           unit: foodUnit,
-          note: foodNote || null
+          note: foodNote || null,
+          is_scheduled: false // Добавлено сейчас, не было запланировано
         }).select().single();
 
         // Автоматически создаем задачу в чеклисте
@@ -322,6 +373,8 @@ export const EntryView = () => {
       
       setShowAddFeeding(false);
       setEditingEntry(null);
+      setIsScheduling(false);
+      setScheduleMinutes('');
       setFoodName('');
       setFoodAmount('');
       setFoodUnit('g');
@@ -384,7 +437,7 @@ export const EntryView = () => {
     const { type, data } = entry;
     
     if (type === 'state') {
-      const hasSecondLine = !!data.note;
+      const hasSecondLine = !!data.note || !!data.is_scheduled;
       return (
         <div className="flex items-center gap-3">
           <div className={`text-sm font-medium text-gray-600 w-16 flex-shrink-0 ${hasSecondLine ? 'self-start pt-1' : ''}`}>{data.time}</div>
@@ -392,7 +445,15 @@ export const EntryView = () => {
             <Activity className="text-white" size={20} />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-black">Состояние: {STATE_LABELS[data.state_score]}</div>
+            <div className="flex items-center gap-2">
+              <div className="text-sm font-medium text-black">Состояние: {STATE_LABELS[data.state_score]}</div>
+              {data.is_scheduled && (
+                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center gap-1">
+                  <Bell size={10} />
+                  запланировано
+                </span>
+              )}
+            </div>
             {data.note && <div className="text-xs text-gray-600 mt-1">{data.note}</div>}
           </div>
           <button onClick={() => handleEdit(entry)} className="p-2 hover:bg-blue-100 rounded-full transition-colors text-blue-600 flex-shrink-0">
@@ -406,7 +467,7 @@ export const EntryView = () => {
     }
     
     if (type === 'symptom') {
-      const hasSecondLine = !!data.note;
+      const hasSecondLine = !!data.note || !!data.is_scheduled;
       return (
         <div className="flex items-center gap-3">
           <div className={`text-sm font-medium text-gray-600 w-16 flex-shrink-0 ${hasSecondLine ? 'self-start pt-1' : ''}`}>{data.time}</div>
@@ -414,7 +475,15 @@ export const EntryView = () => {
             <AlertCircle className="text-red-600" size={20} />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-black">Симптом: {data.symptom}</div>
+            <div className="flex items-center gap-2">
+              <div className="text-sm font-medium text-black">Симптом: {data.symptom}</div>
+              {data.is_scheduled && (
+                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center gap-1">
+                  <Bell size={10} />
+                  запланировано
+                </span>
+              )}
+            </div>
             {data.note && <div className="text-xs text-gray-600 mt-1">{data.note}</div>}
           </div>
           <button onClick={() => handleEdit(entry)} className="p-2 hover:bg-blue-100 rounded-full transition-colors text-blue-600 flex-shrink-0">
@@ -435,7 +504,15 @@ export const EntryView = () => {
             <Pill className="text-purple-600" size={20} />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-black">Лекарство: {data.medication_name}</div>
+            <div className="flex items-center gap-2">
+              <div className="text-sm font-medium text-black">Лекарство: {data.medication_name}</div>
+              {data.is_scheduled && (
+                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center gap-1">
+                  <Bell size={10} />
+                  запланировано
+                </span>
+              )}
+            </div>
             <div className="text-xs text-gray-600 mt-1">{data.dosage}</div>
           </div>
           <button onClick={() => handleEdit(entry)} className="p-2 hover:bg-blue-100 rounded-full transition-colors text-blue-600 flex-shrink-0">
@@ -449,7 +526,7 @@ export const EntryView = () => {
     }
     
     if (type === 'feeding') {
-      const hasNote = !!data.note;
+      const hasNote = !!data.note || !!data.is_scheduled;
       return (
         <div className="flex items-center gap-3">
           <div className={`text-sm font-medium text-gray-600 w-16 flex-shrink-0 ${hasNote ? 'self-start pt-1' : ''}`}>{data.time}</div>
@@ -457,7 +534,15 @@ export const EntryView = () => {
             <Utensils className="text-green-600" size={20} />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-black">Питание: {data.food_name}</div>
+            <div className="flex items-center gap-2">
+              <div className="text-sm font-medium text-black">Питание: {data.food_name}</div>
+              {data.is_scheduled && (
+                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center gap-1">
+                  <Bell size={10} />
+                  запланировано
+                </span>
+              )}
+            </div>
             <div className="text-xs text-gray-600 mt-1">
               {data.amount} {data.unit === 'g' ? 'г' : data.unit === 'ml' ? 'мл' : ''}
             </div>
@@ -722,7 +807,40 @@ export const EntryView = () => {
                   <input type="text" value={medicationDosage} onChange={(e) => setMedicationDosage(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Например: 0,3 мл" />
                 </div>
 
-                <button onClick={handleAddMedication} disabled={!medicationName} className="w-full py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Добавить</button>
+                {!editingEntry && (
+                  <div className="border-t pt-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <input 
+                        type="checkbox" 
+                        id="schedule-med"
+                        checked={isScheduling}
+                        onChange={(e) => setIsScheduling(e.target.checked)}
+                        className="w-4 h-4"
+                      />
+                      <label htmlFor="schedule-med" className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                        <Clock size={16} />
+                        Запланировать
+                      </label>
+                    </div>
+                    {isScheduling && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Дать через (минут)</label>
+                        <input 
+                          type="number" 
+                          value={scheduleMinutes} 
+                          onChange={(e) => setScheduleMinutes(e.target.value)} 
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+                          placeholder="Например: 30"
+                          min="1"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <button onClick={handleAddMedication} disabled={!medicationName || (isScheduling && !scheduleMinutes)} className="w-full py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  {isScheduling ? 'Запланировать' : 'Добавить'}
+                </button>
               </div>
             </div>
           </div>
@@ -807,11 +925,46 @@ export const EntryView = () => {
                   <textarea value={foodNote} onChange={(e) => setFoodNote(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none" rows={2} placeholder="Дополнительная информация..." />
                 </div>
 
-                <button onClick={handleAddFeeding} disabled={!foodName} className="w-full py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Добавить</button>
+                {!editingEntry && (
+                  <div className="border-t pt-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <input 
+                        type="checkbox" 
+                        id="schedule-feed"
+                        checked={isScheduling}
+                        onChange={(e) => setIsScheduling(e.target.checked)}
+                        className="w-4 h-4"
+                      />
+                      <label htmlFor="schedule-feed" className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                        <Clock size={16} />
+                        Запланировать
+                      </label>
+                    </div>
+                    {isScheduling && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Покормить через (минут)</label>
+                        <input 
+                          type="number" 
+                          value={scheduleMinutes} 
+                          onChange={(e) => setScheduleMinutes(e.target.value)} 
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+                          placeholder="Например: 30"
+                          min="1"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <button onClick={handleAddFeeding} disabled={!foodName || (isScheduling && !scheduleMinutes)} className="w-full py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  {isScheduling ? 'Запланировать' : 'Добавить'}
+                </button>
               </div>
             </div>
           </div>
         )}
+
+        {NotificationModal && <NotificationModal />}
       </div>
     </div>
   );
