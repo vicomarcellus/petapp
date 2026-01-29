@@ -117,10 +117,10 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
         </div>
 
         {/* Center: Navigation - Glass Pills */}
-        <nav className="flex items-center gap-2 bg-white/40 backdrop-blur-md rounded-full p-1.5 border border-white/60">
+        <nav className="flex items-center gap-2 bg-white/40 backdrop-blur-md rounded-full p-1 border border-white/60">
           <button
             onClick={goToToday}
-            className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all ${
+            className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
               view === 'calendar' || view === 'add' || view === 'edit' || view === 'view'
                 ? 'bg-white text-gray-900'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
@@ -130,7 +130,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
           </button>
           <button
             onClick={() => setView('analytics')}
-            className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all ${
+            className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
               view === 'analytics'
                 ? 'bg-white text-gray-900'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
@@ -140,7 +140,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
           </button>
           <button
             onClick={() => setView('log')}
-            className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all ${
+            className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
               view === 'log'
                 ? 'bg-white text-gray-900'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
@@ -150,7 +150,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
           </button>
           <button
             onClick={() => setView('settings')}
-            className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all ${
+            className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
               view === 'settings' || view === 'history'
                 ? 'bg-white text-gray-900'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
@@ -167,7 +167,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
             <div className="relative">
               <button
                 onClick={() => pets.length > 1 && setShowPetMenu(!showPetMenu)}
-                className={`flex items-center gap-2.5 px-4 py-2.5 bg-white/60 backdrop-blur-md border border-white/80 rounded-full hover:bg-white/80 transition-all shadow-sm ${
+                className={`flex items-center gap-2.5 px-4 py-2 bg-white/60 backdrop-blur-md border border-white/80 rounded-full hover:bg-white/80 transition-all ${
                   pets.length > 1 ? 'cursor-pointer' : 'cursor-default'
                 }`}
               >
@@ -212,7 +212,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
           {currentUser && (
             <button
               onClick={handleLogout}
-              className="w-[42px] h-[42px] rounded-full bg-white/60 backdrop-blur-md border border-white/80 hover:bg-white/80 flex items-center justify-center transition-all"
+              className="w-[46px] h-[46px] rounded-full bg-white/60 backdrop-blur-md border border-white/80 hover:bg-white/80 flex items-center justify-center transition-all"
               title={`Выйти (${currentUser.firstName})`}
             >
               {currentUser.photoUrl ? (
