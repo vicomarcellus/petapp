@@ -2,16 +2,22 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
 import { Header } from './Header';
-import { Plus, Check, Trash2 } from 'lucide-react';
+import { Plus, Check, Trash2, Pill, UtensilsCrossed, AlertCircle, Clock } from 'lucide-react';
 import type { ChecklistTask } from '../types';
+import { useTaskNotifications } from '../hooks/useTaskNotifications';
 
 export const Checklist = () => {
   const { currentUser, currentPetId } = useStore();
   const [tasks, setTasks] = useState<ChecklistTask[]>([]);
   const [showAdd, setShowAdd] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
   const [taskText, setTaskText] = useState('');
   const [taskTime, setTaskTime] = useState('');
+  const [taskType, setTaskType] = useState<'medication' | 'feeding' | 'other'>('other');
+  const [linkedItemName, setLinkedItemName] = useState('');
+  const [linkedItemAmount, setLinkedItemAmount] = useState('');
   const [loading, setLoading] = useState(true);
+  const { NotificationModal } = useTaskNotifications();
 
   useEffect(() => {
     if (currentUser && currentPetId) {
@@ -68,12 +74,17 @@ export const Checklist = () => {
         timestamp,
         task: taskText,
         completed: false,
-        task_type: 'other'
+        task_type: taskType,
+        linked_item_name: linkedItemName || null,
+        linked_item_amount: linkedItemAmount || null
       });
       
       setShowAdd(false);
       setTaskText('');
       setTaskTime('');
+      setTaskType('other');
+      setLinkedItemName('');
+      setLinkedItemAmount('');
       loadTasks();
     } catch (error) {
       console.error('Error adding task:', error);
@@ -104,6 +115,93 @@ export const Checklist = () => {
     }
   };
 
+  const getTaskIcon = (taskType?: string) => {
+    switch (taskType) {
+      case 'medication':
+        return <Pill size={16} className="text-blue-600" />;
+      case 'feeding':
+        return <UtensilsCrossed size={16} className="text-green-600" />;
+      default:
+        return <Clock size={16} className="text-gray-600" />;
+    }
+  };
+
+  const isOverdue = (task: ChecklistTask) => {
+    if (task.completed) return false;
+    return task.timestamp < Date.now();
+  };
+
+  const groupedTasks = {
+    overdue: tasks.filter(t => isOverdue(t)),
+    upcoming: tasks.filter(t => !isOverdue(t) && !t.completed),
+    completed: tasks.filter(t => t.completed)
+  };
+
+  const renderTaskGroup = (title: string, taskList: ChecklistTask[], showIcon?: boolean) => {
+    if (taskList.length === 0) return null;
+
+    return (
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-3">
+          {showIcon && <AlertCircle size={18} className="text-red-500" />}
+          <h3 className="text-sm font-semibold text-gray-600 uppercase">{title}</h3>
+          <span className="text-xs text-gray-400">({taskList.length})</span>
+        </div>
+        <div className="space-y-2">
+          {taskList.map((task) => (
+            <div 
+              key={task.id} 
+              className={`flex items-center gap-3 p-3 rounded-xl ${
+                task.completed ? 'bg-green-50' : 
+                isOverdue(task) ? 'bg-red-50 border border-red-200' : 
+                'bg-gray-50'
+              }`}
+            >
+              <button 
+                onClick={() => handleToggleTask(task)} 
+                className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                  task.completed ? 'bg-green-500 border-green-500' : 
+                  isOverdue(task) ? 'border-red-400' : 
+                  'border-gray-300'
+                }`}
+              >
+                {task.completed && <Check size={14} className="text-white" />}
+              </button>
+              
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {getTaskIcon(task.task_type)}
+                <div className={`text-sm font-medium w-14 ${
+                  isOverdue(task) && !task.completed ? 'text-red-600' : 'text-gray-600'
+                }`}>
+                  {task.time}
+                </div>
+              </div>
+              
+              <div className="flex-1 min-w-0">
+                <div className={`${task.completed ? 'line-through text-gray-400' : 'text-black'}`}>
+                  {task.task}
+                </div>
+                {task.linked_item_name && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    {task.linked_item_name}
+                    {task.linked_item_amount && ` • ${task.linked_item_amount}`}
+                  </div>
+                )}
+              </div>
+              
+              <button 
+                onClick={() => handleDeleteTask(task.id!)} 
+                className="p-2 hover:bg-red-100 rounded-full text-red-600 flex-shrink-0"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F5F5F7] p-3 md:p-4">
@@ -123,46 +221,207 @@ export const Checklist = () => {
         <div className="bg-white rounded-2xl p-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold">Чеклист задач</h2>
-            <button onClick={() => setShowAdd(true)} className="p-2 hover:bg-gray-100 rounded-full">
-              <Plus size={20} />
-            </button>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setShowSchedule(true)} 
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium transition-colors"
+              >
+                Запланировать
+              </button>
+              <button 
+                onClick={() => setShowAdd(true)} 
+                className="p-2 hover:bg-gray-100 rounded-full"
+              >
+                <Plus size={20} />
+              </button>
+            </div>
           </div>
 
           {tasks.length === 0 ? (
             <p className="text-gray-400 text-center py-8">Нет задач</p>
           ) : (
-            <div className="space-y-2">
-              {tasks.map((task) => (
-                <div key={task.id} className={`flex items-center gap-3 p-3 rounded-xl ${task.completed ? 'bg-green-50' : 'bg-gray-50'}`}>
-                  <button onClick={() => handleToggleTask(task)} className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${task.completed ? 'bg-green-500 border-green-500' : 'border-gray-300'}`}>
-                    {task.completed && <Check size={14} className="text-white" />}
-                  </button>
-                  <div className="text-sm font-medium text-gray-600 w-16">{task.time}</div>
-                  <div className={`flex-1 ${task.completed ? 'line-through text-gray-400' : 'text-black'}`}>{task.task}</div>
-                  <button onClick={() => handleDeleteTask(task.id!)} className="p-2 hover:bg-red-100 rounded-full text-red-600">
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))}
-            </div>
+            <>
+              {renderTaskGroup('Просрочено', groupedTasks.overdue, true)}
+              {renderTaskGroup('Предстоящие', groupedTasks.upcoming)}
+              {renderTaskGroup('Выполнено', groupedTasks.completed)}
+            </>
           )}
         </div>
 
         {showAdd && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowAdd(false);
+            }}
+          >
             <div className="bg-white rounded-2xl p-6 max-w-md w-full">
               <h3 className="text-xl font-bold mb-4">Новая задача</h3>
               <div className="space-y-4">
-                <input type="time" value={taskTime} onChange={(e) => setTaskTime(e.target.value)} className="w-full px-4 py-2 border rounded-lg" />
-                <input type="text" value={taskText} onChange={(e) => setTaskText(e.target.value)} placeholder="Описание задачи" className="w-full px-4 py-2 border rounded-lg" />
+                <input 
+                  type="time" 
+                  value={taskTime} 
+                  onChange={(e) => setTaskTime(e.target.value)} 
+                  className="w-full px-4 py-2 border rounded-lg" 
+                />
+                <input 
+                  type="text" 
+                  value={taskText} 
+                  onChange={(e) => setTaskText(e.target.value)} 
+                  placeholder="Описание задачи" 
+                  className="w-full px-4 py-2 border rounded-lg" 
+                />
                 <div className="flex gap-2">
-                  <button onClick={handleAddTask} disabled={!taskText || !taskTime} className="flex-1 py-2 bg-black text-white rounded-full disabled:opacity-50">Добавить</button>
-                  <button onClick={() => setShowAdd(false)} className="px-4 py-2 bg-gray-200 rounded-full">Отмена</button>
+                  <button 
+                    onClick={handleAddTask} 
+                    disabled={!taskText || !taskTime} 
+                    className="flex-1 py-2 bg-black text-white rounded-full disabled:opacity-50"
+                  >
+                    Добавить
+                  </button>
+                  <button 
+                    onClick={() => setShowAdd(false)} 
+                    className="px-4 py-2 bg-gray-200 rounded-full"
+                  >
+                    Отмена
+                  </button>
                 </div>
               </div>
             </div>
           </div>
         )}
+
+        {showSchedule && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowSchedule(false);
+            }}
+          >
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+              <h3 className="text-xl font-bold mb-4">Запланировать задачу</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Тип задачи</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => setTaskType('medication')}
+                      className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                        taskType === 'medication' 
+                          ? 'bg-purple-100 text-purple-700 border-2 border-purple-500' 
+                          : 'bg-gray-100 text-gray-600 border-2 border-transparent'
+                      }`}
+                    >
+                      <Pill size={16} className="mx-auto mb-1" />
+                      Лекарство
+                    </button>
+                    <button
+                      onClick={() => setTaskType('feeding')}
+                      className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                        taskType === 'feeding' 
+                          ? 'bg-green-100 text-green-700 border-2 border-green-500' 
+                          : 'bg-gray-100 text-gray-600 border-2 border-transparent'
+                      }`}
+                    >
+                      <UtensilsCrossed size={16} className="mx-auto mb-1" />
+                      Питание
+                    </button>
+                    <button
+                      onClick={() => setTaskType('other')}
+                      className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                        taskType === 'other' 
+                          ? 'bg-gray-200 text-gray-700 border-2 border-gray-500' 
+                          : 'bg-gray-100 text-gray-600 border-2 border-transparent'
+                      }`}
+                    >
+                      <Clock size={16} className="mx-auto mb-1" />
+                      Другое
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Время</label>
+                  <input 
+                    type="time" 
+                    value={taskTime} 
+                    onChange={(e) => setTaskTime(e.target.value)} 
+                    className="w-full px-4 py-2 border rounded-lg" 
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Описание</label>
+                  <input 
+                    type="text" 
+                    value={taskText} 
+                    onChange={(e) => setTaskText(e.target.value)} 
+                    placeholder={
+                      taskType === 'medication' ? 'Дать лекарство' :
+                      taskType === 'feeding' ? 'Покормить' :
+                      'Описание задачи'
+                    }
+                    className="w-full px-4 py-2 border rounded-lg" 
+                  />
+                </div>
+
+                {(taskType === 'medication' || taskType === 'feeding') && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        {taskType === 'medication' ? 'Название лекарства' : 'Название корма'}
+                      </label>
+                      <input 
+                        type="text" 
+                        value={linkedItemName} 
+                        onChange={(e) => setLinkedItemName(e.target.value)} 
+                        placeholder={taskType === 'medication' ? 'Преднизолон' : 'Корм'}
+                        className="w-full px-4 py-2 border rounded-lg" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        {taskType === 'medication' ? 'Дозировка' : 'Количество'}
+                      </label>
+                      <input 
+                        type="text" 
+                        value={linkedItemAmount} 
+                        onChange={(e) => setLinkedItemAmount(e.target.value)} 
+                        placeholder={taskType === 'medication' ? '0,3 мл' : '50 г'}
+                        className="w-full px-4 py-2 border rounded-lg" 
+                      />
+                    </div>
+                  </>
+                )}
+
+                <div className="flex gap-2">
+                  <button 
+                    onClick={handleAddTask} 
+                    disabled={!taskText || !taskTime} 
+                    className="flex-1 py-2 bg-black text-white rounded-full disabled:opacity-50"
+                  >
+                    Запланировать
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setShowSchedule(false);
+                      setTaskText('');
+                      setTaskTime('');
+                      setTaskType('other');
+                      setLinkedItemName('');
+                      setLinkedItemAmount('');
+                    }} 
+                    className="px-4 py-2 bg-gray-200 rounded-full"
+                  >
+                    Отмена
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {NotificationModal && <NotificationModal />}
       </div>
     </div>
   );

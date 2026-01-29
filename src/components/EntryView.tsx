@@ -230,7 +230,8 @@ export const EntryView = () => {
           dosage: medicationDosage,
         }).eq('id', editingEntry.data.id);
       } else {
-        await supabase.from('medication_entries').insert({
+        // Создаем запись лекарства
+        const { data: medData } = await supabase.from('medication_entries').insert({
           user_id: currentUser.id,
           pet_id: currentPetId,
           date: selectedDate,
@@ -239,7 +240,24 @@ export const EntryView = () => {
           medication_name: medicationName,
           dosage: medicationDosage,
           color: '#8B5CF6'
-        });
+        }).select().single();
+
+        // Автоматически создаем задачу в чеклисте
+        if (medData) {
+          await supabase.from('checklist_tasks').insert({
+            user_id: currentUser.id,
+            pet_id: currentPetId,
+            date: selectedDate,
+            time: timeToUse,
+            timestamp,
+            task: `Дать лекарство`,
+            completed: true, // Сразу отмечаем как выполненную, т.к. уже дали
+            task_type: 'medication',
+            linked_item_id: medData.id,
+            linked_item_name: medicationName,
+            linked_item_amount: medicationDosage
+          });
+        }
       }
       
       setShowAddMedication(false);
@@ -270,7 +288,8 @@ export const EntryView = () => {
           note: foodNote || null
         }).eq('id', editingEntry.data.id);
       } else {
-        await supabase.from('feeding_entries').insert({
+        // Создаем запись питания
+        const { data: feedData } = await supabase.from('feeding_entries').insert({
           user_id: currentUser.id,
           pet_id: currentPetId,
           date: selectedDate,
@@ -280,7 +299,25 @@ export const EntryView = () => {
           amount: foodAmount,
           unit: foodUnit,
           note: foodNote || null
-        });
+        }).select().single();
+
+        // Автоматически создаем задачу в чеклисте
+        if (feedData) {
+          const unitText = foodUnit === 'g' ? 'г' : foodUnit === 'ml' ? 'мл' : '';
+          await supabase.from('checklist_tasks').insert({
+            user_id: currentUser.id,
+            pet_id: currentPetId,
+            date: selectedDate,
+            time: timeToUse,
+            timestamp,
+            task: `Покормить`,
+            completed: true, // Сразу отмечаем как выполненную, т.к. уже покормили
+            task_type: 'feeding',
+            linked_item_id: feedData.id,
+            linked_item_name: foodName,
+            linked_item_amount: `${foodAmount} ${unitText}`
+          });
+        }
       }
       
       setShowAddFeeding(false);
