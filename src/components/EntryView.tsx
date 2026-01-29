@@ -326,10 +326,18 @@ export const EntryView = () => {
   return (
     <div className="min-h-screen bg-[#F5F5F7] p-3 md:p-4 pb-28">
       <div className="max-w-5xl mx-auto">
-        <Header showBackButton onBack={() => setView('calendar')} />
+        <Header />
         
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-black">{formatDisplayDate(selectedDate || '')}</h2>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setView('calendar')}
+              className="p-2 hover:bg-white rounded-full transition-all"
+            >
+              <X size={20} className="text-black" />
+            </button>
+            <h2 className="text-2xl font-bold text-black">{formatDisplayDate(selectedDate || '')}</h2>
+          </div>
           <button 
             onClick={() => setShowAddMenu(!showAddMenu)}
             className="p-3 bg-black text-white rounded-full hover:bg-gray-800 transition-colors"

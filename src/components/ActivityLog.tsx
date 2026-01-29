@@ -135,7 +135,7 @@ export const ActivityLog = () => {
                   onClick={() => handleDayClick(day.date)}
                   className="w-full text-left p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
                 >
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-center gap-3">
                     <div className="flex-shrink-0 w-24">
                       <div className="text-sm font-medium text-gray-900">{formatDate(day.date)}</div>
                       <div className="text-xs text-gray-500">{day.date}</div>
