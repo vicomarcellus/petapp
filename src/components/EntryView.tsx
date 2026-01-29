@@ -21,6 +21,10 @@ export const EntryView = () => {
   const [feedingEntries, setFeedingEntries] = useState<FeedingEntry[]>([]);
   const [loading, setLoading] = useState(true);
   
+  const [savedMedications, setSavedMedications] = useState<Array<{name: string, dosage: string}>>([]);
+  const [savedFoods, setSavedFoods] = useState<Array<{name: string, amount: string, unit: 'g' | 'ml' | 'none'}>>([]);
+  const [savedSymptoms, setSavedSymptoms] = useState<string[]>([]);
+  
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showAddState, setShowAddState] = useState(false);
   const [showAddSymptom, setShowAddSymptom] = useState(false);
@@ -50,8 +54,59 @@ export const EntryView = () => {
   useEffect(() => {
     if (selectedDate && currentPetId && currentUser) {
       loadData();
+      loadSavedItems();
     }
   }, [selectedDate, currentPetId, currentUser]);
+
+  const loadSavedItems = async () => {
+    if (!currentUser || !currentPetId) return;
+    
+    try {
+      // Загружаем уникальные лекарства
+      const { data: meds } = await supabase
+        .from('medication_entries')
+        .select('medication_name, dosage')
+        .eq('user_id', currentUser.id)
+        .eq('pet_id', currentPetId)
+        .order('timestamp', { ascending: false })
+        .limit(50);
+      
+      if (meds) {
+        const uniqueMeds = Array.from(new Map(meds.map(m => [m.medication_name, { name: m.medication_name, dosage: m.dosage }])).values());
+        setSavedMedications(uniqueMeds);
+      }
+
+      // Загружаем уникальные корма
+      const { data: foods } = await supabase
+        .from('feeding_entries')
+        .select('food_name, amount, unit')
+        .eq('user_id', currentUser.id)
+        .eq('pet_id', currentPetId)
+        .order('timestamp', { ascending: false })
+        .limit(50);
+      
+      if (foods) {
+        const uniqueFoods = Array.from(new Map(foods.map(f => [f.food_name, { name: f.food_name, amount: f.amount, unit: f.unit }])).values());
+        setSavedFoods(uniqueFoods);
+      }
+
+      // Загружаем уникальные симптомы
+      const { data: symptoms } = await supabase
+        .from('symptom_entries')
+        .select('symptom')
+        .eq('user_id', currentUser.id)
+        .eq('pet_id', currentPetId)
+        .order('timestamp', { ascending: false })
+        .limit(50);
+      
+      if (symptoms) {
+        const uniqueSymptoms = Array.from(new Set(symptoms.map(s => s.symptom)));
+        setSavedSymptoms(uniqueSymptoms);
+      }
+    } catch (error) {
+      console.error('Error loading saved items:', error);
+    }
+  };
 
   const loadData = async () => {
     if (!selectedDate || !currentPetId || !currentUser) return;
@@ -526,7 +581,35 @@ export const EntryView = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Симптом</label>
-                  <input type="text" value={symptomName} onChange={(e) => setSymptomName(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Например: Рвота, Дрожь..." />
+                  <input 
+                    type="text" 
+                    value={symptomName} 
+                    onChange={(e) => setSymptomName(e.target.value)} 
+                    list="symptoms-list"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+                    placeholder="Например: Рвота, Дрожь..." 
+                  />
+                  {savedSymptoms.length > 0 && (
+                    <datalist id="symptoms-list">
+                      {savedSymptoms.map((symptom, idx) => (
+                        <option key={idx} value={symptom} />
+                      ))}
+                    </datalist>
+                  )}
+                  {savedSymptoms.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {savedSymptoms.slice(0, 5).map((symptom, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setSymptomName(symptom)}
+                          className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"
+                        >
+                          {symptom}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -556,7 +639,45 @@ export const EntryView = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Название</label>
-                  <input type="text" value={medicationName} onChange={(e) => setMedicationName(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Например: Преднизолон" />
+                  <input 
+                    type="text" 
+                    value={medicationName} 
+                    onChange={(e) => {
+                      setMedicationName(e.target.value);
+                      // Автозаполнение дозировки при выборе из списка
+                      const saved = savedMedications.find(m => m.name === e.target.value);
+                      if (saved && !medicationDosage) {
+                        setMedicationDosage(saved.dosage);
+                      }
+                    }}
+                    list="medications-list"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+                    placeholder="Например: Преднизолон" 
+                  />
+                  {savedMedications.length > 0 && (
+                    <datalist id="medications-list">
+                      {savedMedications.map((med, idx) => (
+                        <option key={idx} value={med.name} />
+                      ))}
+                    </datalist>
+                  )}
+                  {savedMedications.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {savedMedications.slice(0, 5).map((med, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setMedicationName(med.name);
+                            setMedicationDosage(med.dosage);
+                          }}
+                          className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"
+                        >
+                          {med.name} {med.dosage}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -586,7 +707,47 @@ export const EntryView = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Название</label>
-                  <input type="text" value={foodName} onChange={(e) => setFoodName(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Например: Корм, Вода" />
+                  <input 
+                    type="text" 
+                    value={foodName} 
+                    onChange={(e) => {
+                      setFoodName(e.target.value);
+                      // Автозаполнение количества и единицы
+                      const saved = savedFoods.find(f => f.name === e.target.value);
+                      if (saved && !foodAmount) {
+                        setFoodAmount(saved.amount);
+                        setFoodUnit(saved.unit);
+                      }
+                    }}
+                    list="foods-list"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+                    placeholder="Например: Корм, Вода" 
+                  />
+                  {savedFoods.length > 0 && (
+                    <datalist id="foods-list">
+                      {savedFoods.map((food, idx) => (
+                        <option key={idx} value={food.name} />
+                      ))}
+                    </datalist>
+                  )}
+                  {savedFoods.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {savedFoods.slice(0, 5).map((food, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setFoodName(food.name);
+                            setFoodAmount(food.amount);
+                            setFoodUnit(food.unit);
+                          }}
+                          className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"
+                        >
+                          {food.name} {food.amount} {food.unit === 'g' ? 'г' : food.unit === 'ml' ? 'мл' : ''}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
