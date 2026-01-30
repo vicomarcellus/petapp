@@ -1002,126 +1002,116 @@ export const EntryView = () => {
           )}
         </div>
 
-        {showAddState && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowAddState(false)}>
-            <div className="bg-white border border-white/60 rounded-[32px] p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold">{editingEntry ? 'Редактировать состояние' : 'Добавить состояние'}</h3>
-                <button onClick={() => setShowAddState(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Время (необязательно)</label>
-                  <div className="relative">
-                    <input 
-                      type="time" 
-                      value={stateTime} 
-                      onChange={(e) => setStateTime(e.target.value)} 
-                      className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 [&::-webkit-calendar-picker-indicator]:hidden"
-                      placeholder="Текущее время" 
-                    />
-                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Оценка состояния</label>
-                  <div className="flex gap-2">
-                    {[1, 2, 3, 4, 5].map((score) => (
-                      <button key={score} onClick={() => setStateScore(score as 1 | 2 | 3 | 4 | 5)} className={`flex-1 py-3 rounded-2xl font-bold transition-all ${stateScore === score ? 'text-white scale-105' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`} style={{ backgroundColor: stateScore === score ? STATE_COLORS[score] : undefined }}>{score}</button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Заметка (опционально)</label>
-                  <textarea 
-                    value={stateNote} 
-                    onChange={(e) => setStateNote(e.target.value)} 
-                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none resize-none text-gray-900 placeholder-gray-400" 
-                    rows={3} 
-                    placeholder="Дополнительная информация..." 
-                  />
-                </div>
-
-                <button onClick={handleAddState} className="w-full py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all shadow-sm">Добавить</button>
+        <AnimatedModal
+          isOpen={showAddState}
+          onClose={() => setShowAddState(false)}
+          title={editingEntry ? 'Редактировать состояние' : 'Добавить состояние'}
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Время (необязательно)</label>
+              <div className="relative">
+                <input 
+                  type="time" 
+                  value={stateTime} 
+                  onChange={(e) => setStateTime(e.target.value)} 
+                  className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 [&::-webkit-calendar-picker-indicator]:hidden"
+                  placeholder="Текущее время" 
+                />
+                <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
               </div>
             </div>
-          </div>
-        )}
 
-        {showAddSymptom && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowAddSymptom(false)}>
-            <div className="bg-white border border-white/60 rounded-[32px] p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold">{editingEntry ? 'Редактировать симптом' : 'Добавить симптом'}</h3>
-                <button onClick={() => setShowAddSymptom(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Время (необязательно)</label>
-                  <div className="relative">
-                    <input 
-                      type="time" 
-                      value={symptomTime} 
-                      onChange={(e) => setSymptomTime(e.target.value)} 
-                      className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 [&::-webkit-calendar-picker-indicator]:hidden"
-                    />
-                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Симптом</label>
-                  <input
-                    type="text"
-                    value={symptomName}
-                    onChange={(e) => setSymptomName(e.target.value)}
-                    list="symptoms-list"
-                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
-                    placeholder="Например: Рвота, Дрожь..."
-                  />
-                  {savedSymptoms.length > 0 && (
-                    <datalist id="symptoms-list">
-                      {savedSymptoms.map((symptom, idx) => (
-                        <option key={idx} value={symptom} />
-                      ))}
-                    </datalist>
-                  )}
-                  {savedSymptoms.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {savedSymptoms.slice(0, 5).map((symptom, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => setSymptomName(symptom)}
-                          className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"
-                        >
-                          {symptom}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Заметка (опционально)</label>
-                  <textarea 
-                    value={symptomNote} 
-                    onChange={(e) => setSymptomNote(e.target.value)} 
-                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none resize-none text-gray-900 placeholder-gray-400" 
-                    rows={3} 
-                    placeholder="Дополнительная информация..." 
-                  />
-                </div>
-
-                <button onClick={handleAddSymptom} disabled={!symptomName} className="w-full py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">Добавить</button>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Оценка состояния</label>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((score) => (
+                  <button key={score} onClick={() => setStateScore(score as 1 | 2 | 3 | 4 | 5)} className={`flex-1 py-3 rounded-2xl font-bold transition-all duration-200 ${stateScore === score ? 'text-white scale-105' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:scale-105'}`} style={{ backgroundColor: stateScore === score ? STATE_COLORS[score] : undefined }}>{score}</button>
+                ))}
               </div>
             </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Заметка (опционально)</label>
+              <textarea 
+                value={stateNote} 
+                onChange={(e) => setStateNote(e.target.value)} 
+                className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none resize-none text-gray-900 placeholder-gray-400" 
+                rows={3} 
+                placeholder="Дополнительная информация..." 
+              />
+            </div>
+
+            <button onClick={handleAddState} className="w-full py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-sm">Добавить</button>
           </div>
-        )}
+        </AnimatedModal>
+
+        <AnimatedModal
+          isOpen={showAddSymptom}
+          onClose={() => setShowAddSymptom(false)}
+          title={editingEntry ? 'Редактировать симптом' : 'Добавить симптом'}
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Время (необязательно)</label>
+              <div className="relative">
+                <input 
+                  type="time" 
+                  value={symptomTime} 
+                  onChange={(e) => setSymptomTime(e.target.value)} 
+                  className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 [&::-webkit-calendar-picker-indicator]:hidden"
+                />
+                <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Симптом</label>
+              <input
+                type="text"
+                value={symptomName}
+                onChange={(e) => setSymptomName(e.target.value)}
+                list="symptoms-list"
+                className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
+                placeholder="Например: Рвота, Дрожь..."
+              />
+              {savedSymptoms.length > 0 && (
+                <datalist id="symptoms-list">
+                  {savedSymptoms.map((symptom, idx) => (
+                    <option key={idx} value={symptom} />
+                  ))}
+                </datalist>
+              )}
+              {savedSymptoms.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {savedSymptoms.slice(0, 5).map((symptom, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setSymptomName(symptom)}
+                      className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-full transition-all duration-200 hover:scale-105 active:scale-95"
+                    >
+                      {symptom}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Заметка (опционально)</label>
+              <textarea 
+                value={symptomNote} 
+                onChange={(e) => setSymptomNote(e.target.value)} 
+                className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none resize-none text-gray-900 placeholder-gray-400" 
+                rows={3} 
+                placeholder="Дополнительная информация..." 
+              />
+            </div>
+
+            <button onClick={handleAddSymptom} disabled={!symptomName} className="w-full py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">Добавить</button>
+          </div>
+        </AnimatedModal>
 
         {showAddMedication && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowAddMedication(false)}>
