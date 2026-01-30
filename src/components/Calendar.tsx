@@ -234,14 +234,15 @@ export const Calendar = () => {
                     disabled={!isCurrentMonth}
                     className={`
                       aspect-square rounded-full p-1.5 transition-all border-2 animate-stagger
-                      ${isCurrentMonth ? 'hover:scale-105 cursor-pointer' : 'opacity-20 cursor-not-allowed'}
+                      ${isCurrentMonth ? 'hover:scale-105 cursor-pointer' : 'cursor-not-allowed'}
                       ${isTodayDate ? 'border-gray-400' : 'border-transparent'}
                     `}
                     style={{
                       backgroundColor: avgDayScore && isCurrentMonth
                         ? STATE_COLORS[avgDayScore] + '15'
                         : '#F5F5F7',
-                      animationDelay: `${index * 20}ms`
+                      animationDelay: `${index * 20}ms`,
+                      opacity: isCurrentMonth ? 1 : 0.2
                     }}
                   >
                     <div className="flex flex-col items-center justify-center h-full gap-0.5">
