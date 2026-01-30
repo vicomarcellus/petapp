@@ -12,7 +12,7 @@ export const ChangeHistory = () => {
         </p>
         <button
           onClick={() => setView('settings')}
-          className="px-6 py-2 bg-black text-white rounded-full hover:bg-gray-800"
+          className="px-6 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
         >
           Вернуться к настройкам
         </button>

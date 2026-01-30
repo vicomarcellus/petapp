@@ -6,6 +6,7 @@ import { formatDisplayDate } from '../utils';
 import { Trash2, Plus, Activity, AlertCircle, Pill, Utensils, X, Edit2, ArrowLeft, Clock, Bell, Check } from 'lucide-react';
 import { useScheduledNotifications } from '../hooks/useScheduledNotifications';
 import { AlertModal, ConfirmModal } from './Modal';
+import { AnimatedModal } from './AnimatedModal';
 import type { StateEntry, SymptomEntry, MedicationEntry, FeedingEntry } from '../types';
 
 type TimelineEntry =
@@ -797,55 +798,48 @@ export const EntryView = () => {
           </div>
           <button
             onClick={() => setShowAddMenu(!showAddMenu)}
-            className="p-3 bg-black text-white rounded-full hover:bg-gray-800 transition-colors"
+            className="p-3 bg-black text-white rounded-full hover:bg-gray-800 transition-all duration-200 hover:scale-110 active:scale-95"
           >
             <Plus size={20} />
           </button>
         </div>
 
-        {showAddMenu && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowAddMenu(false)}>
-            <div className="bg-white border border-white/60 rounded-[32px] p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold">Добавить запись</h3>
-                <button onClick={() => setShowAddMenu(false)} className="p-2 hover:bg-gray-100 rounded-full">
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => { setShowAddState(true); setShowAddMenu(false); }}
-                  className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-gray-50 transition-colors border-2 border-gray-100"
-                >
-                  <Activity size={24} className="text-blue-600" />
-                  <span className="text-sm font-medium">Состояние</span>
-                </button>
-                <button
-                  onClick={() => { setShowAddSymptom(true); setShowAddMenu(false); }}
-                  className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-gray-50 transition-colors border-2 border-gray-100"
-                >
-                  <AlertCircle size={24} className="text-red-600" />
-                  <span className="text-sm font-medium">Симптом</span>
-                </button>
-                <button
-                  onClick={() => { setShowAddMedication(true); setShowAddMenu(false); }}
-                  className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-gray-50 transition-colors border-2 border-gray-100"
-                >
-                  <Pill size={24} className="text-purple-600" />
-                  <span className="text-sm font-medium">Лекарство</span>
-                </button>
-                <button
-                  onClick={() => { setShowAddFeeding(true); setShowAddMenu(false); }}
-                  className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-gray-50 transition-colors border-2 border-gray-100"
-                >
-                  <Utensils size={24} className="text-green-600" />
-                  <span className="text-sm font-medium">Питание</span>
-                </button>
-              </div>
-            </div>
+        <AnimatedModal
+          isOpen={showAddMenu}
+          onClose={() => setShowAddMenu(false)}
+          title="Добавить запись"
+        >
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => { setShowAddState(true); setShowAddMenu(false); }}
+              className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-gray-50 transition-all duration-200 border-2 border-gray-100 hover:scale-105 active:scale-95"
+            >
+              <Activity size={24} className="text-blue-600" />
+              <span className="text-sm font-medium">Состояние</span>
+            </button>
+            <button
+              onClick={() => { setShowAddSymptom(true); setShowAddMenu(false); }}
+              className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-gray-50 transition-all duration-200 border-2 border-gray-100 hover:scale-105 active:scale-95"
+            >
+              <AlertCircle size={24} className="text-red-600" />
+              <span className="text-sm font-medium">Симптом</span>
+            </button>
+            <button
+              onClick={() => { setShowAddMedication(true); setShowAddMenu(false); }}
+              className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-gray-50 transition-all duration-200 border-2 border-gray-100 hover:scale-105 active:scale-95"
+            >
+              <Pill size={24} className="text-purple-600" />
+              <span className="text-sm font-medium">Лекарство</span>
+            </button>
+            <button
+              onClick={() => { setShowAddFeeding(true); setShowAddMenu(false); }}
+              className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-gray-50 transition-all duration-200 border-2 border-gray-100 hover:scale-105 active:scale-95"
+            >
+              <Utensils size={24} className="text-green-600" />
+              <span className="text-sm font-medium">Питание</span>
+            </button>
           </div>
-        )}
+        </AnimatedModal>
 
         <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-4">
           <h3 className="font-bold text-black mb-4">Лог дня</h3>

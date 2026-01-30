@@ -254,7 +254,7 @@ export const Settings = () => {
                     <div className="flex gap-2">
                       <button
                         onClick={handleChangePassword}
-                        className="px-4 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-colors text-sm font-medium"
+                        className="px-4 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] text-sm font-medium"
                       >
                         Сохранить
                       </button>
@@ -322,7 +322,7 @@ export const Settings = () => {
                         <div className="flex gap-2">
                           <button
                             onClick={handleSaveSymptom}
-                            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-colors text-sm font-medium"
+                            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] text-sm font-medium"
                           >
                             <Check size={14} />
                             Сохранить
@@ -396,7 +396,7 @@ export const Settings = () => {
                         <div className="flex gap-2">
                           <button
                             onClick={handleSaveMed}
-                            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-colors text-sm font-medium"
+                            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] text-sm font-medium"
                           >
                             <Check size={14} />
                             Сохранить

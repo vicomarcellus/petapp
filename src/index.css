@@ -174,3 +174,28 @@ body {
 .transition-bounce {
   transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
+
+/* Interactive button styles */
+.btn-interactive {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-interactive:hover {
+  transform: scale(1.02);
+}
+
+.btn-interactive:active {
+  transform: scale(0.98);
+}
+
+.btn-icon-interactive {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-icon-interactive:hover {
+  transform: scale(1.1);
+}
+
+.btn-icon-interactive:active {
+  transform: scale(0.95);
+}

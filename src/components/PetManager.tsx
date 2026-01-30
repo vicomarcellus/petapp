@@ -236,7 +236,7 @@ export const PetManager = () => {
             <button
               onClick={handleAddPet}
               disabled={!petName.trim()}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-colors text-sm font-medium disabled:opacity-50"
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] text-sm font-medium disabled:opacity-50"
             >
               <Check size={14} />
               Добавить
