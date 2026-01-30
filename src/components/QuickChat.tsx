@@ -380,6 +380,7 @@ export const QuickChat = () => {
           </button>
         </div>
       </div>
+      </div>
     </div>
   );
 };
