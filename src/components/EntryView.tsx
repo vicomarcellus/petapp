@@ -4,7 +4,6 @@ import { useStore } from '../store';
 import { STATE_COLORS, STATE_LABELS } from '../types';
 import { formatDisplayDate } from '../utils';
 import { Trash2, Plus, Activity, AlertCircle, Pill, Utensils, X, Edit2, ArrowLeft, Clock, Bell, Check } from 'lucide-react';
-import { Header } from './Header';
 import { useScheduledNotifications } from '../hooks/useScheduledNotifications';
 import { AlertModal, ConfirmModal } from './Modal';
 import type { StateEntry, SymptomEntry, MedicationEntry, FeedingEntry } from '../types';
@@ -781,22 +780,12 @@ export const EntryView = () => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#F5F5F7] p-3 md:p-4">
-        <div className="max-w-5xl mx-auto">
-          <Header showBackButton onBack={() => setView('calendar')} />
-          <div className="text-center py-8 text-gray-400">Загрузка...</div>
-        </div>
-      </div>
-    );
+    return <div className="text-center py-8 text-gray-400">Загрузка...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] p-3 md:p-4 pb-28">
-      <div className="max-w-5xl mx-auto">
-        <Header />
-
-        <div className="mb-4 flex items-center justify-between">
+    <div className="pb-28">
+      <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setView('calendar')}
@@ -1492,6 +1481,5 @@ export const EntryView = () => {
           </div>
         )}
       </div>
-    </div>
   );
 };

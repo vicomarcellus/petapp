@@ -7,7 +7,6 @@ import { STATE_COLORS } from '../types';
 import { ChevronLeft, ChevronRight, Activity } from 'lucide-react';
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameMonth, isToday, startOfWeek, endOfWeek } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Header } from './Header';
 import { QuickChat } from './QuickChat';
 import type { DayEntry, StateEntry, MedicationEntry } from '../types';
 
@@ -164,20 +163,11 @@ export const Calendar = () => {
   });
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#F5F5F7] p-3 md:p-4">
-        <div className="max-w-5xl mx-auto">
-          <Header />
-          <div className="text-center py-8 text-gray-400">Загрузка...</div>
-        </div>
-      </div>
-    );
+    return <div className="text-center py-8 text-gray-400">Загрузка...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] p-3 md:p-4 pb-28">
-      <div className="max-w-5xl mx-auto">
-        <Header />
+    <div className="pb-28">
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
           <div className="lg:col-span-2 bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-4 shadow-sm">
@@ -374,8 +364,7 @@ export const Calendar = () => {
           </div>
         </div>
 
-        <QuickChat />
-      </div>
+      <QuickChat />
     </div>
   );
 };

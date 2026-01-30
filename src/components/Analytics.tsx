@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
-import { Header } from './Header';
 import { TrendingUp, Activity } from 'lucide-react';
 import { STATE_COLORS } from '../types';
 
@@ -189,20 +188,11 @@ export const Analytics = () => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#F5F5F7] p-3 md:p-4">
-        <div className="max-w-5xl mx-auto">
-          <Header />
-          <div className="text-center py-8 text-gray-400">Загрузка...</div>
-        </div>
-      </div>
-    );
+    return <div className="text-center py-8 text-gray-400">Загрузка...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] p-3 md:p-4 pb-28">
-      <div className="max-w-5xl mx-auto">
-        <Header />
+    <div className="pb-28">
 
         <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6 mb-4">
           <h2 className="text-xl font-bold mb-4">График состояния</h2>
@@ -237,6 +227,5 @@ export const Analytics = () => {
           </div>
         </div>
       </div>
-    </div>
   );
 };

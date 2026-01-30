@@ -4,7 +4,6 @@ import { useStore } from '../store';
 import { Edit3, Check, X } from 'lucide-react';
 import { SYMPTOM_COLORS } from '../types';
 import { PetManager } from './PetManager';
-import { Header } from './Header';
 import { ConfirmModal } from './Modal';
 import type { SymptomTag, MedicationTag } from '../types';
 
@@ -199,11 +198,8 @@ export const Settings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] p-3 md:p-4 pb-28">
-      <div className="max-w-5xl mx-auto">
-        <Header />
-
-        <div className="space-y-4">
+    <div className="pb-28">
+      <div className="space-y-4">
           {/* Профиль пользователя */}
           {currentUser && (
             <div>
@@ -465,6 +461,5 @@ export const Settings = () => {
           onCancel={() => setDeleteMedConfirm(null)}
         />
       </div>
-    </div>
   );
 };

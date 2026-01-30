@@ -6,6 +6,7 @@ import { Settings } from './components/Settings';
 import { ChangeHistory } from './components/ChangeHistory';
 import { Analytics } from './components/Analytics';
 import { Auth } from './components/Auth';
+import { Header } from './components/Header';
 import { usePetInit } from './hooks/usePetInit';
 
 function App() {
@@ -26,12 +27,17 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#F5F5F7]">
-      {view === 'calendar' && <Calendar />}
-      {(view === 'add' || view === 'edit' || view === 'view') && <EntryView />}
-      {view === 'log' && <ActivityLog />}
-      {view === 'settings' && <Settings />}
-      {view === 'history' && <ChangeHistory />}
-      {view === 'analytics' && <Analytics />}
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        <Header />
+        <div key={view} className="animate-fadeInUp">
+          {view === 'calendar' && <Calendar />}
+          {(view === 'add' || view === 'edit' || view === 'view') && <EntryView />}
+          {view === 'log' && <ActivityLog />}
+          {view === 'settings' && <Settings />}
+          {view === 'history' && <ChangeHistory />}
+          {view === 'analytics' && <Analytics />}
+        </div>
+      </div>
     </div>
   );
 }
