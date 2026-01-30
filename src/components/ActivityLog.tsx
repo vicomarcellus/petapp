@@ -119,11 +119,12 @@ export const ActivityLog = () => {
             <p className="text-gray-400 text-center py-8">Нет записей</p>
           ) : (
             <div className="space-y-3">
-              {daySummaries.map((day) => (
+              {daySummaries.map((day, index) => (
                 <button
                   key={day.date}
                   onClick={() => handleDayClick(day.date)}
-                  className="w-full text-left p-4 rounded-[24px] bg-white/40 hover:bg-white/60 border border-transparent hover:border-white/60 transition-all"
+                  className="w-full text-left p-4 rounded-[24px] bg-white/40 hover:bg-white/60 border border-transparent hover:border-white/60 transition-all animate-fadeInUp btn-interactive"
+                  style={{ animationDelay: `${index * 50}ms` }}
                 >
                   <div className="flex items-center gap-3">
                     <div className="flex-shrink-0 w-24">

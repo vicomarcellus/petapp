@@ -165,14 +165,15 @@ export const PetManager = () => {
 
       {/* Список питомцев */}
       <div className="space-y-2 mb-3">
-        {pets.map((pet) => (
+        {pets.map((pet, index) => (
           <div
             key={pet.id}
-            className={`flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer ${
+            className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 cursor-pointer animate-fadeInUp ${
               pet.id === currentPetId
                 ? 'bg-blue-50 border-2 border-blue-500'
-                : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent'
+                : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent hover:scale-[1.02]'
             }`}
+            style={{ animationDelay: `${index * 50}ms` }}
             onClick={() => handleSelectPet(pet.id!)}
           >
             <div className="text-2xl">{getPetEmoji(pet.type)}</div>
@@ -192,7 +193,7 @@ export const PetManager = () => {
                 e.stopPropagation();
                 setDeleteConfirm(pet.id!);
               }}
-              className="p-2 hover:bg-red-100 rounded-full transition-all text-red-600"
+              className="p-2 hover:bg-red-100 rounded-full transition-all duration-200 text-red-600 hover:scale-110 active:scale-95"
             >
               <Trash2 size={14} />
             </button>

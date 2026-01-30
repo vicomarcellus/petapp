@@ -169,118 +169,119 @@ export const Calendar = () => {
   return (
     <div className="pb-28">
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
-          <div className="lg:col-span-2 bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-4 shadow-sm animate-stagger">
-            <div className="flex items-center justify-between mb-4">
-              <button
-                onClick={() => changeMonth(-1)}
-                className="p-1.5 hover:bg-gray-100 rounded-full transition-all duration-200 hover:scale-110 active:scale-95"
-              >
-                <ChevronLeft size={18} className="text-black" />
-              </button>
-              <h2 className="text-xl font-bold text-black">
-                {format(currentDate, 'LLLL yyyy', { locale: ru })}
-              </h2>
-              <button
-                onClick={() => changeMonth(1)}
-                className="p-1.5 hover:bg-gray-100 rounded-full transition-all duration-200 hover:scale-110 active:scale-95"
-              >
-                <ChevronRight size={18} className="text-black" />
-              </button>
-            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
+        <div className="lg:col-span-2 bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-4 shadow-sm animate-stagger">
+          <div className="flex items-center justify-between mb-4">
+            <button
+              onClick={() => changeMonth(-1)}
+              className="p-1.5 hover:bg-gray-100 rounded-full transition-all duration-200 hover:scale-110 active:scale-95"
+            >
+              <ChevronLeft size={18} className="text-black" />
+            </button>
+            <h2 className="text-xl font-bold text-black">
+              {format(currentDate, 'LLLL yyyy', { locale: ru })}
+            </h2>
+            <button
+              onClick={() => changeMonth(1)}
+              className="p-1.5 hover:bg-gray-100 rounded-full transition-all duration-200 hover:scale-110 active:scale-95"
+            >
+              <ChevronRight size={18} className="text-black" />
+            </button>
+          </div>
 
-            <div className="grid grid-cols-7 gap-1.5 mb-2">
-              {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(day => (
-                <div key={day} className="text-center text-xs font-semibold text-gray-400 py-0.5">
-                  {day}
-                </div>
-              ))}
-            </div>
+          <div className="grid grid-cols-7 gap-1.5 mb-2">
+            {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(day => (
+              <div key={day} className="text-center text-xs font-semibold text-gray-400 py-0.5">
+                {day}
+              </div>
+            ))}
+          </div>
 
-            <div className="grid grid-cols-7 gap-1.5 relative">
-              {weeks.flat().map((date, index) => {
-                const dateStr = formatDate(date);
-                const entry = entriesMap.get(dateStr);
-                const dayStates = statesMap.get(dateStr);
-                const dayMeds = medsMap.get(dateStr);
-                const isCurrentMonth = isSameMonth(date, currentDate);
-                const isTodayDate = isToday(date);
+          <div className="grid grid-cols-7 gap-1.5 relative">
+            {weeks.flat().map((date, index) => {
+              const dateStr = formatDate(date);
+              const entry = entriesMap.get(dateStr);
+              const dayStates = statesMap.get(dateStr);
+              const dayMeds = medsMap.get(dateStr);
+              const isCurrentMonth = isSameMonth(date, currentDate);
+              const isTodayDate = isToday(date);
 
-                const avgDayScore = dayStates && dayStates.length > 0
-                  ? Math.round(dayStates.reduce((sum, s) => sum + s.state_score, 0) / dayStates.length) as 1 | 2 | 3 | 4 | 5
-                  : entry?.state_score;
+              const avgDayScore = dayStates && dayStates.length > 0
+                ? Math.round(dayStates.reduce((sum, s) => sum + s.state_score, 0) / dayStates.length) as 1 | 2 | 3 | 4 | 5
+                : entry?.state_score;
 
-                return (
-                  <button
-                    key={index}
-                    onClick={() => handleDayClick(date)}
-                    onMouseEnter={(e) => {
-                      if ((dayMeds && dayMeds.length > 0) || entry || (dayStates && dayStates.length > 0)) {
-                        setHoveredDate(dateStr);
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const pos = {
-                          x: rect.left + rect.width / 2,
-                          y: rect.top
-                        };
-                        console.log('Tooltip position:', pos, 'rect:', rect);
-                        setTooltipPosition(pos);
-                        setTimeout(() => setShowTooltip(true), 300);
-                      }
-                    }}
-                    onMouseLeave={() => {
-                      setHoveredDate(null);
-                      setShowTooltip(false);
-                    }}
-                    disabled={!isCurrentMonth}
-                    className={`
+              return (
+                <button
+                  key={index}
+                  onClick={() => handleDayClick(date)}
+                  onMouseEnter={(e) => {
+                    if ((dayMeds && dayMeds.length > 0) || entry || (dayStates && dayStates.length > 0)) {
+                      setHoveredDate(dateStr);
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const pos = {
+                        x: rect.left + rect.width / 2,
+                        y: rect.top
+                      };
+                      console.log('Tooltip position:', pos, 'rect:', rect);
+                      setTooltipPosition(pos);
+                      setTimeout(() => setShowTooltip(true), 300);
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    setHoveredDate(null);
+                    setShowTooltip(false);
+                  }}
+                  disabled={!isCurrentMonth}
+                  className={`
                       aspect-square rounded-full p-1.5 transition-all border-2 animate-stagger
                       ${isCurrentMonth ? 'hover:scale-105 cursor-pointer' : 'cursor-not-allowed'}
                       ${isTodayDate ? 'border-gray-400' : 'border-transparent'}
                     `}
-                    style={{
-                      backgroundColor: avgDayScore && isCurrentMonth
-                        ? STATE_COLORS[avgDayScore] + '15'
-                        : '#F5F5F7',
-                      animationDelay: `${index * 20}ms`,
-                      opacity: isCurrentMonth ? 1 : 0.2
-                    }}
-                  >
-                    <div className="flex flex-col items-center justify-center h-full gap-0.5">
-                      <span className="text-base font-semibold text-gray-700">
-                        {format(date, 'd')}
-                      </span>
-                      {avgDayScore && isCurrentMonth && (
-                        <div
-                          className="w-1 h-1 rounded-full"
-                          style={{ backgroundColor: STATE_COLORS[avgDayScore] }}
-                        />
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                  style={{
+                    backgroundColor: avgDayScore && isCurrentMonth
+                      ? STATE_COLORS[avgDayScore] + '15'
+                      : '#F5F5F7',
+                    animationDelay: `${index * 20}ms`,
+                    opacity: isCurrentMonth ? 1 : 0.2
+                  }}
+                >
+                  <div className="flex flex-col items-center justify-center h-full gap-0.5">
+                    <span className="text-base font-semibold text-gray-700">
+                      {format(date, 'd')}
+                    </span>
+                    {avgDayScore && isCurrentMonth && (
+                      <div
+                        className="w-1 h-1 rounded-full"
+                        style={{ backgroundColor: STATE_COLORS[avgDayScore] }}
+                      />
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
 
-            {hoveredDate && showTooltip && createPortal(
-              (() => {
-                const entry = entriesMap.get(hoveredDate);
-                const states = statesMap.get(hoveredDate);
-                const meds = medsMap.get(hoveredDate);
+          {hoveredDate && showTooltip && createPortal(
+            (() => {
+              const entry = entriesMap.get(hoveredDate);
+              const states = statesMap.get(hoveredDate);
+              const meds = medsMap.get(hoveredDate);
 
-                if (!entry && !states && !meds) return null;
+              if (!entry && !states && !meds) return null;
 
-                // Тултип над датой
-                return (
-                  <div
-                    className="fixed z-50 bg-black text-white p-4 rounded-2xl text-sm shadow-2xl pointer-events-none"
-                    style={{
-                      left: `${tooltipPosition.x}px`,
-                      top: `${tooltipPosition.y}px`,
-                      transform: 'translate(-50%, calc(-100% - 16px))',
-                      maxWidth: '300px',
-                      width: 'max-content',
-                    }}
-                  >
+              // Тултип над датой
+              return (
+                <div
+                  className="fixed z-50 pointer-events-none"
+                  style={{
+                    left: `${tooltipPosition.x}px`,
+                    top: `${tooltipPosition.y}px`,
+                    transform: 'translate(-50%, calc(-100% - 16px))',
+                    width: 'max-content',
+                    maxWidth: '300px',
+                  }}
+                >
+                  <div className="bg-black text-white p-4 rounded-2xl text-sm shadow-2xl animate-scaleIn origin-bottom">
                     {states && states.length > 0 && (
                       <div className="mb-3 last:mb-0">
                         <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">
@@ -318,53 +319,54 @@ export const Calendar = () => {
                       </div>
                     )}
                   </div>
-                );
-              })(),
-              document.body
-            )}
+                </div>
+              );
+            })(),
+            document.body
+          )}
+        </div>
+
+        <div className="space-y-3">
+          <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-3 shadow-sm transition-all duration-300 hover:scale-105 hover:shadow-lg animate-stagger" style={{ animationDelay: '100ms' }}>
+            <div className="flex items-start gap-2">
+              <div className="w-8 h-8 bg-black rounded-[20px] flex items-center justify-center flex-shrink-0">
+                <Activity className="text-white" size={16} />
+              </div>
+              <div className="flex-1">
+                <p className="text-gray-500 text-xs mb-0.5">Средняя оценка</p>
+                <p className="text-2xl font-bold text-black">{avgScore}</p>
+                <p className="text-gray-400 text-xs">За месяц</p>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-3">
-            <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-3 shadow-sm transition-all duration-300 hover:scale-105 hover:shadow-lg animate-stagger" style={{ animationDelay: '100ms' }}>
-              <div className="flex items-start gap-2">
-                <div className="w-8 h-8 bg-black rounded-[20px] flex items-center justify-center flex-shrink-0">
-                  <Activity className="text-white" size={16} />
-                </div>
-                <div className="flex-1">
-                  <p className="text-gray-500 text-xs mb-0.5">Средняя оценка</p>
-                  <p className="text-2xl font-bold text-black">{avgScore}</p>
-                  <p className="text-gray-400 text-xs">За месяц</p>
-                </div>
+          <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-3 shadow-sm transition-all duration-300 hover:scale-105 hover:shadow-lg animate-stagger" style={{ animationDelay: '200ms' }}>
+            <div className="flex items-start gap-2">
+              <div className="w-8 h-8 bg-[#F5F5F7] rounded-[20px] flex items-center justify-center text-black text-sm font-bold flex-shrink-0">
+                {thisMonthStateEntries.length}
+              </div>
+              <div className="flex-1">
+                <p className="text-gray-500 text-xs mb-0.5">Записей состояния</p>
+                <p className="text-2xl font-bold text-black">{thisMonthStateEntries.length}</p>
+                <p className="text-gray-400 text-xs">В этом месяце</p>
               </div>
             </div>
+          </div>
 
-            <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-3 shadow-sm transition-all duration-300 hover:scale-105 hover:shadow-lg animate-stagger" style={{ animationDelay: '200ms' }}>
-              <div className="flex items-start gap-2">
-                <div className="w-8 h-8 bg-[#F5F5F7] rounded-[20px] flex items-center justify-center text-black text-sm font-bold flex-shrink-0">
-                  {thisMonthStateEntries.length}
-                </div>
-                <div className="flex-1">
-                  <p className="text-gray-500 text-xs mb-0.5">Записей состояния</p>
-                  <p className="text-2xl font-bold text-black">{thisMonthStateEntries.length}</p>
-                  <p className="text-gray-400 text-xs">В этом месяце</p>
-                </div>
+          <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-3 shadow-sm transition-all duration-300 hover:scale-105 hover:shadow-lg animate-stagger" style={{ animationDelay: '300ms' }}>
+            <div className="flex items-start gap-2">
+              <div className="w-8 h-8 bg-[#F5F5F7] rounded-[20px] flex items-center justify-center text-black text-sm font-bold flex-shrink-0">
+                {goodDays}
               </div>
-            </div>
-
-            <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-3 shadow-sm transition-all duration-300 hover:scale-105 hover:shadow-lg animate-stagger" style={{ animationDelay: '300ms' }}>
-              <div className="flex items-start gap-2">
-                <div className="w-8 h-8 bg-[#F5F5F7] rounded-[20px] flex items-center justify-center text-black text-sm font-bold flex-shrink-0">
-                  {goodDays}
-                </div>
-                <div className="flex-1">
-                  <p className="text-gray-500 text-xs mb-0.5">Хороших дней</p>
-                  <p className="text-2xl font-bold text-black">{goodDays}</p>
-                  <p className="text-gray-400 text-xs">Оценка 4-5</p>
-                </div>
+              <div className="flex-1">
+                <p className="text-gray-500 text-xs mb-0.5">Хороших дней</p>
+                <p className="text-2xl font-bold text-black">{goodDays}</p>
+                <p className="text-gray-400 text-xs">Оценка 4-5</p>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
       <QuickChat />
     </div>

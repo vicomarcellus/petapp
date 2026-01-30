@@ -154,6 +154,12 @@ body {
   pointer-events: none;
 }
 
+/* Button parent needs position relative */
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
 /* Modal backdrop animation */
 @keyframes backdropFadeIn {
   from {
@@ -187,6 +193,17 @@ body {
 
 .animate-stagger {
   animation: staggerFadeIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Line drawing animation for charts */
+@keyframes drawLine {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-drawLine {
+  animation: drawLine 1.5s ease-out forwards;
 }
 
 /* Interactive button styles */

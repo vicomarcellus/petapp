@@ -141,6 +141,11 @@ export const Analytics = () => {
             strokeWidth="3"
             strokeLinecap="round"
             strokeLinejoin="round"
+            className="animate-drawLine"
+            style={{
+              strokeDasharray: 1000,
+              strokeDashoffset: 1000,
+            }}
           />
 
           {/* Точки */}
@@ -150,7 +155,7 @@ export const Analytics = () => {
             const color = STATE_COLORS[Math.round(point.avgScore) as 1 | 2 | 3 | 4 | 5];
 
             return (
-              <g key={index}>
+              <g key={index} className="animate-scaleIn" style={{ animationDelay: `${index * 30}ms` }}>
                 <circle
                   cx={x}
                   cy={y}
@@ -158,6 +163,8 @@ export const Analytics = () => {
                   fill={color}
                   stroke="white"
                   strokeWidth="2"
+                  className="transition-all hover:r-7"
+                  style={{ cursor: 'pointer' }}
                 />
                 {/* Дата под точкой (показываем каждую 3-ю) */}
                 {index % 3 === 0 && (
@@ -194,13 +201,13 @@ export const Analytics = () => {
   return (
     <div className="pb-28">
 
-        <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6 mb-4">
+        <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6 mb-4 animate-fadeInUp">
           <h2 className="text-xl font-bold mb-4">График состояния</h2>
           {renderChart()}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6">
+          <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6 animate-fadeInUp transition-all hover:scale-105 hover:shadow-lg" style={{ animationDelay: '100ms' }}>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
                 <TrendingUp className="text-blue-600" size={24} />
@@ -213,7 +220,7 @@ export const Analytics = () => {
             <div className="text-sm text-gray-600">За последние 30 дней</div>
           </div>
 
-          <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6">
+          <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6 animate-fadeInUp transition-all hover:scale-105 hover:shadow-lg" style={{ animationDelay: '200ms' }}>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center">
                 <Activity className="text-green-600" size={24} />
