@@ -1113,266 +1113,254 @@ export const EntryView = () => {
           </div>
         </AnimatedModal>
 
-        {showAddMedication && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowAddMedication(false)}>
-            <div className="bg-white border border-white/60 rounded-[32px] p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold">{editingEntry ? 'Редактировать лекарство' : 'Добавить лекарство'}</h3>
-                <button onClick={() => setShowAddMedication(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Время (необязательно)</label>
-                  <div className="relative">
-                    <input 
-                      type="time" 
-                      value={medicationTime} 
-                      onChange={(e) => setMedicationTime(e.target.value)} 
-                      className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 [&::-webkit-calendar-picker-indicator]:hidden"
-                    />
-                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Название</label>
-                  <input
-                    type="text"
-                    value={medicationName}
-                    onChange={(e) => {
-                      setMedicationName(e.target.value);
-                      // Автозаполнение дозировки при выборе из списка
-                      const saved = savedMedications.find(m => m.name === e.target.value);
-                      if (saved && !medicationDosage) {
-                        setMedicationDosage(saved.dosage);
-                      }
-                    }}
-                    list="medications-list"
-                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
-                    placeholder="Например: Преднизолон"
-                  />
-                  {savedMedications.length > 0 && (
-                    <datalist id="medications-list">
-                      {savedMedications.map((med, idx) => (
-                        <option key={idx} value={med.name} />
-                      ))}
-                    </datalist>
-                  )}
-                  {savedMedications.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {savedMedications.slice(0, 5).map((med, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => {
-                            setMedicationName(med.name);
-                            setMedicationDosage(med.dosage);
-                          }}
-                          className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"
-                        >
-                          {med.name} {med.dosage}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Дозировка</label>
-                  <input 
-                    type="text" 
-                    value={medicationDosage} 
-                    onChange={(e) => setMedicationDosage(e.target.value)} 
-                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400" 
-                    placeholder="Например: 0,3 мл" 
-                  />
-                </div>
-
-                {!editingEntry && (
-                  <div className="border-t border-gray-200 pt-4">
-                    <div className="flex items-center gap-3 mb-3">
-                      <input
-                        type="checkbox"
-                        id="schedule-med"
-                        checked={isScheduling}
-                        onChange={(e) => setIsScheduling(e.target.checked)}
-                        className="w-5 h-5 rounded border-gray-300 text-black focus:ring-black cursor-pointer"
-                      />
-                      <label htmlFor="schedule-med" className="text-sm font-semibold text-gray-700 flex items-center gap-2 cursor-pointer">
-                        <Clock size={18} />
-                        Запланировать
-                      </label>
-                    </div>
-                    {isScheduling && (
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Дать через (минут)</label>
-                        <input
-                          type="number"
-                          value={scheduleMinutes}
-                          onChange={(e) => setScheduleMinutes(e.target.value)}
-                          className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
-                          placeholder="Например: 30"
-                          min="1"
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <button onClick={handleAddMedication} disabled={!medicationName || (isScheduling && !scheduleMinutes)} className="w-full py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
-                  {isScheduling ? 'Запланировать' : 'Добавить'}
-                </button>
+        <AnimatedModal
+          isOpen={showAddMedication}
+          onClose={() => setShowAddMedication(false)}
+          title={editingEntry ? 'Редактировать лекарство' : 'Добавить лекарство'}
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Время (необязательно)</label>
+              <div className="relative">
+                <input 
+                  type="time" 
+                  value={medicationTime} 
+                  onChange={(e) => setMedicationTime(e.target.value)} 
+                  className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 [&::-webkit-calendar-picker-indicator]:hidden"
+                />
+                <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
               </div>
             </div>
-          </div>
-        )}
 
-        {showAddFeeding && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowAddFeeding(false)}>
-            <div className="bg-white border border-white/60 rounded-[32px] p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold">{editingEntry ? 'Редактировать питание' : 'Добавить питание'}</h3>
-                <button onClick={() => setShowAddFeeding(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Время (необязательно)</label>
-                  <div className="relative">
-                    <input 
-                      type="time" 
-                      value={foodTime} 
-                      onChange={(e) => setFoodTime(e.target.value)} 
-                      className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 [&::-webkit-calendar-picker-indicator]:hidden"
-                    />
-                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Название</label>
-                  <input
-                    type="text"
-                    value={foodName}
-                    onChange={(e) => {
-                      setFoodName(e.target.value);
-                      // Автозаполнение количества и единицы
-                      const saved = savedFoods.find(f => f.name === e.target.value);
-                      if (saved && !foodAmount) {
-                        setFoodAmount(saved.amount);
-                        setFoodUnit(saved.unit);
-                      }
-                    }}
-                    list="foods-list"
-                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
-                    placeholder="Например: Корм, Вода"
-                  />
-                  {savedFoods.length > 0 && (
-                    <datalist id="foods-list">
-                      {savedFoods.map((food, idx) => (
-                        <option key={idx} value={food.name} />
-                      ))}
-                    </datalist>
-                  )}
-                  {savedFoods.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {savedFoods.slice(0, 5).map((food, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => {
-                            setFoodName(food.name);
-                            setFoodAmount(food.amount);
-                            setFoodUnit(food.unit);
-                          }}
-                          className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"
-                        >
-                          {food.name} {food.amount} {food.unit === 'g' ? 'г' : food.unit === 'ml' ? 'мл' : ''}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Количество</label>
-                    <input 
-                      type="text" 
-                      value={foodAmount} 
-                      onChange={(e) => setFoodAmount(e.target.value)} 
-                      className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400" 
-                      placeholder="50" 
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Единица</label>
-                    <select 
-                      value={foodUnit} 
-                      onChange={(e) => setFoodUnit(e.target.value as 'g' | 'ml' | 'none')} 
-                      className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 appearance-none cursor-pointer"
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Название</label>
+              <input
+                type="text"
+                value={medicationName}
+                onChange={(e) => {
+                  setMedicationName(e.target.value);
+                  const saved = savedMedications.find(m => m.name === e.target.value);
+                  if (saved && !medicationDosage) {
+                    setMedicationDosage(saved.dosage);
+                  }
+                }}
+                list="medications-list"
+                className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
+                placeholder="Например: Преднизолон"
+              />
+              {savedMedications.length > 0 && (
+                <datalist id="medications-list">
+                  {savedMedications.map((med, idx) => (
+                    <option key={idx} value={med.name} />
+                  ))}
+                </datalist>
+              )}
+              {savedMedications.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {savedMedications.slice(0, 5).map((med, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setMedicationName(med.name);
+                        setMedicationDosage(med.dosage);
+                      }}
+                      className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-full transition-all duration-200 hover:scale-105 active:scale-95"
                     >
-                      <option value="g">г</option>
-                      <option value="ml">мл</option>
-                      <option value="none">-</option>
-                    </select>
-                  </div>
+                      {med.name} {med.dosage}
+                    </button>
+                  ))}
                 </div>
+              )}
+            </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Заметка (опционально)</label>
-                  <textarea 
-                    value={foodNote} 
-                    onChange={(e) => setFoodNote(e.target.value)} 
-                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none resize-none text-gray-900 placeholder-gray-400" 
-                    rows={2} 
-                    placeholder="Дополнительная информация..." 
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Дозировка</label>
+              <input 
+                type="text" 
+                value={medicationDosage} 
+                onChange={(e) => setMedicationDosage(e.target.value)} 
+                className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400" 
+                placeholder="Например: 0,3 мл" 
+              />
+            </div>
+
+            {!editingEntry && (
+              <div className="border-t border-gray-200 pt-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <input
+                    type="checkbox"
+                    id="schedule-med"
+                    checked={isScheduling}
+                    onChange={(e) => setIsScheduling(e.target.checked)}
+                    className="w-5 h-5 rounded border-gray-300 text-black focus:ring-black cursor-pointer"
                   />
+                  <label htmlFor="schedule-med" className="text-sm font-semibold text-gray-700 flex items-center gap-2 cursor-pointer">
+                    <Clock size={18} />
+                    Запланировать
+                  </label>
                 </div>
-
-                {!editingEntry && (
-                  <div className="border-t border-gray-200 pt-4">
-                    <div className="flex items-center gap-3 mb-3">
-                      <input
-                        type="checkbox"
-                        id="schedule-feed"
-                        checked={isScheduling}
-                        onChange={(e) => setIsScheduling(e.target.checked)}
-                        className="w-5 h-5 rounded border-gray-300 text-black focus:ring-black cursor-pointer"
-                      />
-                      <label htmlFor="schedule-feed" className="text-sm font-semibold text-gray-700 flex items-center gap-2 cursor-pointer">
-                        <Clock size={18} />
-                        Запланировать
-                      </label>
-                    </div>
-                    {isScheduling && (
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Покормить через (минут)</label>
-                        <input
-                          type="number"
-                          value={scheduleMinutes}
-                          onChange={(e) => setScheduleMinutes(e.target.value)}
-                          className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
-                          placeholder="Например: 30"
-                          min="1"
-                        />
-                      </div>
-                    )}
+                {isScheduling && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Дать через (минут)</label>
+                    <input
+                      type="number"
+                      value={scheduleMinutes}
+                      onChange={(e) => setScheduleMinutes(e.target.value)}
+                      className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
+                      placeholder="Например: 30"
+                      min="1"
+                    />
                   </div>
                 )}
+              </div>
+            )}
 
-                <button 
-                  onClick={handleAddFeeding} 
-                  disabled={!foodName || (isScheduling && !scheduleMinutes)} 
-                  className="w-full py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                >
-                  {isScheduling ? 'Запланировать' : 'Добавить'}
-                </button>
+            <button onClick={handleAddMedication} disabled={!medicationName || (isScheduling && !scheduleMinutes)} className="w-full py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
+              {isScheduling ? 'Запланировать' : 'Добавить'}
+            </button>
+          </div>
+        </AnimatedModal>
+
+        <AnimatedModal
+          isOpen={showAddFeeding}
+          onClose={() => setShowAddFeeding(false)}
+          title={editingEntry ? 'Редактировать питание' : 'Добавить питание'}
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Время (необязательно)</label>
+              <div className="relative">
+                <input 
+                  type="time" 
+                  value={foodTime} 
+                  onChange={(e) => setFoodTime(e.target.value)} 
+                  className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 [&::-webkit-calendar-picker-indicator]:hidden"
+                />
+                <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
               </div>
             </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Название</label>
+              <input
+                type="text"
+                value={foodName}
+                onChange={(e) => {
+                  setFoodName(e.target.value);
+                  const saved = savedFoods.find(f => f.name === e.target.value);
+                  if (saved && !foodAmount) {
+                    setFoodAmount(saved.amount);
+                    setFoodUnit(saved.unit);
+                  }
+                }}
+                list="foods-list"
+                className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
+                placeholder="Например: Корм, Вода"
+              />
+              {savedFoods.length > 0 && (
+                <datalist id="foods-list">
+                  {savedFoods.map((food, idx) => (
+                    <option key={idx} value={food.name} />
+                  ))}
+                </datalist>
+              )}
+              {savedFoods.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {savedFoods.slice(0, 5).map((food, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setFoodName(food.name);
+                        setFoodAmount(food.amount);
+                        setFoodUnit(food.unit);
+                      }}
+                      className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-full transition-all duration-200 hover:scale-105 active:scale-95"
+                    >
+                      {food.name} {food.amount} {food.unit === 'g' ? 'г' : food.unit === 'ml' ? 'мл' : ''}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Количество</label>
+                <input 
+                  type="text" 
+                  value={foodAmount} 
+                  onChange={(e) => setFoodAmount(e.target.value)} 
+                  className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400" 
+                  placeholder="50" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Единица</label>
+                <select 
+                  value={foodUnit} 
+                  onChange={(e) => setFoodUnit(e.target.value as 'g' | 'ml' | 'none')} 
+                  className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 appearance-none cursor-pointer"
+                >
+                  <option value="g">г</option>
+                  <option value="ml">мл</option>
+                  <option value="none">-</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Заметка (опционально)</label>
+              <textarea 
+                value={foodNote} 
+                onChange={(e) => setFoodNote(e.target.value)} 
+                className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none resize-none text-gray-900 placeholder-gray-400" 
+                rows={2} 
+                placeholder="Дополнительная информация..." 
+              />
+            </div>
+
+            {!editingEntry && (
+              <div className="border-t border-gray-200 pt-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <input
+                    type="checkbox"
+                    id="schedule-feed"
+                    checked={isScheduling}
+                    onChange={(e) => setIsScheduling(e.target.checked)}
+                    className="w-5 h-5 rounded border-gray-300 text-black focus:ring-black cursor-pointer"
+                  />
+                  <label htmlFor="schedule-feed" className="text-sm font-semibold text-gray-700 flex items-center gap-2 cursor-pointer">
+                    <Clock size={18} />
+                    Запланировать
+                  </label>
+                </div>
+                {isScheduling && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Покормить через (минут)</label>
+                    <input
+                      type="number"
+                      value={scheduleMinutes}
+                      onChange={(e) => setScheduleMinutes(e.target.value)}
+                      className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
+                      placeholder="Например: 30"
+                      min="1"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            <button 
+              onClick={handleAddFeeding} 
+              disabled={!foodName || (isScheduling && !scheduleMinutes)} 
+              className="w-full py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+            >
+              {isScheduling ? 'Запланировать' : 'Добавить'}
+            </button>
           </div>
-        )}
+        </AnimatedModal>
 
         {NotificationModal && <NotificationModal />}
 
