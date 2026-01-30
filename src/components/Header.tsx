@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
 import { ChevronDown, BarChart3, ClipboardList, Settings, Calendar as CalendarIcon, LogOut, ArrowLeft } from 'lucide-react';
@@ -22,6 +22,15 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
   const { setView, currentPetId, setCurrentPetId, view, currentUser, setCurrentUser } = useStore();
   const [showPetMenu, setShowPetMenu] = useState(false);
   const [pets, setPets] = useState<Pet[]>([]);
+  
+  // Refs для кнопок навигации
+  const calendarRef = useRef<HTMLButtonElement>(null);
+  const analyticsRef = useRef<HTMLButtonElement>(null);
+  const logRef = useRef<HTMLButtonElement>(null);
+  const settingsRef = useRef<HTMLButtonElement>(null);
+  
+  // Состояние для позиции и размера пилюли
+  const [pillStyle, setPillStyle] = useState({ left: 0, width: 0 });
 
   useEffect(() => {
     if (currentUser) {
@@ -97,6 +106,42 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
     setView('calendar');
   };
 
+  // Обновляем позицию пилюли при изменении view
+  useEffect(() => {
+    const updatePillPosition = () => {
+      let activeRef: React.RefObject<HTMLButtonElement> | null = null;
+      
+      if (view === 'calendar' || view === 'add' || view === 'edit' || view === 'view') {
+        activeRef = calendarRef;
+      } else if (view === 'analytics') {
+        activeRef = analyticsRef;
+      } else if (view === 'log') {
+        activeRef = logRef;
+      } else if (view === 'settings' || view === 'history') {
+        activeRef = settingsRef;
+      }
+      
+      if (activeRef?.current) {
+        const rect = activeRef.current.getBoundingClientRect();
+        const parentRect = activeRef.current.parentElement?.getBoundingClientRect();
+        
+        if (parentRect) {
+          setPillStyle({
+            left: rect.left - parentRect.left,
+            width: rect.width
+          });
+        }
+      }
+    };
+    
+    // Небольшая задержка для корректного расчета после рендера
+    setTimeout(updatePillPosition, 0);
+    
+    // Обновляем при изменении размера окна
+    window.addEventListener('resize', updatePillPosition);
+    return () => window.removeEventListener('resize', updatePillPosition);
+  }, [view]);
+
   return (
     <header className="mb-8">
       {/* Top Bar - Glass Morphism Style */}
@@ -117,43 +162,59 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
         </div>
 
         {/* Center: Navigation - Glass Pills */}
-        <nav className="flex items-center gap-2 bg-white/40 backdrop-blur-md rounded-full p-1 border border-white/60">
+        <nav className="relative flex items-center gap-2 bg-white/40 backdrop-blur-md rounded-full p-1 border border-white/60">
+          {/* Анимированная пилюля-индикатор */}
+          <div
+            className="absolute bg-white rounded-full transition-all duration-300 ease-in-out"
+            style={{
+              left: `${pillStyle.left}px`,
+              width: `${pillStyle.width}px`,
+              height: 'calc(100% - 8px)',
+              top: '4px',
+              zIndex: 0
+            }}
+          />
+          
           <button
+            ref={calendarRef}
             onClick={goToToday}
-            className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
+            className={`relative z-10 px-5 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${
               view === 'calendar' || view === 'add' || view === 'edit' || view === 'view'
-                ? 'bg-white text-gray-900'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                ? 'text-gray-900'
+                : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             Календарь
           </button>
           <button
+            ref={analyticsRef}
             onClick={() => setView('analytics')}
-            className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
+            className={`relative z-10 px-5 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${
               view === 'analytics'
-                ? 'bg-white text-gray-900'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                ? 'text-gray-900'
+                : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             Аналитика
           </button>
           <button
+            ref={logRef}
             onClick={() => setView('log')}
-            className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
+            className={`relative z-10 px-5 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${
               view === 'log'
-                ? 'bg-white text-gray-900'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                ? 'text-gray-900'
+                : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             Лог
           </button>
           <button
+            ref={settingsRef}
             onClick={() => setView('settings')}
-            className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
+            className={`relative z-10 px-5 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${
               view === 'settings' || view === 'history'
-                ? 'bg-white text-gray-900'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                ? 'text-gray-900'
+                : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             Настройки
