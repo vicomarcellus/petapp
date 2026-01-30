@@ -18,6 +18,7 @@ export const QuickChat = () => {
   const { currentUser, currentPetId, selectedDate, setSelectedDate, setView } = useStore();
   const [message, setMessage] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -29,6 +30,14 @@ export const QuickChat = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => setIsAnimating(true), 10);
+    } else {
+      setIsAnimating(false);
+    }
+  }, [isOpen]);
 
   const handleSend = async () => {
     if (!message.trim() || loading || !currentUser || !currentPetId) return;
@@ -265,15 +274,33 @@ export const QuickChat = () => {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-black rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-transform z-50"
+        className="fixed bottom-6 right-6 w-14 h-14 bg-black rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-2xl active:scale-95 z-50 group"
       >
-        <Sparkles className="text-white" size={24} />
+        <Sparkles className="text-white transition-transform duration-300 group-hover:rotate-12" size={24} />
       </button>
     );
   }
 
   return (
-    <div className="fixed bottom-6 right-6 w-96 bg-white rounded-2xl shadow-2xl z-50 flex flex-col max-h-[600px] border border-gray-200">
+    <div 
+      className={`fixed inset-0 bg-black flex items-end justify-center z-50 p-4 transition-all duration-300 ${
+        isAnimating ? 'bg-opacity-50 backdrop-blur-sm' : 'bg-opacity-0'
+      }`}
+      onClick={() => setIsOpen(false)}
+    >
+      <div 
+        className={`bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[600px] flex flex-col transition-all duration-300 ${
+          isAnimating 
+            ? 'translate-y-0 opacity-100 scale-100' 
+            : 'translate-y-8 opacity-0 scale-95'
+        }`}
+        style={{ 
+          transitionTimingFunction: isAnimating 
+            ? 'cubic-bezier(0.34, 1.56, 0.64, 1)' 
+            : 'ease-out' 
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
       <div className="bg-black p-4 rounded-t-2xl flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -282,7 +309,7 @@ export const QuickChat = () => {
           </div>
           <button
             onClick={() => setIsOpen(false)}
-            className="text-white hover:bg-white/20 rounded-full p-1 w-8 h-8 flex items-center justify-center"
+            className="text-white hover:bg-white/20 rounded-full p-1 w-8 h-8 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
           >
             <X size={20} />
           </button>
@@ -291,7 +318,7 @@ export const QuickChat = () => {
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#F5F5F7] min-h-0">
         {messages.length === 0 ? (
-          <div className="text-center text-gray-400 text-sm py-8">
+          <div className="text-center text-gray-400 text-sm py-8 animate-fadeIn">
             Привет! Я AI помощник.
             <br />
             Спросите меня о здоровье питомца!
@@ -300,10 +327,11 @@ export const QuickChat = () => {
           messages.map((msg, idx) => (
             <div
               key={idx}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-fadeInUp`}
+              style={{ animationDelay: `${idx * 50}ms` }}
             >
               <div
-                className={`max-w-[80%] px-4 py-2 rounded-2xl ${
+                className={`max-w-[80%] px-4 py-2 rounded-2xl transition-all duration-200 hover:scale-[1.02] ${
                   msg.role === 'user'
                     ? 'bg-black text-white'
                     : 'bg-white text-gray-800 border border-gray-200'
@@ -313,7 +341,7 @@ export const QuickChat = () => {
                 {msg.actionButton && (
                   <button
                     onClick={() => handleViewDay(msg.actionButton!.date)}
-                    className="mt-2 w-full px-3 py-2 bg-black text-white rounded-lg text-xs font-medium hover:bg-gray-800 transition-colors"
+                    className="mt-2 w-full px-3 py-2 bg-black text-white rounded-lg text-xs font-medium hover:bg-gray-800 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                   >
                     {msg.actionButton.text}
                   </button>
@@ -323,7 +351,7 @@ export const QuickChat = () => {
           ))
         )}
         {loading && (
-          <div className="flex justify-start">
+          <div className="flex justify-start animate-fadeIn">
             <div className="bg-white px-4 py-2 rounded-2xl border border-gray-200">
               <Loader2 className="animate-spin text-black" size={20} />
             </div>
@@ -341,12 +369,12 @@ export const QuickChat = () => {
             onKeyPress={(e) => e.key === 'Enter' && !loading && handleSend()}
             placeholder="Спросите что-нибудь..."
             disabled={loading}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-black text-sm"
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-black text-sm transition-all duration-200"
           />
           <button
             onClick={handleSend}
             disabled={loading || !message.trim()}
-            className="w-10 h-10 bg-black rounded-full flex items-center justify-center text-white hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+            className="w-10 h-10 bg-black rounded-full flex items-center justify-center text-white hover:bg-gray-800 transition-all duration-200 hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
           >
             {loading ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
           </button>
