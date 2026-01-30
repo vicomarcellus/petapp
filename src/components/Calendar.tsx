@@ -170,11 +170,11 @@ export const Calendar = () => {
     <div className="pb-28">
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
-          <div className="lg:col-span-2 bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-4 shadow-sm">
+          <div className="lg:col-span-2 bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-4 shadow-sm animate-stagger">
             <div className="flex items-center justify-between mb-4">
               <button
                 onClick={() => changeMonth(-1)}
-                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+                className="p-1.5 hover:bg-gray-100 rounded-full transition-all duration-200 hover:scale-110 active:scale-95"
               >
                 <ChevronLeft size={18} className="text-black" />
               </button>
@@ -183,7 +183,7 @@ export const Calendar = () => {
               </h2>
               <button
                 onClick={() => changeMonth(1)}
-                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+                className="p-1.5 hover:bg-gray-100 rounded-full transition-all duration-200 hover:scale-110 active:scale-95"
               >
                 <ChevronRight size={18} className="text-black" />
               </button>
@@ -233,7 +233,7 @@ export const Calendar = () => {
                     }}
                     disabled={!isCurrentMonth}
                     className={`
-                      aspect-square rounded-full p-1.5 transition-all border-2
+                      aspect-square rounded-full p-1.5 transition-all border-2 animate-stagger
                       ${isCurrentMonth ? 'hover:scale-105 cursor-pointer' : 'opacity-20 cursor-not-allowed'}
                       ${isTodayDate ? 'border-gray-400' : 'border-transparent'}
                     `}
@@ -241,6 +241,7 @@ export const Calendar = () => {
                       backgroundColor: avgDayScore && isCurrentMonth
                         ? STATE_COLORS[avgDayScore] + '15'
                         : '#F5F5F7',
+                      animationDelay: `${index * 20}ms`
                     }}
                   >
                     <div className="flex flex-col items-center justify-center h-full gap-0.5">
@@ -323,7 +324,7 @@ export const Calendar = () => {
           </div>
 
           <div className="space-y-3">
-            <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-3 shadow-sm">
+            <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-3 shadow-sm transition-all duration-300 hover:scale-105 hover:shadow-lg animate-stagger" style={{ animationDelay: '100ms' }}>
               <div className="flex items-start gap-2">
                 <div className="w-8 h-8 bg-black rounded-[20px] flex items-center justify-center flex-shrink-0">
                   <Activity className="text-white" size={16} />
@@ -336,7 +337,7 @@ export const Calendar = () => {
               </div>
             </div>
 
-            <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-3 shadow-sm">
+            <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-3 shadow-sm transition-all duration-300 hover:scale-105 hover:shadow-lg animate-stagger" style={{ animationDelay: '200ms' }}>
               <div className="flex items-start gap-2">
                 <div className="w-8 h-8 bg-[#F5F5F7] rounded-[20px] flex items-center justify-center text-black text-sm font-bold flex-shrink-0">
                   {thisMonthStateEntries.length}
@@ -349,7 +350,7 @@ export const Calendar = () => {
               </div>
             </div>
 
-            <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-3 shadow-sm">
+            <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-3 shadow-sm transition-all duration-300 hover:scale-105 hover:shadow-lg animate-stagger" style={{ animationDelay: '300ms' }}>
               <div className="flex items-start gap-2">
                 <div className="w-8 h-8 bg-[#F5F5F7] rounded-[20px] flex items-center justify-center text-black text-sm font-bold flex-shrink-0">
                   {goodDays}
