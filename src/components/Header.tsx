@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
-import { ChevronDown, BarChart3, ClipboardList, Settings, Calendar as CalendarIcon, LogOut, ArrowLeft } from 'lucide-react';
+import { ChevronDown, BarChart3, ClipboardList, Settings, Calendar as CalendarIcon, LogOut, ArrowLeft, Clock } from 'lucide-react';
 import { Pet } from '../types';
 
 interface HeaderProps {
@@ -27,6 +27,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
   const calendarRef = useRef<HTMLButtonElement>(null);
   const analyticsRef = useRef<HTMLButtonElement>(null);
   const logRef = useRef<HTMLButtonElement>(null);
+  const schedulerRef = useRef<HTMLButtonElement>(null);
   const settingsRef = useRef<HTMLButtonElement>(null);
   
   // Состояние для позиции и размера пилюли
@@ -117,6 +118,8 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
         activeRef = analyticsRef;
       } else if (view === 'log') {
         activeRef = logRef;
+      } else if (view === 'scheduler') {
+        activeRef = schedulerRef;
       } else if (view === 'settings' || view === 'history') {
         activeRef = settingsRef;
       }
@@ -207,6 +210,17 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
             }`}
           >
             Лог
+          </button>
+          <button
+            ref={schedulerRef}
+            onClick={() => setView('scheduler')}
+            className={`relative z-10 px-5 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${
+              view === 'scheduler'
+                ? 'text-gray-900'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Планировщик
           </button>
           <button
             ref={settingsRef}

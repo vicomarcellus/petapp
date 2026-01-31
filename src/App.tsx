@@ -5,6 +5,7 @@ import { ActivityLog } from './components/ActivityLog';
 import { Settings } from './components/Settings';
 import { ChangeHistory } from './components/ChangeHistory';
 import { Analytics } from './components/Analytics';
+import { Scheduler } from './components/Scheduler';
 import { Auth } from './components/Auth';
 import { Header } from './components/Header';
 import { usePetInit } from './hooks/usePetInit';
@@ -36,6 +37,7 @@ function App() {
           {view === 'settings' && <Settings />}
           {view === 'history' && <ChangeHistory />}
           {view === 'analytics' && <Analytics />}
+          {view === 'scheduler' && <Scheduler />}
         </div>
       </div>
     </div>
