@@ -4,6 +4,7 @@ import { useStore } from '../store';
 import { TrendingUp, Activity, Pill, AlertCircle, TrendingDown, Calendar, BarChart3, Zap } from 'lucide-react';
 import { STATE_COLORS } from '../types';
 import type { MedicationEntry, SymptomEntry } from '../types';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 
 interface DayData {
   date: string;
@@ -221,16 +222,17 @@ export const Analytics = () => {
   };
 
   const calculateTrend = (data: DayData[]) => {
-    if (data.length < 3) {
+    if (data.length < 2) {
       setTrend(null);
       return;
     }
 
-    // Берем последние 7 дней и предыдущие 7 дней
-    const recentDays = data.slice(-7);
-    const previousDays = data.slice(-14, -7);
+    // Если данных меньше 14, берем половину для сравнения
+    const splitPoint = Math.floor(data.length / 2);
+    const recentDays = data.slice(splitPoint);
+    const previousDays = data.slice(0, splitPoint);
 
-    if (previousDays.length === 0) {
+    if (previousDays.length === 0 || recentDays.length === 0) {
       setTrend(null);
       return;
     }
@@ -239,7 +241,7 @@ export const Analytics = () => {
     const previousAvg = previousDays.reduce((sum, d) => sum + d.avgScore, 0) / previousDays.length;
     const change = recentAvg - previousAvg;
 
-    // Простой линейный прогноз на следующие 3 дня
+    // Простой линейный прогноз на следующие дни
     const prediction = recentAvg + change;
 
     setTrend({
@@ -258,120 +260,67 @@ export const Analytics = () => {
       );
     }
 
-    const width = 800;
-    const height = 300;
-    const padding = { top: 20, right: 20, bottom: 40, left: 40 };
-    const chartWidth = width - padding.left - padding.right;
-    const chartHeight = height - padding.top - padding.bottom;
-
-    // Масштабирование
-    const xStep = chartWidth / (chartData.length - 1 || 1);
-    const yScale = chartHeight / 5; // 5 - максимальная оценка
-
-    // Создаем путь для линии
-    const linePath = chartData.map((point, index) => {
-      const x = padding.left + index * xStep;
-      const y = padding.top + chartHeight - (point.avgScore * yScale);
-      return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
-    }).join(' ');
-
-    // Создаем путь для заливки под линией
-    const areaPath = `${linePath} L ${padding.left + (chartData.length - 1) * xStep} ${padding.top + chartHeight} L ${padding.left} ${padding.top + chartHeight} Z`;
+    // Подготавливаем данные для Recharts
+    const data = chartData.map(day => ({
+      date: new Date(day.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }),
+      score: day.avgScore,
+      fullDate: day.date,
+      medications: day.medications,
+      symptoms: day.symptoms
+    }));
 
     return (
-      <div className="w-full overflow-x-auto">
-        <svg width={width} height={height} className="mx-auto">
-          {/* Сетка */}
-          {[1, 2, 3, 4, 5].map(score => {
-            const y = padding.top + chartHeight - (score * yScale);
-            return (
-              <g key={score}>
-                <line
-                  x1={padding.left}
-                  y1={y}
-                  x2={padding.left + chartWidth}
-                  y2={y}
-                  stroke="#E5E7EB"
-                  strokeWidth="1"
-                />
-                <text
-                  x={padding.left - 10}
-                  y={y + 4}
-                  textAnchor="end"
-                  fontSize="12"
-                  fill="#9CA3AF"
-                >
-                  {score}
-                </text>
-              </g>
-            );
-          })}
-
-          {/* Заливка под линией */}
-          <path
-            d={areaPath}
-            fill="url(#gradient)"
-            opacity="0.2"
+      <ResponsiveContainer width="100%" height={300}>
+        <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+          <XAxis 
+            dataKey="date" 
+            tick={{ fontSize: 12, fill: '#9CA3AF' }}
+            stroke="#E5E7EB"
           />
-
-          {/* Линия графика */}
-          <path
-            d={linePath}
-            fill="none"
-            stroke="#8B5CF6"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="animate-drawLine"
-            style={{
-              strokeDasharray: 1000,
-              strokeDashoffset: 1000,
+          <YAxis 
+            domain={[0, 5]} 
+            ticks={[1, 2, 3, 4, 5]}
+            tick={{ fontSize: 12, fill: '#9CA3AF' }}
+            stroke="#E5E7EB"
+          />
+          <Tooltip 
+            contentStyle={{ 
+              backgroundColor: '#1F2937', 
+              border: 'none', 
+              borderRadius: '12px',
+              padding: '8px 12px',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
             }}
+            labelStyle={{ 
+              color: '#E5E7EB', 
+              marginBottom: '4px',
+              fontSize: '12px',
+              fontWeight: '500'
+            }}
+            itemStyle={{
+              color: '#FFFFFF',
+              fontSize: '14px',
+              fontWeight: 'bold'
+            }}
+            formatter={(value: any) => [value.toFixed(1), 'Оценка']}
           />
-
-          {/* Точки */}
-          {chartData.map((point, index) => {
-            const x = padding.left + index * xStep;
-            const y = padding.top + chartHeight - (point.avgScore * yScale);
-            const color = STATE_COLORS[Math.round(point.avgScore) as 1 | 2 | 3 | 4 | 5];
-
-            return (
-              <g key={index} className="animate-scaleIn" style={{ animationDelay: `${index * 30}ms` }}>
-                <circle
-                  cx={x}
-                  cy={y}
-                  r="5"
-                  fill={color}
-                  stroke="white"
-                  strokeWidth="2"
-                  className="transition-all hover:r-7"
-                  style={{ cursor: 'pointer' }}
-                />
-                {/* Дата под точкой (показываем каждую 3-ю) */}
-                {index % 3 === 0 && (
-                  <text
-                    x={x}
-                    y={padding.top + chartHeight + 20}
-                    textAnchor="middle"
-                    fontSize="10"
-                    fill="#9CA3AF"
-                  >
-                    {new Date(point.date).getDate()}/{new Date(point.date).getMonth() + 1}
-                  </text>
-                )}
-              </g>
-            );
-          })}
-
-          {/* Градиент для заливки */}
-          <defs>
-            <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.8" />
-              <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-        </svg>
-      </div>
+          <Area 
+            type="monotone" 
+            dataKey="score" 
+            stroke="#8B5CF6" 
+            strokeWidth={3}
+            fill="transparent"
+            dot={{ 
+              fill: '#8B5CF6', 
+              strokeWidth: 2, 
+              stroke: 'white',
+              r: 5
+            }}
+            activeDot={{ r: 7 }}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
     );
   };
 
@@ -473,7 +422,7 @@ export const Analytics = () => {
         )}
       </div>
 
-      {/* Correlations */}
+      {/* Correlations and insights */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         {/* Medication correlations */}
         {correlations.length > 0 && (
@@ -547,6 +496,135 @@ export const Analytics = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Если нет корреляций с симптомами, показываем статистику по дням недели */}
+        {symptomCorrelations.length === 0 && chartData.length > 0 && (
+          <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6 animate-fadeInUp" style={{ animationDelay: '350ms' }}>
+            <div className="flex items-center gap-2 mb-4">
+              <Calendar className="text-blue-600" size={20} />
+              <h3 className="text-lg font-bold">Статистика по дням недели</h3>
+            </div>
+            <div className="space-y-3">
+              {(() => {
+                const dayOfWeekMap = new Map<number, number[]>();
+                chartData.forEach(day => {
+                  const dayOfWeek = new Date(day.date).getDay();
+                  if (!dayOfWeekMap.has(dayOfWeek)) {
+                    dayOfWeekMap.set(dayOfWeek, []);
+                  }
+                  dayOfWeekMap.get(dayOfWeek)!.push(day.avgScore);
+                });
+
+                const dayNames = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
+                const dayStats = Array.from(dayOfWeekMap.entries())
+                  .map(([day, scores]) => ({
+                    day,
+                    name: dayNames[day],
+                    avg: scores.reduce((sum, s) => sum + s, 0) / scores.length,
+                    count: scores.length
+                  }))
+                  .sort((a, b) => b.avg - a.avg);
+
+                return dayStats.map((stat, idx) => (
+                  <div key={idx} className="p-3 bg-white/50 rounded-2xl">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="font-medium text-sm">{stat.name}</div>
+                      <div className="text-sm font-bold" style={{ color: STATE_COLORS[Math.round(stat.avg) as 1 | 2 | 3 | 4 | 5] }}>
+                        {stat.avg.toFixed(1)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-gray-600">
+                      <span>Средняя оценка</span>
+                      <span className="ml-auto">{stat.count} дней</span>
+                    </div>
+                    <div className="mt-2 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full"
+                        style={{
+                          width: `${(stat.avg / 5) * 100}%`,
+                          backgroundColor: STATE_COLORS[Math.round(stat.avg) as 1 | 2 | 3 | 4 | 5]
+                        }}
+                      />
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+        )}
+
+        {/* Если нет корреляций с лекарствами, показываем динамику изменений */}
+        {correlations.length === 0 && chartData.length > 0 && (
+          <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6 animate-fadeInUp" style={{ animationDelay: '300ms' }}>
+            <div className="flex items-center gap-2 mb-4">
+              <BarChart3 className="text-indigo-600" size={20} />
+              <h3 className="text-lg font-bold">Динамика изменений</h3>
+            </div>
+            <div className="space-y-3">
+              {(() => {
+                const improvements = chartData.filter((day, idx) => {
+                  if (idx === 0) return false;
+                  return day.avgScore > chartData[idx - 1].avgScore;
+                }).length;
+
+                const declines = chartData.filter((day, idx) => {
+                  if (idx === 0) return false;
+                  return day.avgScore < chartData[idx - 1].avgScore;
+                }).length;
+
+                const stable = chartData.length - 1 - improvements - declines;
+
+                const maxScore = Math.max(...chartData.map(d => d.avgScore));
+                const minScore = Math.min(...chartData.map(d => d.avgScore));
+                const range = maxScore - minScore;
+
+                return (
+                  <>
+                    <div className="p-3 bg-green-50 rounded-2xl">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-medium">Улучшений</div>
+                        <div className="text-lg font-bold text-green-600">{improvements}</div>
+                      </div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        {((improvements / (chartData.length - 1)) * 100).toFixed(0)}% дней
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-red-50 rounded-2xl">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-medium">Ухудшений</div>
+                        <div className="text-lg font-bold text-red-600">{declines}</div>
+                      </div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        {((declines / (chartData.length - 1)) * 100).toFixed(0)}% дней
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-gray-50 rounded-2xl">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-medium">Стабильно</div>
+                        <div className="text-lg font-bold text-gray-600">{stable}</div>
+                      </div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        {((stable / (chartData.length - 1)) * 100).toFixed(0)}% дней
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-blue-50 rounded-2xl">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-medium">Диапазон оценок</div>
+                        <div className="text-lg font-bold text-blue-600">{range.toFixed(1)}</div>
+                      </div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        От {minScore.toFixed(1)} до {maxScore.toFixed(1)}
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         )}
