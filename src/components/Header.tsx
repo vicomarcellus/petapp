@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
 import { ChevronDown, BarChart3, ClipboardList, Settings, Calendar as CalendarIcon, LogOut, ArrowLeft, Clock } from 'lucide-react';
 import { Pet } from '../types';
+import { useSchedulerBadge } from '../hooks/useSchedulerBadge';
 
 interface HeaderProps {
   showBackButton?: boolean;
@@ -22,6 +23,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
   const { setView, currentPetId, setCurrentPetId, view, currentUser, setCurrentUser } = useStore();
   const [showPetMenu, setShowPetMenu] = useState(false);
   const [pets, setPets] = useState<Pet[]>([]);
+  const overdueCount = useSchedulerBadge();
   
   // Refs для кнопок навигации
   const calendarRef = useRef<HTMLButtonElement>(null);
@@ -221,6 +223,11 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
             }`}
           >
             Планировщик
+            {overdueCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold animate-pulse">
+                {overdueCount}
+              </span>
+            )}
           </button>
           <button
             ref={settingsRef}

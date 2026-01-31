@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
-import { Plus, Trash2, Pill, Utensils, Clock, Bell, Check, Calendar as CalendarIcon } from 'lucide-react';
+import { Plus, Trash2, Pill, Utensils, Clock, Bell, Check, Calendar as CalendarIcon, Edit2 } from 'lucide-react';
 import { AnimatedModal } from './AnimatedModal';
 import { ConfirmModal } from './Modal';
 import type { MedicationEntry, FeedingEntry } from '../types';
@@ -24,6 +24,7 @@ export const Scheduler = () => {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [editingEvent, setEditingEvent] = useState<ScheduledEvent | null>(null);
 
   // Form fields
   const [eventType, setEventType] = useState<'medication' | 'feeding'>('medication');
@@ -147,38 +148,64 @@ export const Scheduler = () => {
       const scheduledTime = new Date(`${eventDate}T${eventTime}`).getTime();
       const timestamp = scheduledTime;
 
-      if (eventType === 'medication' && medicationName) {
-        await supabase.from('medication_entries').insert({
-          user_id: currentUser.id,
-          pet_id: currentPetId,
-          date: eventDate,
-          time: eventTime,
-          timestamp,
-          medication_name: medicationName,
-          dosage: medicationDosage,
-          color: '#8B5CF6',
-          is_scheduled: true,
-          completed: false,
-          scheduled_time: scheduledTime
-        });
-      } else if (eventType === 'feeding' && foodName) {
-        await supabase.from('feeding_entries').insert({
-          user_id: currentUser.id,
-          pet_id: currentPetId,
-          date: eventDate,
-          time: eventTime,
-          timestamp,
-          food_name: foodName,
-          amount: foodAmount,
-          unit: foodUnit,
-          is_scheduled: true,
-          completed: false,
-          scheduled_time: scheduledTime
-        });
+      if (editingEvent) {
+        // Редактирование существующего события
+        if (editingEvent.type === 'medication' && medicationName) {
+          await supabase.from('medication_entries').update({
+            date: eventDate,
+            time: eventTime,
+            timestamp,
+            medication_name: medicationName,
+            dosage: medicationDosage,
+            scheduled_time: scheduledTime
+          }).eq('id', editingEvent.id);
+        } else if (editingEvent.type === 'feeding' && foodName) {
+          await supabase.from('feeding_entries').update({
+            date: eventDate,
+            time: eventTime,
+            timestamp,
+            food_name: foodName,
+            amount: foodAmount,
+            unit: foodUnit,
+            scheduled_time: scheduledTime
+          }).eq('id', editingEvent.id);
+        }
+      } else {
+        // Создание нового события
+        if (eventType === 'medication' && medicationName) {
+          await supabase.from('medication_entries').insert({
+            user_id: currentUser.id,
+            pet_id: currentPetId,
+            date: eventDate,
+            time: eventTime,
+            timestamp,
+            medication_name: medicationName,
+            dosage: medicationDosage,
+            color: '#8B5CF6',
+            is_scheduled: true,
+            completed: false,
+            scheduled_time: scheduledTime
+          });
+        } else if (eventType === 'feeding' && foodName) {
+          await supabase.from('feeding_entries').insert({
+            user_id: currentUser.id,
+            pet_id: currentPetId,
+            date: eventDate,
+            time: eventTime,
+            timestamp,
+            food_name: foodName,
+            amount: foodAmount,
+            unit: foodUnit,
+            is_scheduled: true,
+            completed: false,
+            scheduled_time: scheduledTime
+          });
+        }
       }
 
       // Reset form
       setShowAddModal(false);
+      setEditingEvent(null);
       setEventDate('');
       setEventTime('');
       setMedicationName('');
@@ -229,6 +256,27 @@ export const Scheduler = () => {
     } catch (error) {
       console.error('Error deleting event:', error);
     }
+  };
+
+  const handleEditEvent = (event: ScheduledEvent) => {
+    setEditingEvent(event);
+    setEventType(event.type);
+    setEventDate(event.date);
+    setEventTime(event.time);
+    
+    if (event.type === 'medication') {
+      setMedicationName(event.name);
+      setMedicationDosage(event.amount);
+    } else {
+      setFoodName(event.name);
+      const match = event.amount.match(/^(\d+)\s*(г|мл)?$/);
+      if (match) {
+        setFoodAmount(match[1]);
+        setFoodUnit(match[2] === 'г' ? 'g' : match[2] === 'мл' ? 'ml' : 'none');
+      }
+    }
+    
+    setShowAddModal(true);
   };
 
   const formatTimeLeft = (scheduledTime: number) => {
@@ -298,6 +346,12 @@ export const Scheduler = () => {
                     <Check size={16} />
                   </button>
                   <button
+                    onClick={() => handleEditEvent(event)}
+                    className="p-2 hover:bg-blue-100 rounded-full text-blue-600 transition-all"
+                  >
+                    <Edit2 size={16} />
+                  </button>
+                  <button
                     onClick={() => setDeleteConfirm(event.id)}
                     className="p-2 hover:bg-red-100 rounded-full text-red-600 transition-all"
                   >
@@ -340,6 +394,12 @@ export const Scheduler = () => {
                     className="p-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-all"
                   >
                     <Check size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleEditEvent(event)}
+                    className="p-2 hover:bg-blue-100 rounded-full text-blue-600 transition-all"
+                  >
+                    <Edit2 size={16} />
                   </button>
                   <button
                     onClick={() => setDeleteConfirm(event.id)}
@@ -394,8 +454,18 @@ export const Scheduler = () => {
       )}
 
       {/* Add Modal */}
-      <AnimatedModal isOpen={showAddModal} onClose={() => setShowAddModal(false)}>
-        <h3 className="text-xl font-bold mb-4">Запланировать событие</h3>
+      <AnimatedModal isOpen={showAddModal} onClose={() => {
+        setShowAddModal(false);
+        setEditingEvent(null);
+        setEventDate('');
+        setEventTime('');
+        setMedicationName('');
+        setMedicationDosage('');
+        setFoodName('');
+        setFoodAmount('');
+        setFoodUnit('g');
+      }}>
+        <h3 className="text-xl font-bold mb-4">{editingEvent ? 'Редактировать событие' : 'Запланировать событие'}</h3>
 
         <div className="space-y-4">
           {/* Type selector */}
@@ -526,7 +596,7 @@ export const Scheduler = () => {
             }
             className="w-full py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Запланировать
+            {editingEvent ? 'Сохранить' : 'Запланировать'}
           </button>
         </div>
       </AnimatedModal>
