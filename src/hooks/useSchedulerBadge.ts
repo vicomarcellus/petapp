@@ -52,6 +52,7 @@ export const useSchedulerBadge = () => {
           .eq('user_id', currentUser.id)
           .eq('pet_id', currentPetId)
           .eq('is_scheduled', true)
+          .eq('completed', false)
           .gte('date', today),
         supabase
           .from('feeding_entries')
@@ -59,13 +60,16 @@ export const useSchedulerBadge = () => {
           .eq('user_id', currentUser.id)
           .eq('pet_id', currentPetId)
           .eq('is_scheduled', true)
+          .eq('completed', false)
           .gte('date', today)
       ]);
 
-      const medOverdue = (medRes.data || []).filter(m => !m.completed && m.scheduled_time && m.scheduled_time < now).length;
-      const feedOverdue = (feedRes.data || []).filter(f => !f.completed && f.scheduled_time && f.scheduled_time < now).length;
+      const medCount = (medRes.data || []).length;
+      const feedCount = (feedRes.data || []).length;
 
-      setOverdueCount(medOverdue + feedOverdue);
+      const total = medCount + feedCount;
+      console.log('Pending tasks count:', { medCount, feedCount, total });
+      setOverdueCount(total);
     } catch (error) {
       console.error('Error loading overdue count:', error);
     }
