@@ -4,6 +4,7 @@ import { useStore } from '../store';
 import { Plus, Check, Trash2 } from 'lucide-react';
 import { Pet } from '../types';
 import { AlertModal, ConfirmModal } from './Modal';
+import { AnimatedModal } from './AnimatedModal';
 
 const PET_TYPES = [
   { value: 'cat', label: '🐱 Кот', emoji: '🐱' },
@@ -149,7 +150,7 @@ export const PetManager = () => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl p-4">
+      <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6">
         <div className="text-center py-4 text-gray-400 text-sm">
           Загрузка...
         </div>
@@ -158,62 +159,88 @@ export const PetManager = () => {
   }
 
   return (
-    <div className="bg-white rounded-2xl p-4">
-      <div className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wide">
-        Питомцы
-      </div>
-
+    <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6">
       {/* Список питомцев */}
-      <div className="space-y-2 mb-3">
-        {pets.map((pet, index) => (
-          <div
-            key={pet.id}
-            className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 cursor-pointer animate-fadeInUp ${
-              pet.id === currentPetId
-                ? 'bg-blue-50 border-2 border-blue-500'
-                : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent hover:scale-[1.02]'
-            }`}
-            style={{ animationDelay: `${index * 50}ms` }}
-            onClick={() => handleSelectPet(pet.id!)}
-          >
-            <div className="text-2xl">{getPetEmoji(pet.type)}</div>
-            <div className="flex-1">
-              <div className="font-bold text-black text-sm">{pet.name}</div>
-              <div className="text-xs text-gray-500">
-                {PET_TYPES.find(t => t.value === pet.type)?.label.replace(/🐱|🐶|🐦|🐰|🐹|🐾/g, '').trim()}
-              </div>
-            </div>
-            {pet.id === currentPetId && (
-              <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center">
-                <Check size={14} className="text-white" />
-              </div>
-            )}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setDeleteConfirm(pet.id!);
-              }}
-              className="p-2 hover:bg-red-100 rounded-full transition-all duration-200 text-red-600 hover:scale-110 active:scale-95"
+      {pets.length > 0 && (
+        <div className="space-y-2 mb-3">
+          {pets.map((pet, index) => (
+            <div
+              key={pet.id}
+              className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 cursor-pointer animate-fadeInUp ${
+                pet.id === currentPetId
+                  ? 'bg-blue-50 border-2 border-blue-500'
+                  : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent hover:scale-[1.02]'
+              }`}
+              style={{ animationDelay: `${index * 50}ms` }}
+              onClick={() => handleSelectPet(pet.id!)}
             >
-              <Trash2 size={14} />
-            </button>
-          </div>
-        ))}
-      </div>
+              <div className="text-2xl">{getPetEmoji(pet.type)}</div>
+              <div className="flex-1">
+                <div className="font-bold text-black text-sm">{pet.name}</div>
+                <div className="text-xs text-gray-500">
+                  {PET_TYPES.find(t => t.value === pet.type)?.label.replace(/🐱|🐶|🐦|🐰|🐹|🐾/g, '').trim()}
+                </div>
+              </div>
+              {pet.id === currentPetId && (
+                <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center">
+                  <Check size={14} className="text-white" />
+                </div>
+              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteConfirm(pet.id!);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-full transition-all duration-200 text-gray-600 hover:scale-110 active:scale-95"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
-      {/* Форма добавления */}
-      {showAddForm ? (
-        <div className="bg-gray-50 rounded-xl p-3 space-y-3">
-          <input
-            type="text"
-            value={petName}
-            onChange={(e) => setPetName(e.target.value)}
-            placeholder="Имя питомца"
-            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-full focus:border-black transition-all text-black placeholder-gray-400 outline-none text-sm"
-          />
+      {/* Кнопка добавления */}
+      <button
+        onClick={() => setShowAddForm(true)}
+        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors font-medium text-sm"
+      >
+        <Plus size={18} />
+        Добавить питомца
+      </button>
+
+      {pets.length === 0 && (
+        <div className="text-center py-4 text-gray-400 text-sm mt-3">
+          Добавьте первого питомца
+        </div>
+      )}
+
+      {/* Модальное окно добавления */}
+      <AnimatedModal
+        isOpen={showAddForm}
+        onClose={() => {
+          setShowAddForm(false);
+          setPetName('');
+          setPetType('cat');
+        }}
+        title="Добавить питомца"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Имя питомца
+            </label>
+            <input
+              type="text"
+              value={petName}
+              onChange={(e) => setPetName(e.target.value)}
+              placeholder="Например: Барсик"
+              className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
+            />
+          </div>
           
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
               Тип питомца
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -221,10 +248,10 @@ export const PetManager = () => {
                 <button
                   key={type.value}
                   onClick={() => setPetType(type.value)}
-                  className={`p-2 rounded-xl text-sm transition-all ${
+                  className={`p-3 rounded-2xl text-sm transition-all font-medium ${
                     petType === type.value
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-100'
+                      ? 'bg-blue-100 text-blue-700 border-2 border-blue-500'
+                      : 'bg-gray-100 text-gray-600 border-2 border-transparent hover:bg-gray-200'
                   }`}
                 >
                   {type.label}
@@ -233,42 +260,15 @@ export const PetManager = () => {
             </div>
           </div>
 
-          <div className="flex gap-2">
-            <button
-              onClick={handleAddPet}
-              disabled={!petName.trim()}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] text-sm font-medium disabled:opacity-50"
-            >
-              <Check size={14} />
-              Добавить
-            </button>
-            <button
-              onClick={() => {
-                setShowAddForm(false);
-                setPetName('');
-                setPetType('cat');
-              }}
-              className="px-3 py-2 bg-gray-200 text-black rounded-full hover:bg-gray-300 transition-colors text-sm font-medium"
-            >
-              Отмена
-            </button>
-          </div>
+          <button
+            onClick={handleAddPet}
+            disabled={!petName.trim()}
+            className="w-full py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+          >
+            Добавить
+          </button>
         </div>
-      ) : (
-        <button
-          onClick={() => setShowAddForm(true)}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors font-medium text-sm"
-        >
-          <Plus size={18} />
-          Добавить питомца
-        </button>
-      )}
-
-      {pets.length === 0 && !showAddForm && (
-        <div className="text-center py-4 text-gray-400 text-sm">
-          Добавьте первого питомца
-        </div>
-      )}
+      </AnimatedModal>
 
       <AlertModal
         isOpen={!!errorModal}

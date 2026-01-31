@@ -28,7 +28,9 @@ export interface MedicationEntry {
   pet_id: number; // ID питомца
   date: string; // YYYY-MM-DD
   medication_name: string;
-  dosage: string;
+  dosage: string; // Deprecated - используется для обратной совместимости
+  dosage_amount: string; // Количество (например "0,3")
+  dosage_unit: string; // Единица измерения (мл, мг, г, таб, капс)
   time: string; // HH:mm
   timestamp: number; // полный timestamp
   color?: string;
@@ -44,7 +46,9 @@ export interface Medication {
   pet_id: number; // ID питомца
   name: string;
   color: string;
-  default_dosage?: string;
+  default_dosage?: string; // Deprecated
+  default_dosage_amount?: string;
+  default_dosage_unit?: string;
 }
 
 export interface MedicationTag {
@@ -53,6 +57,9 @@ export interface MedicationTag {
   pet_id: number; // ID питомца
   name: string;
   color: string;
+  default_dosage?: string; // Deprecated
+  default_dosage_amount?: string;
+  default_dosage_unit?: string;
 }
 
 export interface SymptomTag {

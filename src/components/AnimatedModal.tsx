@@ -45,7 +45,7 @@ export const AnimatedModal = ({
       onClick={onClose}
     >
       <div 
-        className={`bg-white border border-white/60 rounded-[32px] p-6 ${maxWidthClasses[maxWidth]} w-full shadow-2xl transition-all duration-300 ${
+        className={`bg-white border border-gray-200 rounded-[32px] p-6 ${maxWidthClasses[maxWidth]} w-full shadow-2xl transition-all duration-300 ${
           isAnimating 
             ? 'scale-100 opacity-100 translate-y-0' 
             : 'scale-95 opacity-0 translate-y-4'
@@ -59,11 +59,11 @@ export const AnimatedModal = ({
       >
         {(title || showCloseButton) && (
           <div className="flex items-center justify-between mb-4">
-            {title && <h3 className="text-xl font-bold">{title}</h3>}
+            {title && <h3 className="text-xl font-bold text-black">{title}</h3>}
             {showCloseButton && (
               <button 
                 onClick={onClose}
-                className="p-2 hover:bg-gray-100 rounded-full transition-all duration-200 hover:scale-110 ml-auto"
+                className="p-2 hover:bg-white/50 rounded-full transition-all duration-200 hover:scale-110 ml-auto text-gray-700"
               >
                 <X size={20} />
               </button>

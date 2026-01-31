@@ -5,6 +5,7 @@ import { Plus, Trash2, Pill, Utensils, Clock, Bell, Check, Calendar as CalendarI
 import { AnimatedModal } from './AnimatedModal';
 import { ConfirmModal } from './Modal';
 import type { MedicationEntry, FeedingEntry } from '../types';
+import { useUnits } from '../hooks/useUnits';
 
 interface ScheduledEvent {
   id: number;
@@ -20,6 +21,7 @@ interface ScheduledEvent {
 
 export const Scheduler = () => {
   const { currentUser, currentPetId } = useStore();
+  const { medicationUnits, feedingUnits } = useUnits();
   const [events, setEvents] = useState<ScheduledEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -31,10 +33,11 @@ export const Scheduler = () => {
   const [eventDate, setEventDate] = useState('');
   const [eventTime, setEventTime] = useState('');
   const [medicationName, setMedicationName] = useState('');
-  const [medicationDosage, setMedicationDosage] = useState('');
+  const [medicationAmount, setMedicationAmount] = useState('');
+  const [medicationUnit, setMedicationUnit] = useState<string>('мл');
   const [foodName, setFoodName] = useState('');
   const [foodAmount, setFoodAmount] = useState('');
-  const [foodUnit, setFoodUnit] = useState<'g' | 'ml' | 'none'>('g');
+  const [foodUnit, setFoodUnit] = useState<string>('g');
 
   // Таймер для обновления
   const [, setTick] = useState(0);
@@ -88,7 +91,9 @@ export const Scheduler = () => {
         scheduled_time: m.scheduled_time!,
         completed: m.completed || false,
         name: m.medication_name,
-        amount: m.dosage
+        amount: m.dosage_amount
+          ? `${m.dosage_amount} ${m.dosage_unit || 'мл'}`
+          : m.dosage || ''
       }));
 
       const feedEvents: ScheduledEvent[] = (feedRes.data || []).map(f => ({
@@ -150,13 +155,14 @@ export const Scheduler = () => {
 
       if (editingEvent) {
         // Редактирование существующего события
-        if (editingEvent.type === 'medication' && medicationName) {
+        if (editingEvent.type === 'medication' && medicationName && medicationAmount) {
           await supabase.from('medication_entries').update({
             date: eventDate,
             time: eventTime,
             timestamp,
             medication_name: medicationName,
-            dosage: medicationDosage,
+            dosage_amount: medicationAmount,
+            dosage_unit: medicationUnit,
             scheduled_time: scheduledTime
           }).eq('id', editingEvent.id);
         } else if (editingEvent.type === 'feeding' && foodName) {
@@ -172,7 +178,7 @@ export const Scheduler = () => {
         }
       } else {
         // Создание нового события
-        if (eventType === 'medication' && medicationName) {
+        if (eventType === 'medication' && medicationName && medicationAmount) {
           await supabase.from('medication_entries').insert({
             user_id: currentUser.id,
             pet_id: currentPetId,
@@ -180,7 +186,8 @@ export const Scheduler = () => {
             time: eventTime,
             timestamp,
             medication_name: medicationName,
-            dosage: medicationDosage,
+            dosage_amount: medicationAmount,
+            dosage_unit: medicationUnit,
             color: '#8B5CF6',
             is_scheduled: true,
             completed: false,
@@ -209,7 +216,8 @@ export const Scheduler = () => {
       setEventDate('');
       setEventTime('');
       setMedicationName('');
-      setMedicationDosage('');
+      setMedicationAmount('');
+      setMedicationUnit('мл');
       setFoodName('');
       setFoodAmount('');
       setFoodUnit('g');
@@ -263,10 +271,18 @@ export const Scheduler = () => {
     setEventType(event.type);
     setEventDate(event.date);
     setEventTime(event.time);
-    
+
     if (event.type === 'medication') {
       setMedicationName(event.name);
-      setMedicationDosage(event.amount);
+      // Парсим amount на число и единицу
+      const match = event.amount.match(/^([0-9.,]+)\s*(мл|мг|г|таб|капс)?$/);
+      if (match) {
+        setMedicationAmount(match[1]);
+        setMedicationUnit((match[2] || 'мл') as 'мл' | 'мг' | 'г' | 'таб' | 'капс');
+      } else {
+        setMedicationAmount(event.amount);
+        setMedicationUnit('мл');
+      }
     } else {
       setFoodName(event.name);
       const match = event.amount.match(/^(\d+)\s*(г|мл)?$/);
@@ -275,7 +291,7 @@ export const Scheduler = () => {
         setFoodUnit(match[2] === 'г' ? 'g' : match[2] === 'мл' ? 'ml' : 'none');
       }
     }
-    
+
     setShowAddModal(true);
   };
 
@@ -327,9 +343,8 @@ export const Scheduler = () => {
             {overdueEvents.map(event => (
               <div key={`${event.type}-${event.id}`} className="bg-red-50 border border-red-200 rounded-2xl p-4">
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    event.type === 'medication' ? 'bg-purple-100' : 'bg-green-100'
-                  }`}>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${event.type === 'medication' ? 'bg-purple-100' : 'bg-green-100'
+                    }`}>
                     {event.type === 'medication' ? <Pill className="text-purple-600" size={20} /> : <Utensils className="text-green-600" size={20} />}
                   </div>
                   <div className="flex-1">
@@ -366,83 +381,112 @@ export const Scheduler = () => {
 
       {/* Предстоящие */}
       {upcomingEvents.length > 0 && (
-        <div className="mb-6">
+        <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6 mb-6">
           <h3 className="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
             <Clock size={16} />
             Предстоящие ({upcomingEvents.length})
           </h3>
           <div className="space-y-2">
-            {upcomingEvents.map(event => (
-              <div key={`${event.type}-${event.id}`} className="bg-white/60 backdrop-blur-md border border-white/80 rounded-2xl p-4">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    event.type === 'medication' ? 'bg-purple-100' : 'bg-green-100'
-                  }`}>
-                    {event.type === 'medication' ? <Pill className="text-purple-600" size={20} /> : <Utensils className="text-green-600" size={20} />}
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-medium text-sm">{event.name}</div>
-                    <div className="text-xs text-gray-600">{event.amount}</div>
-                    <div className="text-xs text-blue-600 mt-1 flex items-center gap-1">
-                      <CalendarIcon size={12} />
-                      {new Date(event.scheduled_time).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                      <span className="text-gray-500">• через {formatTimeLeft(event.scheduled_time)}</span>
+            {upcomingEvents.map(event => {
+              const dateObj = new Date(event.scheduled_time);
+              const dayStr = dateObj.toLocaleString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', '');
+              const timeStr = dateObj.toLocaleString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+              return (
+                <div key={`${event.type}-${event.id}`} className="py-3 px-6 rounded-xl bg-white/50 backdrop-blur-sm">
+                  <div className="flex items-center gap-3">
+                    {/* Дата и время */}
+                    <div className="flex flex-col items-start w-20 flex-shrink-0">
+                      <span className="text-xs font-semibold text-gray-500">{dayStr}</span>
+                      <span className="text-sm font-bold text-gray-800">{timeStr}</span>
                     </div>
+
+                    {/* Иконка */}
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${event.type === 'medication' ? 'bg-purple-100' : 'bg-green-100'
+                      }`}>
+                      {event.type === 'medication' ? <Pill className="text-purple-600" size={20} /> : <Utensils className="text-green-600" size={20} />}
+                    </div>
+
+                    {/* Контент */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium text-black">
+                          {event.type === 'medication' ? 'Лекарство' : 'Питание'}: {event.name}
+                          {event.amount ? ` • ${event.amount}` : ''}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          через {formatTimeLeft(event.scheduled_time)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Действия */}
+                    <button
+                      onClick={() => handleCompleteEvent(event)}
+                      className="p-2 hover:bg-green-100 rounded-full transition-colors text-green-600 flex-shrink-0"
+                      title="Выполнено"
+                    >
+                      <Check size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleEditEvent(event)}
+                      className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600 flex-shrink-0"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button
+                      onClick={() => setDeleteConfirm(event.id)}
+                      className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600 flex-shrink-0"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => handleCompleteEvent(event)}
-                    className="p-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-all"
-                  >
-                    <Check size={16} />
-                  </button>
-                  <button
-                    onClick={() => handleEditEvent(event)}
-                    className="p-2 hover:bg-blue-100 rounded-full text-blue-600 transition-all"
-                  >
-                    <Edit2 size={16} />
-                  </button>
-                  <button
-                    onClick={() => setDeleteConfirm(event.id)}
-                    className="p-2 hover:bg-red-100 rounded-full text-red-600 transition-all"
-                  >
-                    <Trash2 size={16} />
-                  </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
 
       {/* Выполненные */}
       {completedEvents.length > 0 && (
-        <div>
+        <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6">
           <h3 className="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
             <Check size={16} />
             Выполнено ({completedEvents.length})
           </h3>
           <div className="space-y-2">
-            {completedEvents.map(event => (
-              <div key={`${event.type}-${event.id}`} className="bg-green-50 border border-green-200 rounded-2xl p-4 opacity-60">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    event.type === 'medication' ? 'bg-purple-100' : 'bg-green-100'
-                  }`}>
-                    {event.type === 'medication' ? <Pill className="text-purple-600" size={20} /> : <Utensils className="text-green-600" size={20} />}
+            {completedEvents.map(event => {
+              const dateObj = new Date(event.timestamp || event.scheduled_time); // Использовать timestamp выполнения если есть
+              const timeStr = dateObj.toLocaleString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+              return (
+                <div key={`${event.type}-${event.id}`} className="py-3 px-6 rounded-xl bg-white/50 backdrop-blur-sm opacity-60">
+                  <div className="flex items-center gap-3">
+                    <div className="text-sm font-medium text-gray-600 w-20 flex-shrink-0">{timeStr}</div>
+
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${event.type === 'medication' ? 'bg-purple-100' : 'bg-green-100'
+                      }`}>
+                      {event.type === 'medication' ? <Pill className="text-purple-600" size={20} /> : <Utensils className="text-green-600" size={20} />}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-black line-through">
+                        {event.type === 'medication' ? 'Лекарство' : 'Питание'}: {event.name}
+                        {event.amount ? ` • ${event.amount}` : ''}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setDeleteConfirm(event.id)}
+                      className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600 flex-shrink-0"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                  <div className="flex-1">
-                    <div className="font-medium text-sm line-through">{event.name}</div>
-                    <div className="text-xs text-gray-600">{event.amount}</div>
-                  </div>
-                  <button
-                    onClick={() => setDeleteConfirm(event.id)}
-                    className="p-2 hover:bg-red-100 rounded-full text-red-600 transition-all"
-                  >
-                    <Trash2 size={16} />
-                  </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -453,70 +497,82 @@ export const Scheduler = () => {
         </div>
       )}
 
-      {/* Add Modal */}
-      <AnimatedModal isOpen={showAddModal} onClose={() => {
-        setShowAddModal(false);
-        setEditingEvent(null);
-        setEventDate('');
-        setEventTime('');
-        setMedicationName('');
-        setMedicationDosage('');
-        setFoodName('');
-        setFoodAmount('');
-        setFoodUnit('g');
-      }}>
-        <h3 className="text-xl font-bold mb-4">{editingEvent ? 'Редактировать событие' : 'Запланировать событие'}</h3>
+      <AnimatedModal
+        isOpen={showAddModal}
+        onClose={() => {
+          setShowAddModal(false);
+          setEditingEvent(null);
+          setEventDate('');
+          setEventTime('');
+          setMedicationName('');
+          setMedicationAmount('');
+          setMedicationUnit('мл');
+          setFoodName('');
+          setFoodAmount('');
+          setFoodUnit('g');
+        }}
+        title={editingEvent
+          ? (eventType === 'medication' ? 'Редактировать лекарство' : 'Редактировать питание')
+          : 'Запланировать событие'}
+      >
 
         <div className="space-y-4">
-          {/* Type selector */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Тип</label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setEventType('medication')}
-                className={`py-3 px-4 rounded-2xl font-medium transition-all ${
-                  eventType === 'medication'
+          {/* Type selector - hide when editing */}
+          {!editingEvent && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Тип</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setEventType('medication')}
+                  className={`py-3 px-4 rounded-2xl font-medium transition-all ${eventType === 'medication'
                     ? 'bg-purple-100 text-purple-700 border-2 border-purple-500'
                     : 'bg-gray-100 text-gray-600 border-2 border-transparent'
-                }`}
-              >
-                <Pill size={20} className="mx-auto mb-1" />
-                Лекарство
-              </button>
-              <button
-                onClick={() => setEventType('feeding')}
-                className={`py-3 px-4 rounded-2xl font-medium transition-all ${
-                  eventType === 'feeding'
+                    }`}
+                >
+                  <Pill size={20} className="mx-auto mb-1" />
+                  Лекарство
+                </button>
+                <button
+                  onClick={() => setEventType('feeding')}
+                  className={`py-3 px-4 rounded-2xl font-medium transition-all ${eventType === 'feeding'
                     ? 'bg-green-100 text-green-700 border-2 border-green-500'
                     : 'bg-gray-100 text-gray-600 border-2 border-transparent'
-                }`}
-              >
-                <Utensils size={20} className="mx-auto mb-1" />
-                Питание
-              </button>
+                    }`}
+                >
+                  <Utensils size={20} className="mx-auto mb-1" />
+                  Питание
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Date and Time */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Дата</label>
-              <input
-                type="date"
-                value={eventDate}
-                onChange={(e) => setEventDate(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
-                className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none"
-              />
+              <div className="relative">
+                <input
+                  type="date"
+                  value={eventDate}
+                  onChange={(e) => setEventDate(e.target.value)}
+                  onClick={(e) => e.currentTarget.showPicker()}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400 [&::-webkit-calendar-picker-indicator]:hidden"
+                />
+                <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+              </div>
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Время</label>
-              <input
-                type="time"
-                value={eventTime}
-                onChange={(e) => setEventTime(e.target.value)}
-                className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none"
-              />
+              <div className="relative">
+                <input
+                  type="time"
+                  value={eventTime}
+                  onChange={(e) => setEventTime(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400 [&::-webkit-calendar-picker-indicator]:hidden"
+                />
+                <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+              </div>
             </div>
           </div>
 
@@ -530,18 +586,32 @@ export const Scheduler = () => {
                   value={medicationName}
                   onChange={(e) => setMedicationName(e.target.value)}
                   placeholder="Преднизолон"
-                  className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none"
+                  className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Дозировка</label>
-                <input
-                  type="text"
-                  value={medicationDosage}
-                  onChange={(e) => setMedicationDosage(e.target.value)}
-                  placeholder="0,3 мл"
-                  className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Количество</label>
+                  <input
+                    type="text"
+                    value={medicationAmount}
+                    onChange={(e) => setMedicationAmount(e.target.value)}
+                    placeholder="0,3"
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Единица</label>
+                  <select
+                    value={medicationUnit}
+                    onChange={(e) => setMedicationUnit(e.target.value)}
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400 appearance-none cursor-pointer"
+                  >
+                    {medicationUnits.map(unit => (
+                      <option key={unit.code} value={unit.name}>{unit.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </>
           )}
@@ -556,7 +626,7 @@ export const Scheduler = () => {
                   value={foodName}
                   onChange={(e) => setFoodName(e.target.value)}
                   placeholder="Корм"
-                  className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none"
+                  className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -567,37 +637,58 @@ export const Scheduler = () => {
                     value={foodAmount}
                     onChange={(e) => setFoodAmount(e.target.value)}
                     placeholder="50"
-                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none"
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Единица</label>
                   <select
                     value={foodUnit}
-                    onChange={(e) => setFoodUnit(e.target.value as 'g' | 'ml' | 'none')}
-                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none"
+                    onChange={(e) => setFoodUnit(e.target.value)}
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400 appearance-none cursor-pointer"
                   >
-                    <option value="g">г</option>
-                    <option value="ml">мл</option>
-                    <option value="none">-</option>
+                    {feedingUnits.map(unit => (
+                      <option key={unit.code} value={unit.code}>{unit.name}</option>
+                    ))}
                   </select>
                 </div>
               </div>
             </>
           )}
 
-          <button
-            onClick={handleAddEvent}
-            disabled={
-              !eventDate ||
-              !eventTime ||
-              (eventType === 'medication' && !medicationName) ||
-              (eventType === 'feeding' && !foodName)
-            }
-            className="w-full py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {editingEvent ? 'Сохранить' : 'Запланировать'}
-          </button>
+          {editingEvent ? (
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => {
+                  setShowAddModal(false);
+                  setEditingEvent(null);
+                }}
+                className="py-3.5 bg-gray-100 text-gray-700 rounded-2xl font-semibold hover:bg-gray-200 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+              >
+                Назад
+              </button>
+              <button
+                onClick={handleAddEvent}
+                className="py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-sm"
+              >
+                Добавить
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleAddEvent}
+              disabled={
+                !eventDate ||
+                !eventTime ||
+                (eventType === 'medication' && (!medicationName || !medicationAmount)) ||
+                (eventType === 'feeding' && !foodName)
+              }
+              className="w-full py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Запланировать
+            </button>
+          )}
+
         </div>
       </AnimatedModal>
 

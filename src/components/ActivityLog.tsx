@@ -112,73 +112,73 @@ export const ActivityLog = () => {
   return (
     <div className="pb-28">
 
-        <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-4">
-          <h2 className="text-xl font-bold mb-4 px-2">Лог активности</h2>
+      <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6">
+        <h2 className="text-xl font-bold mb-4 px-2">Лог активности</h2>
 
-          {daySummaries.length === 0 ? (
-            <p className="text-gray-400 text-center py-8">Нет записей</p>
-          ) : (
-            <div className="space-y-3">
-              {daySummaries.map((day, index) => (
-                <button
-                  key={day.date}
-                  onClick={() => handleDayClick(day.date)}
-                  className="w-full text-left p-4 rounded-[24px] bg-white/40 hover:bg-white/60 border border-transparent hover:border-white/60 transition-all animate-fadeInUp btn-interactive"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex-shrink-0 w-24">
-                      <div className="text-sm font-medium text-gray-900">{formatDate(day.date)}</div>
-                      <div className="text-xs text-gray-500">{day.date}</div>
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        {day.avgScore && (
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: STATE_COLORS[day.avgScore] }}>
-                              <Activity className="text-white" size={14} />
-                            </div>
-                            <span className="text-sm text-gray-700">{day.stateEntries.length}x</span>
-                          </div>
-                        )}
-
-                        {day.symptomEntries.length > 0 && (
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                              <AlertCircle className="text-red-600" size={14} />
-                            </div>
-                            <span className="text-sm text-gray-700">{day.symptomEntries.length}x</span>
-                          </div>
-                        )}
-
-                        {day.medicationEntries.length > 0 && (
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-                              <Pill className="text-purple-600" size={14} />
-                            </div>
-                            <span className="text-sm text-gray-700">{day.medicationEntries.length}x</span>
-                          </div>
-                        )}
-
-                        {day.feedingEntries.length > 0 && (
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                              <Utensils className="text-green-600" size={14} />
-                            </div>
-                            <span className="text-sm text-gray-700">{day.feedingEntries.length}x</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <ChevronRight className="flex-shrink-0 text-gray-400" size={20} />
+        {daySummaries.length === 0 ? (
+          <p className="text-gray-400 text-center py-8">Нет записей</p>
+        ) : (
+          <div className="space-y-2">
+            {daySummaries.map((day, index) => (
+              <button
+                key={day.date}
+                onClick={() => handleDayClick(day.date)}
+                className="w-full text-left py-3 px-6 rounded-xl bg-white/40 hover:bg-white/60 border border-transparent hover:border-white/60 transition-all animate-fadeInUp btn-interactive"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 w-24">
+                    <div className="text-sm font-medium text-gray-900">{formatDate(day.date)}</div>
+                    <div className="text-xs text-gray-500">{day.date}</div>
                   </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {day.avgScore && (
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: STATE_COLORS[day.avgScore] }}>
+                            <Activity className="text-white" size={14} />
+                          </div>
+                          <span className="text-sm text-gray-700">{day.stateEntries.length}x</span>
+                        </div>
+                      )}
+
+                      {day.symptomEntries.length > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                            <AlertCircle className="text-red-600" size={14} />
+                          </div>
+                          <span className="text-sm text-gray-700">{day.symptomEntries.length}x</span>
+                        </div>
+                      )}
+
+                      {day.medicationEntries.length > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                            <Pill className="text-purple-600" size={14} />
+                          </div>
+                          <span className="text-sm text-gray-700">{day.medicationEntries.length}x</span>
+                        </div>
+                      )}
+
+                      {day.feedingEntries.length > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                            <Utensils className="text-green-600" size={14} />
+                          </div>
+                          <span className="text-sm text-gray-700">{day.feedingEntries.length}x</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <ChevronRight className="flex-shrink-0 text-gray-400" size={20} />
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+    </div>
   );
 };

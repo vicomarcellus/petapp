@@ -24,25 +24,25 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
   const [showPetMenu, setShowPetMenu] = useState(false);
   const [pets, setPets] = useState<Pet[]>([]);
   const overdueCount = useSchedulerBadge();
-  
+
   // Refs для кнопок навигации
   const calendarRef = useRef<HTMLButtonElement>(null);
   const analyticsRef = useRef<HTMLButtonElement>(null);
   const logRef = useRef<HTMLButtonElement>(null);
   const schedulerRef = useRef<HTMLButtonElement>(null);
   const settingsRef = useRef<HTMLButtonElement>(null);
-  
+
   // Состояние для позиции и размера пилюли
   const [pillStyle, setPillStyle] = useState({ left: 0, width: 0 });
 
   useEffect(() => {
     if (currentUser) {
       loadPets();
-      
+
       // Подписка на изменения
       const channel = supabase
         .channel('header_pets_changes')
-        .on('postgres_changes', 
+        .on('postgres_changes',
           { event: '*', schema: 'public', table: 'pets', filter: `user_id=eq.${currentUser.id}` },
           () => loadPets()
         )
@@ -56,7 +56,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
 
   const loadPets = async () => {
     if (!currentUser) return;
-    
+
     try {
       const { data, error } = await supabase
         .from('pets')
@@ -75,7 +75,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
 
   const handleSelectPet = async (petId: number) => {
     if (!currentUser) return;
-    
+
     try {
       // Обновляем все питомцы
       await supabase
@@ -87,7 +87,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
         .from('pets')
         .update({ is_active: true })
         .eq('id', petId);
-      
+
       setCurrentPetId(petId);
       setShowPetMenu(false);
     } catch (error) {
@@ -113,7 +113,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
   useEffect(() => {
     const updatePillPosition = () => {
       let activeRef: React.RefObject<HTMLButtonElement> | null = null;
-      
+
       if (view === 'calendar' || view === 'add' || view === 'edit' || view === 'view') {
         activeRef = calendarRef;
       } else if (view === 'analytics') {
@@ -125,11 +125,11 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
       } else if (view === 'settings' || view === 'history') {
         activeRef = settingsRef;
       }
-      
+
       if (activeRef?.current) {
         const rect = activeRef.current.getBoundingClientRect();
         const parentRect = activeRef.current.parentElement?.getBoundingClientRect();
-        
+
         if (parentRect) {
           setPillStyle({
             left: rect.left - parentRect.left,
@@ -138,10 +138,10 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
         }
       }
     };
-    
+
     // Небольшая задержка для корректного расчета после рендера
     setTimeout(updatePillPosition, 0);
-    
+
     // Обновляем при изменении размера окна
     window.addEventListener('resize', updatePillPosition);
     return () => window.removeEventListener('resize', updatePillPosition);
@@ -151,7 +151,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
     <header className="mb-8">
       {/* Top Bar - Glass Morphism Style */}
       <div className="flex items-center justify-between mb-6">
-        {/* Left: Logo/Title */}
+        {/* Left: Logo */}
         <div className="flex items-center gap-6">
           {showBackButton && onBack && (
             <button
@@ -161,9 +161,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
               <ArrowLeft size={20} className="text-gray-700" />
             </button>
           )}
-          <h1 className="text-2xl font-semibold text-gray-800">
-            Трекер здоровья
-          </h1>
+          <span className="text-2xl font-bold text-gray-800">petapp</span>
         </div>
 
         {/* Center: Navigation - Glass Pills */}
@@ -179,48 +177,44 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
               zIndex: 0
             }}
           />
-          
+
           <button
             ref={calendarRef}
             onClick={goToToday}
-            className={`relative z-10 px-5 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${
-              view === 'calendar' || view === 'add' || view === 'edit' || view === 'view'
-                ? 'text-gray-900'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
+            className={`relative z-10 px-5 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${view === 'calendar' || view === 'add' || view === 'edit' || view === 'view'
+              ? 'text-gray-900'
+              : 'text-gray-600 hover:text-gray-900'
+              }`}
           >
             Календарь
           </button>
           <button
             ref={analyticsRef}
             onClick={() => setView('analytics')}
-            className={`relative z-10 px-5 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${
-              view === 'analytics'
-                ? 'text-gray-900'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
+            className={`relative z-10 px-5 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${view === 'analytics'
+              ? 'text-gray-900'
+              : 'text-gray-600 hover:text-gray-900'
+              }`}
           >
             Аналитика
           </button>
           <button
             ref={logRef}
             onClick={() => setView('log')}
-            className={`relative z-10 px-5 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${
-              view === 'log'
-                ? 'text-gray-900'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
+            className={`relative z-10 px-5 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${view === 'log'
+              ? 'text-gray-900'
+              : 'text-gray-600 hover:text-gray-900'
+              }`}
           >
             Лог
           </button>
           <button
             ref={schedulerRef}
             onClick={() => setView('scheduler')}
-            className={`relative z-10 px-5 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${
-              view === 'scheduler'
-                ? 'text-gray-900'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
+            className={`relative z-10 px-5 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${view === 'scheduler'
+              ? 'text-gray-900'
+              : 'text-gray-600 hover:text-gray-900'
+              }`}
           >
             Планировщик
             {overdueCount > 0 && (
@@ -232,11 +226,10 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
           <button
             ref={settingsRef}
             onClick={() => setView('settings')}
-            className={`relative z-10 px-5 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${
-              view === 'settings' || view === 'history'
-                ? 'text-gray-900'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
+            className={`relative z-10 px-5 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${view === 'settings' || view === 'history'
+              ? 'text-gray-900'
+              : 'text-gray-600 hover:text-gray-900'
+              }`}
           >
             Настройки
           </button>
@@ -249,9 +242,8 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
             <div className="relative">
               <button
                 onClick={() => pets.length > 1 && setShowPetMenu(!showPetMenu)}
-                className={`flex items-center gap-2.5 px-4 py-2 bg-white/60 backdrop-blur-md border border-white/80 rounded-full hover:bg-white/80 transition-all ${
-                  pets.length > 1 ? 'cursor-pointer' : 'cursor-default'
-                }`}
+                className={`flex items-center gap-2.5 px-4 py-2 bg-white/60 backdrop-blur-md border border-white/80 rounded-full transition-all ${pets.length > 1 ? 'cursor-pointer hover:bg-white/80' : 'cursor-default'
+                  }`}
               >
                 <span className="text-xl">{PET_EMOJIS[currentPet.type] || '🐾'}</span>
                 <span className="font-medium text-gray-900 text-sm">{currentPet.name}</span>
@@ -262,8 +254,8 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
 
               {showPetMenu && pets.length > 1 && (
                 <>
-                  <div 
-                    className="fixed inset-0 z-40" 
+                  <div
+                    className="fixed inset-0 z-40"
                     onClick={() => setShowPetMenu(false)}
                   />
                   <div className="absolute top-full right-0 mt-2 bg-white/90 backdrop-blur-xl rounded-[32px] shadow-xl py-2 min-w-[200px] z-50 border border-white/60">
@@ -271,9 +263,8 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
                       <button
                         key={pet.id}
                         onClick={() => handleSelectPet(pet.id!)}
-                        className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-white/60 transition-all ${
-                          pet.id === currentPetId ? 'bg-white/60' : ''
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-white/60 transition-all ${pet.id === currentPetId ? 'bg-white/60' : ''
+                          }`}
                       >
                         <span className="text-xl">{PET_EMOJIS[pet.type] || '🐾'}</span>
                         <span className="flex-1 text-left font-medium text-gray-900 text-sm">

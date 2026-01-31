@@ -170,7 +170,7 @@ export const Calendar = () => {
     <div className="pb-28">
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
-        <div className="lg:col-span-2 bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-4 shadow-sm animate-stagger">
+        <div className="lg:col-span-2 bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-6 shadow-sm animate-stagger">
           <div className="flex items-center justify-between mb-4">
             <button
               onClick={() => changeMonth(-1)}
@@ -327,7 +327,7 @@ export const Calendar = () => {
         </div>
 
         <div className="space-y-3">
-          <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-3 shadow-sm transition-all duration-300 hover:scale-105 hover:shadow-lg animate-stagger" style={{ animationDelay: '100ms' }}>
+          <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-5 shadow-sm animate-stagger" style={{ animationDelay: '100ms' }}>
             <div className="flex items-start gap-2">
               <div className="w-8 h-8 bg-black rounded-[20px] flex items-center justify-center flex-shrink-0">
                 <Activity className="text-white" size={16} />
@@ -340,7 +340,7 @@ export const Calendar = () => {
             </div>
           </div>
 
-          <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-3 shadow-sm transition-all duration-300 hover:scale-105 hover:shadow-lg animate-stagger" style={{ animationDelay: '200ms' }}>
+          <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-5 shadow-sm animate-stagger" style={{ animationDelay: '200ms' }}>
             <div className="flex items-start gap-2">
               <div className="w-8 h-8 bg-[#F5F5F7] rounded-[20px] flex items-center justify-center text-black text-sm font-bold flex-shrink-0">
                 {thisMonthStateEntries.length}
@@ -353,7 +353,7 @@ export const Calendar = () => {
             </div>
           </div>
 
-          <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-3 shadow-sm transition-all duration-300 hover:scale-105 hover:shadow-lg animate-stagger" style={{ animationDelay: '300ms' }}>
+          <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] p-5 shadow-sm animate-stagger" style={{ animationDelay: '300ms' }}>
             <div className="flex items-start gap-2">
               <div className="w-8 h-8 bg-[#F5F5F7] rounded-[20px] flex items-center justify-center text-black text-sm font-bold flex-shrink-0">
                 {goodDays}

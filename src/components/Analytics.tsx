@@ -96,7 +96,7 @@ export const Analytics = () => {
 
         // Группируем по дням с лекарствами и симптомами
         const dayMap = new Map<string, { scores: number[], medications: Set<string>, symptoms: Set<string> }>();
-        
+
         stateData.forEach(entry => {
           if (!dayMap.has(entry.date)) {
             dayMap.set(entry.date, { scores: [], medications: new Set(), symptoms: new Set() });
@@ -176,7 +176,7 @@ export const Analytics = () => {
         const avgWithout = scores.withoutScores.length > 0
           ? scores.withoutScores.reduce((sum, s) => sum + s, 0) / scores.withoutScores.length
           : avgWith;
-        
+
         correlations.push({
           medication: med,
           avgScoreWith: Number(avgWith.toFixed(1)),
@@ -273,27 +273,27 @@ export const Analytics = () => {
       <ResponsiveContainer width="100%" height={300}>
         <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-          <XAxis 
-            dataKey="date" 
+          <XAxis
+            dataKey="date"
             tick={{ fontSize: 12, fill: '#9CA3AF' }}
             stroke="#E5E7EB"
           />
-          <YAxis 
-            domain={[0, 5]} 
+          <YAxis
+            domain={[0, 5]}
             ticks={[1, 2, 3, 4, 5]}
             tick={{ fontSize: 12, fill: '#9CA3AF' }}
             stroke="#E5E7EB"
           />
-          <Tooltip 
-            contentStyle={{ 
-              backgroundColor: '#1F2937', 
-              border: 'none', 
+          <Tooltip
+            contentStyle={{
+              backgroundColor: '#1F2937',
+              border: 'none',
               borderRadius: '12px',
               padding: '8px 12px',
               boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
             }}
-            labelStyle={{ 
-              color: '#E5E7EB', 
+            labelStyle={{
+              color: '#E5E7EB',
               marginBottom: '4px',
               fontSize: '12px',
               fontWeight: '500'
@@ -305,15 +305,15 @@ export const Analytics = () => {
             }}
             formatter={(value: any) => [value.toFixed(1), 'Оценка']}
           />
-          <Area 
-            type="monotone" 
-            dataKey="score" 
-            stroke="#8B5CF6" 
+          <Area
+            type="monotone"
+            dataKey="score"
+            stroke="#8B5CF6"
             strokeWidth={3}
             fill="transparent"
-            dot={{ 
-              fill: '#8B5CF6', 
-              strokeWidth: 2, 
+            dot={{
+              fill: '#8B5CF6',
+              strokeWidth: 2,
               stroke: 'white',
               r: 5
             }}
@@ -336,11 +336,10 @@ export const Analytics = () => {
           <button
             key={days}
             onClick={() => setSelectedPeriod(days as 7 | 14 | 30)}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-              selectedPeriod === days
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedPeriod === days
                 ? 'bg-black text-white'
                 : 'bg-white/60 text-gray-700 hover:bg-white'
-            }`}
+              }`}
           >
             {days} дней
           </button>
@@ -355,7 +354,7 @@ export const Analytics = () => {
 
       {/* Stats cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6 animate-fadeInUp transition-all hover:scale-105 hover:shadow-lg" style={{ animationDelay: '100ms' }}>
+        <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6 animate-fadeInUp" style={{ animationDelay: '100ms' }}>
           <div className="flex items-center gap-3 mb-2">
             <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
               <TrendingUp className="text-blue-600" size={24} />
@@ -368,7 +367,7 @@ export const Analytics = () => {
           <div className="text-xs text-gray-600">За {selectedPeriod} дней</div>
         </div>
 
-        <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6 animate-fadeInUp transition-all hover:scale-105 hover:shadow-lg" style={{ animationDelay: '150ms' }}>
+        <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6 animate-fadeInUp" style={{ animationDelay: '150ms' }}>
           <div className="flex items-center gap-3 mb-2">
             <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center">
               <Activity className="text-green-600" size={24} />
@@ -382,15 +381,14 @@ export const Analytics = () => {
         </div>
 
         {trend && (
-          <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6 animate-fadeInUp transition-all hover:scale-105 hover:shadow-lg" style={{ animationDelay: '200ms' }}>
+          <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6 animate-fadeInUp" style={{ animationDelay: '200ms' }}>
             <div className="flex items-center gap-3 mb-2">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-                trend.direction === 'up' ? 'bg-green-100' :
-                trend.direction === 'down' ? 'bg-red-100' : 'bg-gray-100'
-              }`}>
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${trend.direction === 'up' ? 'bg-green-100' :
+                  trend.direction === 'down' ? 'bg-red-100' : 'bg-gray-100'
+                }`}>
                 {trend.direction === 'up' ? <TrendingUp className="text-green-600" size={24} /> :
-                 trend.direction === 'down' ? <TrendingDown className="text-red-600" size={24} /> :
-                 <BarChart3 className="text-gray-600" size={24} />}
+                  trend.direction === 'down' ? <TrendingDown className="text-red-600" size={24} /> :
+                    <BarChart3 className="text-gray-600" size={24} />}
               </div>
               <div>
                 <div className="text-xs text-gray-500">Тренд</div>
@@ -401,13 +399,13 @@ export const Analytics = () => {
             </div>
             <div className="text-xs text-gray-600">
               {trend.direction === 'up' ? 'Улучшение' :
-               trend.direction === 'down' ? 'Ухудшение' : 'Стабильно'}
+                trend.direction === 'down' ? 'Ухудшение' : 'Стабильно'}
             </div>
           </div>
         )}
 
         {trend && (
-          <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6 animate-fadeInUp transition-all hover:scale-105 hover:shadow-lg" style={{ animationDelay: '250ms' }}>
+          <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6 animate-fadeInUp" style={{ animationDelay: '250ms' }}>
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center">
                 <Zap className="text-purple-600" size={24} />
@@ -436,10 +434,9 @@ export const Analytics = () => {
                 <div key={idx} className="p-3 bg-white/50 rounded-2xl">
                   <div className="flex items-center justify-between mb-2">
                     <div className="font-medium text-sm">{corr.medication}</div>
-                    <div className={`text-sm font-bold ${
-                      corr.impact > 0 ? 'text-green-600' :
-                      corr.impact < 0 ? 'text-red-600' : 'text-gray-600'
-                    }`}>
+                    <div className={`text-sm font-bold ${corr.impact > 0 ? 'text-green-600' :
+                        corr.impact < 0 ? 'text-red-600' : 'text-gray-600'
+                      }`}>
                       {corr.impact > 0 ? '+' : ''}{corr.impact}
                     </div>
                   </div>
@@ -451,10 +448,9 @@ export const Analytics = () => {
                   {/* Progress bar */}
                   <div className="mt-2 h-1.5 bg-gray-200 rounded-full overflow-hidden">
                     <div
-                      className={`h-full ${
-                        corr.impact > 0 ? 'bg-green-500' :
-                        corr.impact < 0 ? 'bg-red-500' : 'bg-gray-400'
-                      }`}
+                      className={`h-full ${corr.impact > 0 ? 'bg-green-500' :
+                          corr.impact < 0 ? 'bg-red-500' : 'bg-gray-400'
+                        }`}
                       style={{ width: `${Math.min(100, Math.abs(corr.impact) * 20)}%` }}
                     />
                   </div>

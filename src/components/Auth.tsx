@@ -130,7 +130,7 @@ export function Auth() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-100 via-white to-cyan-100 flex items-center justify-center p-4">
       <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-8 max-w-md w-full">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-[24px] mb-4 shadow-sm">
