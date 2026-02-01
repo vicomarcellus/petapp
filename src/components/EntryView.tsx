@@ -398,7 +398,7 @@ export const EntryView = () => {
           const { data, error } = await supabase.from('medication_entries').insert({
             user_id: currentUser.id,
             pet_id: currentPetId,
-            date: dateStr, // Используем правильную дату
+            date: dateStr,
             time: timeStr,
             timestamp: scheduledTime,
             medication_name: medicationName,
@@ -450,7 +450,7 @@ export const EntryView = () => {
         }).eq('id', editingEntry.data.id);
       } else {
         // Создаем запись лекарства
-        const { data: medData } = await supabase.from('medication_entries').insert({
+        const { data: medData, error: medError } = await supabase.from('medication_entries').insert({
           user_id: currentUser.id,
           pet_id: currentPetId,
           date: selectedDate,
@@ -460,8 +460,14 @@ export const EntryView = () => {
           dosage_amount: medicationAmount,
           dosage_unit: medicationUnit,
           color: '#8B5CF6',
-          is_scheduled: false // Добавлено сейчас, не было запланировано
+          is_scheduled: false
         }).select().single();
+        
+        if (medError) {
+          console.error('Ошибка при сохранении лекарства:', medError);
+          setErrorModal({ title: 'Ошибка сохранения', message: medError.message });
+          return;
+        }
 
         // Автоматически создаем задачу в чеклисте
         if (medData) {
