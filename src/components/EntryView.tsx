@@ -367,6 +367,7 @@ export const EntryView = () => {
       setSymptomTime('');
       setSymptomNote('');
       loadData();
+      loadSavedItems(); // Обновляем список сохранённых вариантов
     } catch (error) {
       console.error('Error saving symptom:', error);
     }
@@ -425,6 +426,7 @@ export const EntryView = () => {
           setMedicationUnit('мл');
           setMedicationTime('');
           loadData();
+          loadSavedItems(); // Обновляем список сохранённых вариантов
           return;
         } catch (error) {
           console.error('Error scheduling medication:', error);
@@ -488,6 +490,7 @@ export const EntryView = () => {
       setMedicationUnit('мл');
       setMedicationTime('');
       loadData();
+      loadSavedItems(); // Обновляем список сохранённых вариантов
     } catch (error) {
       console.error('Error saving medication:', error);
     }
@@ -613,6 +616,7 @@ export const EntryView = () => {
       setFoodTime('');
       setFoodNote('');
       loadData();
+      loadSavedItems(); // Обновляем список сохранённых вариантов
     } catch (error) {
       console.error('Error saving feeding:', error);
     }
