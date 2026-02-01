@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, X, Loader2 } from 'lucide-react';
+import { Send, Sparkles, X, Loader2, Lightbulb } from 'lucide-react';
 import { useStore } from '../store';
 import { supabase } from '../lib/supabase';
-import { parseEntryFromText } from '../services/ai';
+import { parseEntryFromText, AIContext } from '../services/ai';
+import { chatWithAI } from '../services/aiChat';
 import { formatDate } from '../utils';
 
 interface Message {
@@ -14,14 +15,34 @@ interface Message {
   };
 }
 
+// Быстрые подсказки
+const QUICK_SUGGESTIONS = [
+  "Что думаешь по логу?",
+  "Есть ли улучшения?",
+  "Запланируй воду каждые 2 часа",
+  "Дал преднизолон 0,3 мл",
+  "Что запланировано?",
+  "Как дела за неделю?"
+];
+
 export const QuickChat = () => {
-  const { currentUser, currentPetId, selectedDate, setSelectedDate, setView } = useStore();
+  const { currentUser, currentPetId, selectedDate, setSelectedDate, setView, view } = useStore();
   const [message, setMessage] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  // Сохраняем историю в localStorage
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const saved = localStorage.getItem('ai-chat-history');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [loading, setLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Сохраняем историю при изменении
+  useEffect(() => {
+    localStorage.setItem('ai-chat-history', JSON.stringify(messages));
+  }, [messages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -39,11 +60,12 @@ export const QuickChat = () => {
     }
   }, [isOpen]);
 
-  const handleSend = async () => {
-    if (!message.trim() || loading || !currentUser || !currentPetId) return;
+  const handleSend = async (messageText?: string) => {
+    const userMessage = (messageText || message).trim();
+    if (!userMessage || loading || !currentUser || !currentPetId) return;
 
-    const userMessage = message.trim();
     setMessage('');
+    setShowSuggestions(false);
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setLoading(true);
 
@@ -51,7 +73,16 @@ export const QuickChat = () => {
       const today = formatDate(new Date());
       const dateToUse = selectedDate || today;
 
-      // Получаем контекст для AI
+      // Собираем ПОЛНЫЙ контекст для AI
+      
+      // 0. Данные о питомце
+      const { data: petData } = await supabase
+        .from('pets')
+        .select('*')
+        .eq('id', currentPetId)
+        .single();
+      
+      // 1. Данные за текущий день
       const { data: stateEntries } = await supabase
         .from('state_entries')
         .select('*')
@@ -73,20 +104,169 @@ export const QuickChat = () => {
         .eq('pet_id', currentPetId)
         .eq('date', dateToUse);
 
-      const context = {
+      const { data: feedingEntries } = await supabase
+        .from('feeding_entries')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('pet_id', currentPetId)
+        .eq('date', dateToUse);
+
+      // Загружаем запланированные события на сегодня и будущее
+      const { data: scheduledMedications } = await supabase
+        .from('medication_entries')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('pet_id', currentPetId)
+        .eq('is_scheduled', true)
+        .eq('completed', false)
+        .gte('scheduled_time', Date.now());
+
+      const { data: scheduledFeedings } = await supabase
+        .from('feeding_entries')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('pet_id', currentPetId)
+        .eq('is_scheduled', true)
+        .eq('completed', false)
+        .gte('scheduled_time', Date.now());
+
+      // 2. Диагнозы питомца
+      const { data: diagnoses } = await supabase
+        .from('diagnoses')
+        .select('*')
+        .eq('pet_id', currentPetId)
+        .order('date', { ascending: false });
+
+      // 3. История за последние 7 дней
+      const last7Days = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        return formatDate(d);
+      });
+
+      const { data: recentStates } = await supabase
+        .from('state_entries')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('pet_id', currentPetId)
+        .in('date', last7Days);
+
+      const { data: recentSymptoms } = await supabase
+        .from('symptom_entries')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('pet_id', currentPetId)
+        .in('date', last7Days);
+
+      const { data: recentMedications } = await supabase
+        .from('medication_entries')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('pet_id', currentPetId)
+        .in('date', last7Days);
+
+      // Формируем историю по дням
+      const recentHistory = last7Days.slice(1).map(date => {
+        const dayStates = recentStates?.filter(s => s.date === date) || [];
+        const daySymptoms = recentSymptoms?.filter(s => s.date === date) || [];
+        const dayMeds = recentMedications?.filter(m => m.date === date) || [];
+        
+        const avgState = dayStates.length > 0
+          ? Math.round(dayStates.reduce((sum, s) => sum + s.state_score, 0) / dayStates.length)
+          : undefined;
+
+        return {
+          date,
+          avgState,
+          symptoms: [...new Set(daySymptoms.map(s => s.symptom))],
+          medications: [...new Set(dayMeds.map(m => m.medication_name))]
+        };
+      });
+
+      // 4. Статистика
+      const avgStateLastWeek = recentStates && recentStates.length > 0
+        ? Math.round(recentStates.reduce((sum, s) => sum + s.state_score, 0) / recentStates.length * 10) / 10
+        : undefined;
+
+      const symptomCounts = new Map<string, number>();
+      recentSymptoms?.forEach(s => {
+        symptomCounts.set(s.symptom, (symptomCounts.get(s.symptom) || 0) + 1);
+      });
+      const commonSymptoms = Array.from(symptomCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([symptom]) => symptom);
+
+      const medCounts = new Map<string, number>();
+      recentMedications?.forEach(m => {
+        medCounts.set(m.medication_name, (medCounts.get(m.medication_name) || 0) + 1);
+      });
+      const regularMedications = Array.from(medCounts.entries())
+        .filter(([, count]) => count >= 3)
+        .map(([med]) => med);
+
+      // Формируем контекст
+      const context: AIContext = {
+        petName: petData?.name,
+        petType: petData?.type,
+        currentView: view,
+        currentDate: dateToUse,
         existingStates: stateEntries?.map(s => `${s.time}: ${s.state_score}/5`) || [],
         existingSymptoms: symptomEntries?.map(s => s.symptom) || [],
-        existingMedications: medicationEntries?.map(m => `${m.medication_name} ${m.dosage}`) || [],
+        existingMedications: medicationEntries?.map(m => {
+          const dosage = m.dosage_amount && m.dosage_unit 
+            ? `${m.dosage_amount} ${m.dosage_unit}` 
+            : m.dosage || '';
+          return `${m.medication_name} ${dosage}`;
+        }) || [],
+        existingFeedings: feedingEntries?.map(f => {
+          const unit = f.unit === 'g' ? 'г' : f.unit === 'ml' ? 'мл' : '';
+          return `${f.food_name} ${f.amount}${unit}`;
+        }) || [],
+        scheduledMedications: scheduledMedications?.map(m => {
+          const dosage = m.dosage_amount && m.dosage_unit 
+            ? `${m.dosage_amount} ${m.dosage_unit}` 
+            : m.dosage || '';
+          const scheduledDate = new Date(m.scheduled_time!);
+          const timeStr = `${scheduledDate.getHours().toString().padStart(2, '0')}:${scheduledDate.getMinutes().toString().padStart(2, '0')}`;
+          return `${m.medication_name} ${dosage} запланировано на ${timeStr}`;
+        }) || [],
+        scheduledFeedings: scheduledFeedings?.map(f => {
+          const unit = f.unit === 'g' ? 'г' : f.unit === 'ml' ? 'мл' : '';
+          const scheduledDate = new Date(f.scheduled_time!);
+          const timeStr = `${scheduledDate.getHours().toString().padStart(2, '0')}:${scheduledDate.getMinutes().toString().padStart(2, '0')}`;
+          return `${f.food_name} ${f.amount}${unit} запланировано на ${timeStr}`;
+        }) || [],
         hasEntry: (stateEntries && stateEntries.length > 0) || false,
         currentState: stateEntries && stateEntries.length > 0
           ? Math.round(stateEntries.reduce((sum, s) => sum + s.state_score, 0) / stateEntries.length)
           : undefined,
-        currentView: 'calendar',
-        currentDate: dateToUse
+        diagnoses: diagnoses?.map(d => ({
+          date: d.date,
+          diagnosis: d.diagnosis,
+          notes: d.notes || undefined
+        })),
+        recentHistory,
+        stats: {
+          avgStateLastWeek,
+          commonSymptoms,
+          regularMedications
+        }
       };
 
-      // Парсим команду через AI
-      const parsed = await parseEntryFromText(userMessage, context);
+      // Определяем тип запроса - команда или вопрос
+      // "составь график" - это вопрос (анализ), а не команда
+      // "запланируй" - это команда (создание задач)
+      const isCommand = /^(дал|дали|дать|добавь|добавить|покормил|покормить|состояние|удали|удалить|очисти|очистить|запланируй|запланировать|напомни|напоминание)/i.test(userMessage);
+      
+      // Также проверяем, не содержит ли сообщение просьбу о планировании где-то в середине
+      const wantsToSchedule = /запланируй|запланировать|напомни|напоминание|добавь.*задач.*планировщик|создай.*задач/i.test(userMessage);
+
+      if (isCommand || wantsToSchedule) {
+        // Это команда - используем старый парсер
+        const parsed = await parseEntryFromText(userMessage, context);
+        
+        console.log('Parsed result:', parsed); // Для отладки
 
       // Выполняем действие
       if (parsed.action === 'add') {
@@ -126,6 +306,11 @@ export const QuickChat = () => {
         if (parsed.medications && parsed.medications.length > 0) {
           for (const med of parsed.medications) {
             const timestamp = new Date(`${dateToUse}T${med.time}`).getTime();
+            // Парсим дозировку на количество и единицу
+            const dosageMatch = med.dosage.match(/^([0-9.,]+)\s*(мл|мг|г|таб|капс)?$/);
+            const dosageAmount = dosageMatch ? dosageMatch[1] : med.dosage;
+            const dosageUnit = dosageMatch ? dosageMatch[2] || 'мл' : 'мл';
+            
             await supabase.from('medication_entries').insert({
               user_id: currentUser.id,
               pet_id: currentPetId,
@@ -133,10 +318,297 @@ export const QuickChat = () => {
               time: med.time,
               timestamp,
               medication_name: med.name,
-              dosage: med.dosage,
+              dosage: med.dosage, // Для обратной совместимости
+              dosage_amount: dosageAmount,
+              dosage_unit: dosageUnit,
               color: '#8B5CF6'
             });
           }
+        }
+
+        // Добавляем питание
+        if (parsed.feedings && parsed.feedings.length > 0) {
+          for (const feeding of parsed.feedings) {
+            const timestamp = new Date(`${dateToUse}T${feeding.time}`).getTime();
+            await supabase.from('feeding_entries').insert({
+              user_id: currentUser.id,
+              pet_id: currentPetId,
+              date: dateToUse,
+              time: feeding.time,
+              timestamp,
+              food_name: feeding.name,
+              amount: feeding.amount,
+              unit: feeding.unit,
+              note: feeding.note || null
+            });
+          }
+        }
+
+        // Добавляем запланированные лекарства
+        if (parsed.scheduledMedications && parsed.scheduledMedications.length > 0) {
+          console.log('=== CREATING SCHEDULED MEDICATIONS ===');
+          console.log('Scheduled medications:', parsed.scheduledMedications);
+          
+          let createdCount = 0;
+          
+          for (const med of parsed.scheduledMedications) {
+            if (med.recurring) {
+              // Повторяющееся событие
+              const intervals: Record<string, number> = {
+                'every_1h': 1,
+                'every_2h': 2,
+                'every_3h': 3,
+                'every_4h': 4,
+                'daily': 24
+              };
+              
+              const intervalHours = intervals[med.recurring];
+              const startTime = med.time;
+              const [startHour, startMinute] = startTime.split(':').map(Number);
+              
+              // Создаем события на сегодня
+              for (let hour = startHour; hour < 24; hour += intervalHours) {
+                const eventTime = `${hour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`;
+                const timestamp = new Date(`${dateToUse}T${eventTime}`).getTime();
+                
+                const { data, error } = await supabase.from('medication_entries').insert({
+                  user_id: currentUser.id,
+                  pet_id: currentPetId,
+                  date: dateToUse,
+                  time: eventTime,
+                  timestamp,
+                  medication_name: med.name,
+                  dosage_amount: med.amount,
+                  dosage_unit: med.unit,
+                  dosage: `${med.amount} ${med.unit}`,
+                  is_scheduled: true,
+                  scheduled_time: timestamp,
+                  completed: false,
+                  color: '#8B5CF6'
+                }).select();
+                
+                if (error) {
+                  console.error('❌ Error inserting scheduled medication:', error);
+                } else {
+                  console.log('✅ Scheduled medication inserted:', data);
+                  createdCount++;
+                }
+              }
+            } else {
+              // Одноразовое событие
+              const timestamp = new Date(`${dateToUse}T${med.time}`).getTime();
+              
+              const { data, error } = await supabase.from('medication_entries').insert({
+                user_id: currentUser.id,
+                pet_id: currentPetId,
+                date: dateToUse,
+                time: med.time,
+                timestamp,
+                medication_name: med.name,
+                dosage_amount: med.amount,
+                dosage_unit: med.unit,
+                dosage: `${med.amount} ${med.unit}`,
+                is_scheduled: true,
+                scheduled_time: timestamp,
+                completed: false,
+                color: '#8B5CF6'
+              }).select();
+              
+              if (error) {
+                console.error('❌ Error inserting scheduled medication:', error);
+              } else {
+                console.log('✅ Scheduled medication inserted:', data);
+                createdCount++;
+              }
+            }
+          }
+          
+          if (createdCount > 0) {
+            setMessages(prev => [...prev, {
+              role: 'assistant',
+              content: `✅ Запланировал ${createdCount} ${createdCount === 1 ? 'лекарство' : createdCount < 5 ? 'лекарства' : 'лекарств'}!`
+            }]);
+            return;
+          }
+        }
+
+        // Добавляем запланированное питание
+        if (parsed.scheduledFeedings && parsed.scheduledFeedings.length > 0) {
+          console.log('=== CREATING SCHEDULED FEEDINGS ===');
+          console.log('Scheduled feedings:', parsed.scheduledFeedings);
+          
+          let createdCount = 0;
+          
+          for (const feeding of parsed.scheduledFeedings) {
+            if (feeding.recurring) {
+              // Повторяющееся событие
+              const intervals: Record<string, number> = {
+                'every_1h': 1,
+                'every_2h': 2,
+                'every_3h': 3,
+                'every_4h': 4,
+                'daily': 24
+              };
+              
+              const intervalHours = intervals[feeding.recurring];
+              const startTime = feeding.time;
+              const [startHour, startMinute] = startTime.split(':').map(Number);
+              
+              // Создаем события на сегодня
+              for (let hour = startHour; hour < 24; hour += intervalHours) {
+                const eventTime = `${hour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`;
+                const timestamp = new Date(`${dateToUse}T${eventTime}`).getTime();
+                
+                const { data, error } = await supabase.from('feeding_entries').insert({
+                  user_id: currentUser.id,
+                  pet_id: currentPetId,
+                  date: dateToUse,
+                  time: eventTime,
+                  timestamp,
+                  food_name: feeding.name,
+                  amount: feeding.amount,
+                  unit: feeding.unit,
+                  is_scheduled: true,
+                  scheduled_time: timestamp,
+                  completed: false
+                }).select();
+                
+                if (error) {
+                  console.error('❌ Error inserting scheduled feeding:', error);
+                } else {
+                  console.log('✅ Scheduled feeding inserted:', data);
+                  createdCount++;
+                }
+              }
+            } else {
+              // Одноразовое событие
+              const timestamp = new Date(`${dateToUse}T${feeding.time}`).getTime();
+              
+              const { data, error } = await supabase.from('feeding_entries').insert({
+                user_id: currentUser.id,
+                pet_id: currentPetId,
+                date: dateToUse,
+                time: feeding.time,
+                timestamp,
+                food_name: feeding.name,
+                amount: feeding.amount,
+                unit: feeding.unit,
+                is_scheduled: true,
+                scheduled_time: timestamp,
+                completed: false
+              }).select();
+              
+              if (error) {
+                console.error('❌ Error inserting scheduled feeding:', error);
+              } else {
+                console.log('✅ Scheduled feeding inserted:', data);
+                createdCount++;
+              }
+            }
+          }
+          
+          if (createdCount > 0) {
+            setMessages(prev => [...prev, {
+              role: 'assistant',
+              content: `✅ Запланировал ${createdCount} ${createdCount === 1 ? 'кормление' : createdCount < 5 ? 'кормления' : 'кормлений'}!`
+            }]);
+            return;
+          }
+        }
+
+        // Добавляем задачи в планировщик
+        if (parsed.tasks && parsed.tasks.length > 0) {
+          console.log('=== CREATING TASKS ===');
+          console.log('Tasks to create:', parsed.tasks);
+          console.log('Date:', dateToUse);
+          console.log('User ID:', currentUser.id);
+          console.log('Pet ID:', currentPetId);
+          
+          let createdCount = 0;
+          
+          for (const task of parsed.tasks) {
+            if (task.recurring) {
+              // Повторяющаяся задача - создаем несколько
+              const intervals: Record<string, number> = {
+                'every_1h': 1,
+                'every_2h': 2,
+                'every_3h': 3,
+                'every_4h': 4,
+                'daily': 24
+              };
+              
+              const intervalHours = intervals[task.recurring];
+              const startTime = task.time;
+              const [startHour, startMinute] = startTime.split(':').map(Number);
+              
+              console.log(`Creating recurring task: "${task.task}" every ${intervalHours}h starting at ${startTime}`);
+              
+              // Создаем задачи на сегодня
+              for (let hour = startHour; hour < 24; hour += intervalHours) {
+                const taskTime = `${hour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`;
+                const timestamp = new Date(`${dateToUse}T${taskTime}`).getTime();
+                
+                const taskData = {
+                  user_id: currentUser.id,
+                  pet_id: currentPetId,
+                  date: dateToUse,
+                  time: taskTime,
+                  timestamp,
+                  task: task.task,
+                  completed: false,
+                  task_type: 'other'
+                };
+                
+                console.log('Inserting recurring task:', taskData);
+                
+                const { data, error } = await supabase.from('checklist_tasks').insert(taskData).select();
+                
+                if (error) {
+                  console.error('❌ Error inserting task:', error);
+                } else {
+                  console.log('✅ Task inserted successfully:', data);
+                  createdCount++;
+                }
+              }
+            } else {
+              // Одноразовая задача
+              const timestamp = new Date(`${dateToUse}T${task.time}`).getTime();
+              
+              const taskData = {
+                user_id: currentUser.id,
+                pet_id: currentPetId,
+                date: dateToUse,
+                time: task.time,
+                timestamp,
+                task: task.task,
+                completed: false,
+                task_type: 'other'
+              };
+              
+              console.log('Inserting single task:', taskData);
+              
+              const { data, error } = await supabase.from('checklist_tasks').insert(taskData).select();
+              
+              if (error) {
+                console.error('❌ Error inserting task:', error);
+              } else {
+                console.log('✅ Task inserted successfully:', data);
+                createdCount++;
+              }
+            }
+          }
+          
+          console.log(`=== TOTAL CREATED: ${createdCount} tasks ===`);
+          
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: createdCount > 0 
+              ? `✅ Создал ${createdCount} ${createdCount === 1 ? 'задачу' : createdCount < 5 ? 'задачи' : 'задач'} в планировщике!`
+              : '❌ Не удалось создать задачи. Проверь консоль браузера (F12) для деталей.'
+          }]);
+          
+          // Не показываем "Записано!" если были только задачи
+          return;
         }
 
         setMessages(prev => [...prev, {
@@ -190,6 +662,19 @@ export const QuickChat = () => {
             role: 'assistant',
             content: `✅ Удалил запись состояния в ${parsed.time}`
           }]);
+        } else if (parsed.target === 'feeding' && parsed.itemName) {
+          await supabase
+            .from('feeding_entries')
+            .delete()
+            .eq('user_id', currentUser.id)
+            .eq('pet_id', currentPetId)
+            .eq('date', dateToUse)
+            .eq('food_name', parsed.itemName);
+
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: `✅ Удалил питание "${parsed.itemName}"`
+          }]);
         }
       } else if (parsed.action === 'clear') {
         // Очистка всех записей типа
@@ -229,6 +714,18 @@ export const QuickChat = () => {
             role: 'assistant',
             content: '✅ Удалил все лекарства'
           }]);
+        } else if (parsed.target === 'feeding') {
+          await supabase
+            .from('feeding_entries')
+            .delete()
+            .eq('user_id', currentUser.id)
+            .eq('pet_id', currentPetId)
+            .eq('date', dateToUse);
+
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: '✅ Удалил все записи питания'
+          }]);
         }
       } else if (parsed.action === 'chat') {
         // Просто ответ от AI с возможной кнопкой перехода
@@ -251,6 +748,15 @@ export const QuickChat = () => {
         setMessages(prev => [...prev, {
           role: 'assistant',
           content: 'Не понял команду. Попробуй: "состояние 4", "дрожь", "дали преднизолон 0,3"'
+        }]);
+      }
+      } else {
+        // Обычный вопрос - используем естественный чат
+        const aiResponse = await chatWithAI(userMessage, context);
+        
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: aiResponse
         }]);
       }
     } catch (error) {
@@ -305,21 +811,57 @@ export const QuickChat = () => {
               <Sparkles className="text-white" size={20} />
               <h3 className="text-white font-bold">AI Помощник</h3>
             </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="text-white hover:bg-white/20 rounded-full p-1 w-8 h-8 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
-            >
-              <X size={20} />
-            </button>
+            <div className="flex items-center gap-2">
+              {messages.length > 0 && (
+                <button
+                  onClick={() => {
+                    setMessages([]);
+                    setShowSuggestions(true);
+                  }}
+                  className="text-white/70 hover:text-white hover:bg-white/20 rounded-full p-1 w-8 h-8 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 text-xs"
+                  title="Очистить историю"
+                >
+                  🗑️
+                </button>
+              )}
+              <button
+                onClick={() => setIsOpen(false)}
+                className="text-white hover:bg-white/20 rounded-full p-1 w-8 h-8 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
+              >
+                <X size={20} />
+              </button>
+            </div>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#F5F5F7] min-h-0">
           {messages.length === 0 ? (
-            <div className="text-center text-gray-400 text-sm py-8 animate-fadeIn">
-              Привет! Я AI помощник.
-              <br />
-              Спросите меня о здоровье питомца!
+            <div className="space-y-4">
+              <div className="text-center text-gray-400 text-sm py-4 animate-fadeIn">
+                Привет! Я AI помощник.
+                <br />
+                Спросите меня о здоровье питомца!
+              </div>
+              
+              {showSuggestions && (
+                <div className="space-y-2 animate-fadeIn">
+                  <div className="flex items-center gap-2 text-xs text-gray-500 px-2">
+                    <Lightbulb size={14} />
+                    <span>Быстрые команды:</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {QUICK_SUGGESTIONS.map((suggestion, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleSend(suggestion)}
+                        className="px-3 py-2 bg-white text-gray-700 rounded-xl text-xs hover:bg-gray-50 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] text-left border border-gray-200"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             messages.map((msg, idx) => (
@@ -369,7 +911,7 @@ export const QuickChat = () => {
               className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-black text-sm transition-all duration-200"
             />
             <button
-              onClick={handleSend}
+              onClick={() => handleSend()}
               disabled={loading || !message.trim()}
               className="w-10 h-10 bg-black rounded-full flex items-center justify-center text-white hover:bg-gray-800 transition-all duration-200 hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
             >

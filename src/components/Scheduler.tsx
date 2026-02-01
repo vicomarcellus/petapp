@@ -9,7 +9,7 @@ import { useUnits } from '../hooks/useUnits';
 
 interface ScheduledEvent {
   id: number;
-  type: 'medication' | 'feeding';
+  type: 'medication' | 'feeding' | 'task';
   date: string;
   time: string;
   timestamp: number;
@@ -17,6 +17,7 @@ interface ScheduledEvent {
   completed: boolean;
   name: string;
   amount: string;
+  task_type?: string; // Для задач из checklist
 }
 
 export const Scheduler = () => {
@@ -27,6 +28,11 @@ export const Scheduler = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [editingEvent, setEditingEvent] = useState<ScheduledEvent | null>(null);
+  const [editingTask, setEditingTask] = useState<{ id: number; name: string } | null>(null);
+  
+  // Массовое удаление
+  const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   // Form fields
   const [eventType, setEventType] = useState<'medication' | 'feeding'>('medication');
@@ -46,13 +52,33 @@ export const Scheduler = () => {
     if (currentUser && currentPetId) {
       loadEvents();
 
+      // Подписка на изменения в таблицах
+      const channel = supabase
+        .channel('scheduler_changes')
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'medication_entries', filter: `pet_id=eq.${currentPetId}` },
+          () => loadEvents()
+        )
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'feeding_entries', filter: `pet_id=eq.${currentPetId}` },
+          () => loadEvents()
+        )
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'checklist_tasks', filter: `pet_id=eq.${currentPetId}` },
+          () => loadEvents()
+        )
+        .subscribe();
+
       // Обновляем каждую секунду
       const interval = setInterval(() => {
         setTick(t => t + 1);
         checkNotifications();
       }, 1000);
 
-      return () => clearInterval(interval);
+      return () => {
+        supabase.removeChannel(channel);
+        clearInterval(interval);
+      };
     }
   }, [currentUser, currentPetId]);
 
@@ -63,7 +89,7 @@ export const Scheduler = () => {
       const now = Date.now();
       const today = new Date().toISOString().split('T')[0];
 
-      const [medRes, feedRes] = await Promise.all([
+      const [medRes, feedRes, taskRes] = await Promise.all([
         supabase
           .from('medication_entries')
           .select('*')
@@ -79,7 +105,14 @@ export const Scheduler = () => {
           .eq('pet_id', currentPetId)
           .eq('is_scheduled', true)
           .gte('date', today)
-          .order('scheduled_time', { ascending: true })
+          .order('scheduled_time', { ascending: true }),
+        supabase
+          .from('checklist_tasks')
+          .select('*')
+          .eq('user_id', currentUser.id)
+          .eq('pet_id', currentPetId)
+          .gte('date', today)
+          .order('timestamp', { ascending: true })
       ]);
 
       const medEvents: ScheduledEvent[] = (medRes.data || []).map(m => ({
@@ -108,7 +141,20 @@ export const Scheduler = () => {
         amount: `${f.amount} ${f.unit === 'g' ? 'г' : f.unit === 'ml' ? 'мл' : ''}`
       }));
 
-      setEvents([...medEvents, ...feedEvents].sort((a, b) => a.scheduled_time - b.scheduled_time));
+      const taskEvents: ScheduledEvent[] = (taskRes.data || []).map(t => ({
+        id: t.id!,
+        type: 'task',
+        date: t.date,
+        time: t.time,
+        timestamp: t.timestamp,
+        scheduled_time: t.timestamp, // Для задач используем timestamp как scheduled_time
+        completed: t.completed || false,
+        name: t.task,
+        amount: '', // У задач нет количества
+        task_type: t.task_type
+      }));
+
+      setEvents([...medEvents, ...feedEvents, ...taskEvents].sort((a, b) => a.scheduled_time - b.scheduled_time));
     } catch (error) {
       console.error('Error loading events:', error);
     } finally {
@@ -129,7 +175,7 @@ export const Scheduler = () => {
   const showBrowserNotification = (event: ScheduledEvent) => {
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification('Напоминание', {
-        body: `${event.type === 'medication' ? 'Дать лекарство' : 'Покормить'}: ${event.name} ${event.amount}`,
+        body: `${event.type === 'medication' ? 'Дать лекарство' : event.type === 'feeding' ? 'Покормить' : 'Задача'}: ${event.name} ${event.amount}`,
         icon: '/favicon.ico',
         tag: `event-${event.id}` // Предотвращает дубликаты
       });
@@ -230,19 +276,47 @@ export const Scheduler = () => {
   const handleCompleteEvent = async (event: ScheduledEvent) => {
     try {
       const now = Date.now();
+      const today = new Date().toISOString().split('T')[0];
       const timeStr = `${new Date(now).getHours().toString().padStart(2, '0')}:${new Date(now).getMinutes().toString().padStart(2, '0')}`;
 
       if (event.type === 'medication') {
-        await supabase.from('medication_entries').update({
-          completed: true,
+        // Создаем обычную запись в логе
+        await supabase.from('medication_entries').insert({
+          user_id: currentUser!.id,
+          pet_id: currentPetId!,
+          date: today,
           time: timeStr,
-          timestamp: now
-        }).eq('id', event.id);
-      } else {
-        await supabase.from('feeding_entries').update({
-          completed: true,
+          timestamp: now,
+          medication_name: event.name,
+          dosage_amount: event.amount.match(/^([0-9.,]+)/)?.[1] || '',
+          dosage_unit: event.amount.match(/([а-яa-z]+)$/i)?.[1] || 'мл',
+          dosage: event.amount,
+          color: '#8B5CF6'
+        });
+        
+        // Удаляем запланированное событие
+        await supabase.from('medication_entries').delete().eq('id', event.id);
+        
+      } else if (event.type === 'feeding') {
+        // Создаем обычную запись в логе
+        await supabase.from('feeding_entries').insert({
+          user_id: currentUser!.id,
+          pet_id: currentPetId!,
+          date: today,
           time: timeStr,
-          timestamp: now
+          timestamp: now,
+          food_name: event.name,
+          amount: event.amount.match(/^([0-9.,]+)/)?.[1] || event.amount,
+          unit: event.amount.includes('г') ? 'g' : event.amount.includes('мл') ? 'ml' : 'none'
+        });
+        
+        // Удаляем запланированное событие
+        await supabase.from('feeding_entries').delete().eq('id', event.id);
+        
+      } else if (event.type === 'task') {
+        // Для задач просто помечаем выполненными
+        await supabase.from('checklist_tasks').update({
+          completed: true
         }).eq('id', event.id);
       }
 
@@ -256,8 +330,10 @@ export const Scheduler = () => {
     try {
       if (event.type === 'medication') {
         await supabase.from('medication_entries').delete().eq('id', event.id);
-      } else {
+      } else if (event.type === 'feeding') {
         await supabase.from('feeding_entries').delete().eq('id', event.id);
+      } else if (event.type === 'task') {
+        await supabase.from('checklist_tasks').delete().eq('id', event.id);
       }
       loadEvents();
       setDeleteConfirm(null);
@@ -266,7 +342,102 @@ export const Scheduler = () => {
     }
   };
 
+  const toggleEventSelection = (event: ScheduledEvent) => {
+    const key = `${event.type}-${event.id}`;
+    const newSelected = new Set(selectedEvents);
+    if (newSelected.has(key)) {
+      newSelected.delete(key);
+    } else {
+      newSelected.add(key);
+    }
+    setSelectedEvents(newSelected);
+  };
+
+  const selectAllEvents = (eventList: ScheduledEvent[]) => {
+    const newSelected = new Set(selectedEvents);
+    eventList.forEach(event => {
+      newSelected.add(`${event.type}-${event.id}`);
+    });
+    setSelectedEvents(newSelected);
+  };
+
+  const deselectAll = () => {
+    setSelectedEvents(new Set());
+  };
+
+  const deleteSelected = async () => {
+    if (selectedEvents.size === 0) return;
+    
+    try {
+      const toDelete = {
+        medications: [] as number[],
+        feedings: [] as number[],
+        tasks: [] as number[]
+      };
+
+      selectedEvents.forEach(key => {
+        const [type, id] = key.split('-');
+        const numId = parseInt(id);
+        if (type === 'medication') toDelete.medications.push(numId);
+        else if (type === 'feeding') toDelete.feedings.push(numId);
+        else if (type === 'task') toDelete.tasks.push(numId);
+      });
+
+      await Promise.all([
+        toDelete.medications.length > 0 && supabase.from('medication_entries').delete().in('id', toDelete.medications),
+        toDelete.feedings.length > 0 && supabase.from('feeding_entries').delete().in('id', toDelete.feedings),
+        toDelete.tasks.length > 0 && supabase.from('checklist_tasks').delete().in('id', toDelete.tasks)
+      ]);
+
+      setSelectedEvents(new Set());
+      setIsSelectionMode(false);
+      loadEvents();
+    } catch (error) {
+      console.error('Error deleting selected events:', error);
+    }
+  };
+
+  const handleSaveTask = async () => {
+    if (!editingTask || !editingTask.name.trim()) return;
+    
+    try {
+      await supabase.from('checklist_tasks')
+        .update({ task: editingTask.name.trim() })
+        .eq('id', editingTask.id);
+      
+      setEditingTask(null);
+      loadEvents();
+    } catch (error) {
+      console.error('Error updating task:', error);
+    }
+  };
+
+  const clearCompletedEvents = async () => {
+    if (completedEvents.length === 0) return;
+    
+    try {
+      // Удаляем только выполненные задачи (лекарства и питание уже удалены при выполнении)
+      const tasksToDelete = completedEvents
+        .filter(e => e.type === 'task')
+        .map(e => e.id);
+
+      if (tasksToDelete.length > 0) {
+        await supabase.from('checklist_tasks').delete().in('id', tasksToDelete);
+      }
+
+      loadEvents();
+    } catch (error) {
+      console.error('Error clearing completed events:', error);
+    }
+  };
+
   const handleEditEvent = (event: ScheduledEvent) => {
+    // Задачи из checklist_tasks редактируем через отдельную модалку
+    if (event.type === 'task') {
+      setEditingTask({ id: event.id, name: event.name });
+      return;
+    }
+    
     setEditingEvent(event);
     setEventType(event.type);
     setEventDate(event.date);
@@ -324,12 +495,52 @@ export const Scheduler = () => {
     <div className="pb-28">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">Планировщик</h2>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="p-3 bg-black text-white rounded-full hover:bg-gray-800 transition-all duration-200 hover:scale-110 active:scale-95"
-        >
-          <Plus size={20} />
-        </button>
+        <div className="flex items-center gap-2">
+          {!isSelectionMode ? (
+            <>
+              <button
+                onClick={() => setIsSelectionMode(true)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-all duration-200 text-sm font-medium"
+              >
+                Выбрать
+              </button>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="p-3 bg-black text-white rounded-full hover:bg-gray-800 transition-all duration-200 hover:scale-110 active:scale-95"
+              >
+                <Plus size={20} />
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="text-sm text-gray-600">
+                Выбрано: {selectedEvents.size}
+              </span>
+              <button
+                onClick={deselectAll}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-all duration-200 text-sm font-medium"
+              >
+                Снять все
+              </button>
+              <button
+                onClick={deleteSelected}
+                disabled={selectedEvents.size === 0}
+                className="px-4 py-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-all duration-200 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Удалить ({selectedEvents.size})
+              </button>
+              <button
+                onClick={() => {
+                  setIsSelectionMode(false);
+                  setSelectedEvents(new Set());
+                }}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-all duration-200 text-sm font-medium"
+              >
+                Отмена
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Просроченные */}
@@ -343,9 +554,14 @@ export const Scheduler = () => {
             {overdueEvents.map(event => (
               <div key={`${event.type}-${event.id}`} className="bg-red-50 border border-red-200 rounded-2xl p-4">
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${event.type === 'medication' ? 'bg-purple-100' : 'bg-green-100'
-                    }`}>
-                    {event.type === 'medication' ? <Pill className="text-purple-600" size={20} /> : <Utensils className="text-green-600" size={20} />}
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    event.type === 'medication' ? 'bg-purple-100' : 
+                    event.type === 'feeding' ? 'bg-green-100' : 
+                    'bg-blue-100'
+                  }`}>
+                    {event.type === 'medication' ? <Pill className="text-purple-600" size={20} /> : 
+                     event.type === 'feeding' ? <Utensils className="text-green-600" size={20} /> :
+                     <Clock className="text-blue-600" size={20} />}
                   </div>
                   <div className="flex-1">
                     <div className="font-medium text-sm">{event.name}</div>
@@ -382,18 +598,40 @@ export const Scheduler = () => {
       {/* Предстоящие */}
       {upcomingEvents.length > 0 && (
         <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6 mb-6">
-          <h3 className="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
-            <Clock size={16} />
-            Предстоящие ({upcomingEvents.length})
-          </h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-600 flex items-center gap-2">
+              <Clock size={16} />
+              Предстоящие ({upcomingEvents.length})
+            </h3>
+            {isSelectionMode && (
+              <button
+                onClick={() => selectAllEvents(upcomingEvents)}
+                className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Выбрать все
+              </button>
+            )}
+          </div>
           <div className="space-y-2">
             {upcomingEvents.map(event => {
               const dateObj = new Date(event.scheduled_time);
               const dayStr = dateObj.toLocaleString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', '');
               const timeStr = dateObj.toLocaleString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 
+              const isSelected = selectedEvents.has(`${event.type}-${event.id}`);
+              
               return (
-                <div key={`${event.type}-${event.id}`} className="py-3 px-6 rounded-xl bg-white/50 backdrop-blur-sm">
+                <div 
+                  key={`${event.type}-${event.id}`} 
+                  onClick={() => isSelectionMode && toggleEventSelection(event)}
+                  className={`py-3 px-6 rounded-xl backdrop-blur-sm transition-all duration-200 ${
+                    isSelectionMode ? 'cursor-pointer hover:scale-[1.02]' : ''
+                  } ${
+                    isSelected 
+                      ? 'bg-blue-100 border-2 border-blue-500' 
+                      : 'bg-white/50 border-2 border-transparent'
+                  }`}
+                >
                   <div className="flex items-center gap-3">
                     {/* Дата и время */}
                     <div className="flex flex-col items-start w-20 flex-shrink-0">
@@ -402,16 +640,23 @@ export const Scheduler = () => {
                     </div>
 
                     {/* Иконка */}
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${event.type === 'medication' ? 'bg-purple-100' : 'bg-green-100'
-                      }`}>
-                      {event.type === 'medication' ? <Pill className="text-purple-600" size={20} /> : <Utensils className="text-green-600" size={20} />}
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      event.type === 'medication' ? 'bg-purple-100' : 
+                      event.type === 'feeding' ? 'bg-green-100' : 
+                      'bg-blue-100'
+                    }`}>
+                      {event.type === 'medication' ? <Pill className="text-purple-600" size={20} /> : 
+                       event.type === 'feeding' ? <Utensils className="text-green-600" size={20} /> :
+                       <Clock className="text-blue-600" size={20} />}
                     </div>
 
                     {/* Контент */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-medium text-black">
-                          {event.type === 'medication' ? 'Лекарство' : 'Питание'}: {event.name}
+                          {event.type === 'medication' ? 'Лекарство' : 
+                           event.type === 'feeding' ? 'Питание' : 
+                           'Задача'}: {event.name}
                           {event.amount ? ` • ${event.amount}` : ''}
                         </span>
                         <span className="text-xs text-gray-400">
@@ -421,25 +666,36 @@ export const Scheduler = () => {
                     </div>
 
                     {/* Действия */}
-                    <button
-                      onClick={() => handleCompleteEvent(event)}
-                      className="p-2 hover:bg-green-100 rounded-full transition-colors text-green-600 flex-shrink-0"
-                      title="Выполнено"
-                    >
-                      <Check size={16} />
-                    </button>
-                    <button
-                      onClick={() => handleEditEvent(event)}
-                      className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600 flex-shrink-0"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    <button
-                      onClick={() => setDeleteConfirm(event.id)}
-                      className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600 flex-shrink-0"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    {!isSelectionMode && (
+                      <>
+                        <button
+                          onClick={() => handleCompleteEvent(event)}
+                          className="p-2 hover:bg-green-100 rounded-full transition-colors text-green-600 flex-shrink-0"
+                          title="Выполнено"
+                        >
+                          <Check size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleEditEvent(event)}
+                          className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600 flex-shrink-0"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirm(event.id)}
+                          className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600 flex-shrink-0"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </>
+                    )}
+                    
+                    {/* Индикатор выделения */}
+                    {isSelectionMode && isSelected && (
+                      <div className="flex-shrink-0">
+                        <Check size={20} className="text-blue-600" />
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -451,10 +707,19 @@ export const Scheduler = () => {
       {/* Выполненные */}
       {completedEvents.length > 0 && (
         <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6">
-          <h3 className="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
-            <Check size={16} />
-            Выполнено ({completedEvents.length})
-          </h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-600 flex items-center gap-2">
+              <Check size={16} />
+              Выполнено ({completedEvents.length})
+            </h3>
+            <button
+              onClick={clearCompletedEvents}
+              className="text-xs text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
+            >
+              <Trash2 size={14} />
+              Очистить все
+            </button>
+          </div>
           <div className="space-y-2">
             {completedEvents.map(event => {
               const dateObj = new Date(event.timestamp || event.scheduled_time); // Использовать timestamp выполнения если есть
@@ -465,14 +730,21 @@ export const Scheduler = () => {
                   <div className="flex items-center gap-3">
                     <div className="text-sm font-medium text-gray-600 w-20 flex-shrink-0">{timeStr}</div>
 
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${event.type === 'medication' ? 'bg-purple-100' : 'bg-green-100'
-                      }`}>
-                      {event.type === 'medication' ? <Pill className="text-purple-600" size={20} /> : <Utensils className="text-green-600" size={20} />}
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      event.type === 'medication' ? 'bg-purple-100' : 
+                      event.type === 'feeding' ? 'bg-green-100' : 
+                      'bg-blue-100'
+                    }`}>
+                      {event.type === 'medication' ? <Pill className="text-purple-600" size={20} /> : 
+                       event.type === 'feeding' ? <Utensils className="text-green-600" size={20} /> :
+                       <Clock className="text-blue-600" size={20} />}
                     </div>
 
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-black line-through">
-                        {event.type === 'medication' ? 'Лекарство' : 'Питание'}: {event.name}
+                        {event.type === 'medication' ? 'Лекарство' : 
+                         event.type === 'feeding' ? 'Питание' : 
+                         'Задача'}: {event.name}
                         {event.amount ? ` • ${event.amount}` : ''}
                       </div>
                     </div>
@@ -706,6 +978,44 @@ export const Scheduler = () => {
         }}
         onCancel={() => setDeleteConfirm(null)}
       />
+
+      {/* Edit Task Modal */}
+      <AnimatedModal
+        isOpen={editingTask !== null}
+        onClose={() => setEditingTask(null)}
+        title="Редактировать задачу"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Название задачи
+            </label>
+            <input
+              type="text"
+              value={editingTask?.name || ''}
+              onChange={(e) => setEditingTask(editingTask ? { ...editingTask, name: e.target.value } : null)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black"
+              placeholder="Например: Дать воду 1 мл"
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => setEditingTask(null)}
+              className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"
+            >
+              Отмена
+            </button>
+            <button
+              onClick={handleSaveTask}
+              disabled={!editingTask?.name.trim()}
+              className="flex-1 px-6 py-3 bg-black text-white rounded-xl hover:bg-gray-800 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Сохранить
+            </button>
+          </div>
+        </div>
+      </AnimatedModal>
     </div>
   );
 };

@@ -7,7 +7,6 @@ import { STATE_COLORS } from '../types';
 import { ChevronLeft, ChevronRight, Activity } from 'lucide-react';
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameMonth, isToday, startOfWeek, endOfWeek } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { QuickChat } from './QuickChat';
 import type { DayEntry, StateEntry, MedicationEntry } from '../types';
 
 export const Calendar = () => {
@@ -210,6 +209,11 @@ export const Calendar = () => {
                 ? Math.round(dayStates.reduce((sum, s) => sum + s.state_score, 0) / dayStates.length) as 1 | 2 | 3 | 4 | 5
                 : entry?.state_score;
 
+              // Определяем общий тренд дня (последняя запись)
+              const dayTrend = dayStates && dayStates.length > 0 
+                ? dayStates[dayStates.length - 1].trend 
+                : undefined;
+
               return (
                 <button
                   key={index}
@@ -250,10 +254,24 @@ export const Calendar = () => {
                       {format(date, 'd')}
                     </span>
                     {avgDayScore && isCurrentMonth && (
-                      <div
-                        className="w-1 h-1 rounded-full"
-                        style={{ backgroundColor: STATE_COLORS[avgDayScore] }}
-                      />
+                      <div className="flex items-center justify-center gap-0.5">
+                        <div
+                          className="w-1.5 h-1.5 rounded-full"
+                          style={{ backgroundColor: STATE_COLORS[avgDayScore] }}
+                        />
+                        {dayTrend && (
+                          <div 
+                            className="w-3 h-3 rounded-full flex items-center justify-center"
+                            style={{
+                              backgroundColor: dayTrend === 'up' ? '#10B98120' : dayTrend === 'down' ? '#EF444420' : '#3B82F620'
+                            }}
+                          >
+                            <span className="text-[10px] leading-none">
+                              {dayTrend === 'up' ? '↑' : dayTrend === 'down' ? '↓' : '→'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 </button>
@@ -287,11 +305,23 @@ export const Calendar = () => {
                         <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">
                           Состояние ({states.length}):
                         </div>
-                        {states.map((state, idx) => (
-                          <div key={idx} className="text-sm text-white font-medium mb-1">
-                            {state.time}: {state.state_score}/5
-                          </div>
-                        ))}
+                        {states.map((state, idx) => {
+                          const trendIcon = state.trend === 'up' ? '↑' : state.trend === 'down' ? '↓' : state.trend === 'same' ? '→' : '';
+                          const trendColor = state.trend === 'up' ? '#10B981' : state.trend === 'down' ? '#EF4444' : '#3B82F6';
+                          return (
+                            <div key={idx} className="text-sm text-white font-medium mb-1 flex items-center gap-1.5">
+                              <span>{state.time}: {state.state_score}/5</span>
+                              {trendIcon && (
+                                <span 
+                                  className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold"
+                                  style={{ backgroundColor: trendColor + '30', color: trendColor }}
+                                >
+                                  {trendIcon}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                     {entry && entry.symptoms && entry.symptoms.length > 0 && (
@@ -367,8 +397,6 @@ export const Calendar = () => {
           </div>
         </div>
       </div>
-
-      <QuickChat />
     </div>
   );
 };

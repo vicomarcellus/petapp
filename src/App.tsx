@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useStore } from './store';
 import { Calendar } from './components/Calendar';
 import { EntryView } from './components/EntryView';
@@ -8,13 +9,23 @@ import { Analytics } from './components/Analytics';
 import { Scheduler } from './components/Scheduler';
 import { Auth } from './components/Auth';
 import { Header } from './components/Header';
+import { QuickChat } from './components/QuickChat';
+import { Diagnosis } from './components/Diagnosis';
 import { usePetInit } from './hooks/usePetInit';
+import { runMigrations } from './lib/migrations';
 
 function App() {
   const { view, currentUser, currentPetId } = useStore();
 
   // Инициализация текущего питомца
   usePetInit();
+
+  // Запуск миграций при авторизации
+  useEffect(() => {
+    if (currentUser) {
+      runMigrations();
+    }
+  }, [currentUser]);
 
   // Если пользователь не авторизован, показываем экран входа
   if (!currentUser) {
@@ -38,8 +49,10 @@ function App() {
           {view === 'history' && <ChangeHistory />}
           {view === 'analytics' && <Analytics />}
           {view === 'scheduler' && <Scheduler />}
+          {view === 'diagnosis' && <Diagnosis />}
         </div>
       </div>
+      <QuickChat />
     </div>
   );
 }

@@ -138,6 +138,17 @@ CREATE TABLE IF NOT EXISTS checklist_tasks (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Таблица диагнозов
+CREATE TABLE IF NOT EXISTS diagnoses (
+  id BIGSERIAL PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  pet_id BIGINT REFERENCES pets(id) ON DELETE CASCADE NOT NULL,
+  date DATE NOT NULL DEFAULT CURRENT_DATE,
+  diagnosis TEXT NOT NULL,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Индексы для оптимизации
 CREATE INDEX IF NOT EXISTS idx_pets_user_id ON pets(user_id);
 CREATE INDEX IF NOT EXISTS idx_day_entries_user_pet_date ON day_entries(user_id, pet_id, date);
@@ -146,6 +157,7 @@ CREATE INDEX IF NOT EXISTS idx_symptom_entries_user_pet_date ON symptom_entries(
 CREATE INDEX IF NOT EXISTS idx_medication_entries_user_pet_date ON medication_entries(user_id, pet_id, date);
 CREATE INDEX IF NOT EXISTS idx_feeding_entries_user_pet_date ON feeding_entries(user_id, pet_id, date);
 CREATE INDEX IF NOT EXISTS idx_checklist_tasks_user_pet_date ON checklist_tasks(user_id, pet_id, date);
+CREATE INDEX IF NOT EXISTS idx_diagnoses_user_pet_date ON diagnoses(user_id, pet_id, date);
 
 -- Row Level Security (RLS) политики
 ALTER TABLE pets ENABLE ROW LEVEL SECURITY;
@@ -159,6 +171,7 @@ ALTER TABLE symptom_tags ENABLE ROW LEVEL SECURITY;
 ALTER TABLE medication_tags ENABLE ROW LEVEL SECURITY;
 ALTER TABLE food_tags ENABLE ROW LEVEL SECURITY;
 ALTER TABLE checklist_tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE diagnoses ENABLE ROW LEVEL SECURITY;
 
 -- Политики для pets
 CREATE POLICY "Users can view own pets" ON pets FOR SELECT USING (auth.uid() = user_id);
@@ -225,6 +238,12 @@ CREATE POLICY "Users can view own checklist_tasks" ON checklist_tasks FOR SELECT
 CREATE POLICY "Users can insert own checklist_tasks" ON checklist_tasks FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update own checklist_tasks" ON checklist_tasks FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete own checklist_tasks" ON checklist_tasks FOR DELETE USING (auth.uid() = user_id);
+
+-- Политики для diagnoses
+CREATE POLICY "Users can view own diagnoses" ON diagnoses FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own diagnoses" ON diagnoses FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own diagnoses" ON diagnoses FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own diagnoses" ON diagnoses FOR DELETE USING (auth.uid() = user_id);
 
 -- Функция для автоматического обновления updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()

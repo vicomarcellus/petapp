@@ -29,6 +29,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
   const calendarRef = useRef<HTMLButtonElement>(null);
   const analyticsRef = useRef<HTMLButtonElement>(null);
   const logRef = useRef<HTMLButtonElement>(null);
+  const diagnosisRef = useRef<HTMLButtonElement>(null);
   const schedulerRef = useRef<HTMLButtonElement>(null);
   const settingsRef = useRef<HTMLButtonElement>(null);
 
@@ -120,6 +121,8 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
         activeRef = analyticsRef;
       } else if (view === 'log') {
         activeRef = logRef;
+      } else if (view === 'diagnosis') {
+        activeRef = diagnosisRef;
       } else if (view === 'scheduler') {
         activeRef = schedulerRef;
       } else if (view === 'settings' || view === 'history') {
@@ -207,6 +210,16 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
               }`}
           >
             Лог
+          </button>
+          <button
+            ref={diagnosisRef}
+            onClick={() => setView('diagnosis')}
+            className={`relative z-10 px-5 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${view === 'diagnosis'
+              ? 'text-gray-900'
+              : 'text-gray-600 hover:text-gray-900'
+              }`}
+          >
+            Диагноз
           </button>
           <button
             ref={schedulerRef}

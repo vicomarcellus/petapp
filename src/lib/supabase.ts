@@ -164,6 +164,19 @@ export interface Database {
         Insert: Omit<Database['public']['Tables']['checklist_tasks']['Row'], 'id' | 'created_at'>;
         Update: Partial<Database['public']['Tables']['checklist_tasks']['Insert']>;
       };
+      diagnoses: {
+        Row: {
+          id: number;
+          user_id: string;
+          pet_id: number;
+          date: string;
+          diagnosis: string;
+          notes: string | null;
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['diagnoses']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Database['public']['Tables']['diagnoses']['Insert']>;
+      };
     };
   };
 }

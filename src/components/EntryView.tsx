@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
 import { STATE_COLORS, STATE_LABELS } from '../types';
 import { formatDisplayDate } from '../utils';
-import { Trash2, Plus, Activity, AlertCircle, Pill, Utensils, X, Edit2, ArrowLeft, Clock, Bell, Check } from 'lucide-react';
+import { Trash2, Plus, Activity, AlertCircle, Pill, Utensils, X, Edit2, ArrowLeft, Clock, Bell, Check, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { useScheduledNotifications } from '../hooks/useScheduledNotifications';
 import { AlertModal, ConfirmModal } from './Modal';
 import { AnimatedModal } from './AnimatedModal';
@@ -97,8 +97,10 @@ export const EntryView = () => {
   };
 
   const [stateScore, setStateScore] = useState<1 | 2 | 3 | 4 | 5>(3);
+  const [stateTrend, setStateTrend] = useState<'up' | 'same' | 'down' | null>(null);
   const [stateTime, setStateTime] = useState('');
   const [stateNote, setStateNote] = useState('');
+  const [previousDayScore, setPreviousDayScore] = useState<number | null>(null);
 
   const [symptomName, setSymptomName] = useState('');
   const [symptomTime, setSymptomTime] = useState('');
@@ -120,8 +122,40 @@ export const EntryView = () => {
     if (selectedDate && currentPetId && currentUser) {
       loadData();
       loadSavedItems();
+      loadPreviousDayScore();
     }
   }, [selectedDate, currentPetId, currentUser]);
+
+  const loadPreviousDayScore = async () => {
+    if (!selectedDate || !currentPetId || !currentUser) return;
+
+    try {
+      // Получаем предыдущий день
+      const currentDate = new Date(selectedDate);
+      const previousDate = new Date(currentDate);
+      previousDate.setDate(previousDate.getDate() - 1);
+      const prevDateStr = previousDate.toISOString().split('T')[0];
+
+      // Загружаем состояния предыдущего дня
+      const { data } = await supabase
+        .from('state_entries')
+        .select('state_score')
+        .eq('user_id', currentUser.id)
+        .eq('pet_id', currentPetId)
+        .eq('date', prevDateStr)
+        .order('timestamp', { ascending: false })
+        .limit(1);
+
+      if (data && data.length > 0) {
+        setPreviousDayScore(data[0].state_score);
+      } else {
+        setPreviousDayScore(null);
+      }
+    } catch (error) {
+      console.error('Error loading previous day score:', error);
+      setPreviousDayScore(null);
+    }
+  };
 
   // Обновление таймеров каждую секунду
   useEffect(() => {
@@ -303,17 +337,36 @@ export const EntryView = () => {
       const timeToUse = stateTime || new Date().toTimeString().slice(0, 5);
       const timestamp = new Date(`${selectedDate}T${timeToUse}`).getTime();
 
+      // Автоматически определяем тренд на основе предыдущего дня
+      let trend: 'up' | 'same' | 'down' | undefined = stateTrend || undefined;
+      if (!trend && previousDayScore !== null) {
+        if (stateScore > previousDayScore) {
+          trend = 'up';
+        } else if (stateScore < previousDayScore) {
+          trend = 'down';
+        } else {
+          trend = 'same';
+        }
+      }
+
       if (editingEntry && editingEntry.type === 'state') {
         // Обновление
-        await supabase.from('state_entries').update({
+        const updateData: any = {
           time: timeToUse,
           timestamp,
           state_score: stateScore,
           note: stateNote || null
-        }).eq('id', editingEntry.data.id);
+        };
+        
+        // Добавляем trend только если он определен
+        if (trend) {
+          updateData.trend = trend;
+        }
+        
+        await supabase.from('state_entries').update(updateData).eq('id', editingEntry.data.id);
       } else {
         // Создание
-        await supabase.from('state_entries').insert({
+        const insertData: any = {
           user_id: currentUser.id,
           pet_id: currentPetId,
           date: selectedDate,
@@ -321,7 +374,14 @@ export const EntryView = () => {
           timestamp,
           state_score: stateScore,
           note: stateNote || null
-        });
+        };
+        
+        // Добавляем trend только если он определен
+        if (trend) {
+          insertData.trend = trend;
+        }
+        
+        await supabase.from('state_entries').insert(insertData);
       }
 
       setShowAddState(false);
@@ -329,9 +389,15 @@ export const EntryView = () => {
       setStateTime('');
       setStateNote('');
       setStateScore(3);
+      setStateTrend(null);
       loadData();
     } catch (error) {
       console.error('Error saving state:', error);
+      // Показываем ошибку пользователю
+      setErrorModal({ 
+        title: 'Ошибка сохранения', 
+        message: error instanceof Error ? error.message : 'Не удалось сохранить состояние' 
+      });
     }
   };
 
@@ -657,6 +723,7 @@ export const EntryView = () => {
 
     if (entry.type === 'state') {
       setStateScore(entry.data.state_score);
+      setStateTrend(entry.data.trend || null);
       setStateTime(entry.data.time);
       setStateNote(entry.data.note || '');
       setShowAddState(true);
@@ -699,15 +766,38 @@ export const EntryView = () => {
 
     if (type === 'state') {
       const hasSecondLine = !!data.note || !!data.is_scheduled;
+      
       return (
         <div className="flex items-center gap-3">
           <div className={`text-sm font-medium text-gray-600 w-16 flex-shrink-0 ${hasSecondLine ? 'self-start pt-1' : ''}`}>{data.time}</div>
-          <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: STATE_COLORS[data.state_score] }}>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 relative ${hasSecondLine ? 'self-start' : ''}`} style={{ backgroundColor: STATE_COLORS[data.state_score] }}>
             <Activity className="text-white" size={20} />
+            {data.trend && (
+              <div 
+                className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full flex items-center justify-center shadow-md border-2 border-white"
+                style={{
+                  backgroundColor: data.trend === 'up' ? '#10B981' : data.trend === 'down' ? '#EF4444' : '#3B82F6'
+                }}
+              >
+                {data.trend === 'up' && <TrendingUp size={14} className="text-white" strokeWidth={2.5} />}
+                {data.trend === 'down' && <TrendingDown size={14} className="text-white" strokeWidth={2.5} />}
+                {data.trend === 'same' && <Minus size={14} className="text-white" strokeWidth={2.5} />}
+              </div>
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <div className="text-sm font-medium text-black">Состояние: {STATE_LABELS[data.state_score]}</div>
+              <div className="text-sm font-medium text-black">
+                Состояние: {STATE_LABELS[data.state_score]}
+                {data.trend && (
+                  <span className="text-gray-500 font-normal">
+                    {' — '}
+                    {data.trend === 'up' && 'лучше'}
+                    {data.trend === 'down' && 'хуже'}
+                    {data.trend === 'same' && 'так же'}
+                  </span>
+                )}
+              </div>
               {data.is_scheduled && (
                 <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center gap-1">
                   <Bell size={10} />
@@ -1077,6 +1167,70 @@ export const EntryView = () => {
               ))}
             </div>
           </div>
+
+          {previousDayScore !== null && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Динамика <span className="text-gray-400 font-normal">(вчера было: {previousDayScore})</span>
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setStateTrend('down')}
+                  className={`group relative py-4 rounded-2xl font-semibold transition-all duration-200 overflow-hidden ${
+                    stateTrend === 'down' 
+                      ? 'bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-500/30 scale-105' 
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:scale-105 active:scale-95'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-1.5">
+                    <TrendingDown size={20} className={stateTrend === 'down' ? 'text-white' : 'text-red-600'} />
+                    <span className="text-xs">Хуже</span>
+                  </div>
+                  {stateTrend === 'down' && (
+                    <div className="absolute inset-0 bg-white/20 animate-pulse" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStateTrend('same')}
+                  className={`group relative py-4 rounded-2xl font-semibold transition-all duration-200 overflow-hidden ${
+                    stateTrend === 'same' 
+                      ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30 scale-105' 
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:scale-105 active:scale-95'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-1.5">
+                    <Minus size={20} className={stateTrend === 'same' ? 'text-white' : 'text-blue-600'} />
+                    <span className="text-xs">Так же</span>
+                  </div>
+                  {stateTrend === 'same' && (
+                    <div className="absolute inset-0 bg-white/20 animate-pulse" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStateTrend('up')}
+                  className={`group relative py-4 rounded-2xl font-semibold transition-all duration-200 overflow-hidden ${
+                    stateTrend === 'up' 
+                      ? 'bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg shadow-green-500/30 scale-105' 
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:scale-105 active:scale-95'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-1.5">
+                    <TrendingUp size={20} className={stateTrend === 'up' ? 'text-white' : 'text-green-600'} />
+                    <span className="text-xs">Лучше</span>
+                  </div>
+                  {stateTrend === 'up' && (
+                    <div className="absolute inset-0 bg-white/20 animate-pulse" />
+                  )}
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mt-2 text-center">
+                Автоматически определится, если не выбрать
+              </p>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Заметка (опционально)</label>

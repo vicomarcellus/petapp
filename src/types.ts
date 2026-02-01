@@ -22,6 +22,16 @@ export interface Pet {
   is_active?: boolean; // Активный питомец (выбран сейчас)
 }
 
+export interface Diagnosis {
+  id?: number;
+  user_id: string; // Supabase User ID (UUID)
+  pet_id: number; // ID питомца
+  date: string; // YYYY-MM-DD
+  diagnosis: string;
+  notes?: string;
+  created_at?: string;
+}
+
 export interface MedicationEntry {
   id?: number;
   user_id: string; // Supabase User ID (UUID)
@@ -90,6 +100,7 @@ export interface StateEntry {
   time: string; // HH:mm
   timestamp: number; // полный timestamp для сортировки
   state_score: 1 | 2 | 3 | 4 | 5;
+  trend?: 'up' | 'same' | 'down'; // Динамика по сравнению с предыдущим днем
   note?: string; // Опциональная заметка к конкретному состоянию
   is_scheduled?: boolean; // Было ли запланировано
   completed?: boolean; // Выполнено ли (для запланированных)
