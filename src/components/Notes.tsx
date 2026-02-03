@@ -5,6 +5,8 @@ import { Note, NoteTag, NOTE_COLORS } from '../types';
 import { Bookmark, Plus, Pencil, Trash2, Search, X, Tag } from 'lucide-react';
 import { Input, Textarea } from './ui/Input';
 import { Modal, ModalActions } from './ui/Modal';
+import { FileUpload } from './ui/FileUpload';
+import { uploadAttachment, deleteAttachment } from '../services/storage';
 
 export default function Notes() {
   const { currentPetId } = useStore();
@@ -23,6 +25,7 @@ export default function Notes() {
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState(NOTE_COLORS[0]);
   const [showNewTagForm, setShowNewTagForm] = useState(false);
+  const [noteFile, setNoteFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (currentPetId) {
@@ -157,32 +160,65 @@ export default function Notes() {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) return;
 
+      let uploadResult = null;
+      
+      // Upload file if selected
+      if (noteFile) {
+        uploadResult = await uploadAttachment(
+          noteFile,
+          user.user.id,
+          currentPetId,
+          'note'
+        );
+      }
+
       let noteId: number;
 
       if (editingNote?.id) {
+        // Delete old attachment if replacing
+        if (uploadResult && editingNote.attachment_url) {
+          await deleteAttachment(editingNote.attachment_url);
+        }
+
         // Обновление
+        const updateData: any = {
+          title: formData.title,
+          content: formData.content,
+          is_pinned: formData.is_pinned,
+        };
+
+        if (uploadResult) {
+          updateData.attachment_url = uploadResult.url;
+          updateData.attachment_type = uploadResult.type;
+          updateData.attachment_name = uploadResult.name;
+        }
+
         const { error } = await supabase
           .from('notes')
-          .update({
-            title: formData.title,
-            content: formData.content,
-            is_pinned: formData.is_pinned,
-          })
+          .update(updateData)
           .eq('id', editingNote.id);
 
         if (error) throw error;
         noteId = editingNote.id;
       } else {
         // Создание
+        const insertData: any = {
+          user_id: user.user.id,
+          pet_id: currentPetId,
+          title: formData.title,
+          content: formData.content,
+          is_pinned: formData.is_pinned,
+        };
+
+        if (uploadResult) {
+          insertData.attachment_url = uploadResult.url;
+          insertData.attachment_type = uploadResult.type;
+          insertData.attachment_name = uploadResult.name;
+        }
+
         const { data, error } = await supabase
           .from('notes')
-          .insert({
-            user_id: user.user.id,
-            pet_id: currentPetId,
-            title: formData.title,
-            content: formData.content,
-            is_pinned: formData.is_pinned,
-          })
+          .insert(insertData)
           .select()
           .single();
 
@@ -211,10 +247,15 @@ export default function Notes() {
     }
   };
 
-  const handleDelete = async (noteId: number) => {
+  const handleDelete = async (noteId: number, attachmentUrl?: string) => {
     if (!confirm('Удалить заметку?')) return;
 
     try {
+      // Delete attachment if exists
+      if (attachmentUrl) {
+        await deleteAttachment(attachmentUrl);
+      }
+
       const { error } = await supabase.from('notes').delete().eq('id', noteId);
 
       if (error) throw error;
@@ -270,6 +311,7 @@ export default function Notes() {
     });
     setShowNewTagForm(false);
     setNewTagName('');
+    setNoteFile(null);
   };
 
   const toggleTag = (tagId: number) => {
@@ -407,7 +449,7 @@ export default function Notes() {
                     <Pencil className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => handleDelete(note.id!)}
+                    onClick={() => handleDelete(note.id!, note.attachment_url)}
                     className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-full transition-all"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -545,6 +587,17 @@ export default function Notes() {
               Закрепить заметку
             </label>
           </div>
+
+          {/* File Upload */}
+          <FileUpload
+            onFileSelect={(file) => setNoteFile(file)}
+            currentAttachment={editingNote?.attachment_url ? {
+              url: editingNote.attachment_url,
+              type: editingNote.attachment_type!,
+              name: editingNote.attachment_name!
+            } : null}
+            onRemove={() => setNoteFile(null)}
+          />
         </div>
 
         <ModalActions
