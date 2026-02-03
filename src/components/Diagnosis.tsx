@@ -7,12 +7,17 @@ import { formatDate } from '../utils';
 import { ConfirmModal } from './Modal';
 import { Input, Textarea } from './ui/Input';
 import { Modal, ModalActions } from './ui/Modal';
+import { FileUpload } from './ui/FileUpload';
+import { uploadAttachment, deleteAttachment } from '../services/storage';
 
 interface DiagnosisNote {
     id: number;
     diagnosis_id: number;
     date: string;
     note: string;
+    attachment_url?: string;
+    attachment_type?: 'image' | 'pdf';
+    attachment_name?: string;
     created_at: string;
 }
 
@@ -36,6 +41,8 @@ export const Diagnosis = () => {
     const [editingNote, setEditingNote] = useState<DiagnosisNote | null>(null);
     const [noteText, setNoteText] = useState('');
     const [noteDate, setNoteDate] = useState(formatDate(new Date()));
+    const [noteFile, setNoteFile] = useState<File | null>(null);
+    const [diagnosisFile, setDiagnosisFile] = useState<File | null>(null);
 
     useEffect(() => {
         if (currentUser && currentPetId) {
@@ -118,27 +125,58 @@ export const Diagnosis = () => {
         setSaveError(null);
 
         try {
+            let uploadResult = null;
+            
+            // Upload file if selected
+            if (diagnosisFile) {
+                uploadResult = await uploadAttachment(
+                    diagnosisFile,
+                    currentUser.id,
+                    currentPetId,
+                    'diagnosis'
+                );
+            }
+
             if (editingDiagnosis) {
+                // Delete old attachment if replacing
+                if (uploadResult && editingDiagnosis.attachment_url) {
+                    await deleteAttachment(editingDiagnosis.attachment_url);
+                }
+
                 // Update existing diagnosis
+                const updateData: any = {
+                    date: newDate,
+                    diagnosis: newDiagnosis.trim(),
+                    notes: newNotes.trim() || null
+                };
+
+                if (uploadResult) {
+                    updateData.attachment_url = uploadResult.url;
+                    updateData.attachment_type = uploadResult.type;
+                    updateData.attachment_name = uploadResult.name;
+                }
+
                 const { error } = await supabase
                     .from('diagnoses')
-                    .update({
-                        date: newDate,
-                        diagnosis: newDiagnosis.trim(),
-                        notes: newNotes.trim() || null
-                    })
+                    .update(updateData)
                     .eq('id', editingDiagnosis.id);
 
                 if (error) throw error;
             } else {
                 // Insert new diagnosis
-                const diagnosisData = {
+                const diagnosisData: any = {
                     user_id: currentUser.id,
                     pet_id: currentPetId,
                     date: newDate,
                     diagnosis: newDiagnosis.trim(),
                     notes: newNotes.trim() || null
                 };
+
+                if (uploadResult) {
+                    diagnosisData.attachment_url = uploadResult.url;
+                    diagnosisData.attachment_type = uploadResult.type;
+                    diagnosisData.attachment_name = uploadResult.name;
+                }
 
                 const { error } = await supabase
                     .from('diagnoses')
@@ -152,6 +190,7 @@ export const Diagnosis = () => {
             setNewDiagnosis('');
             setNewNotes('');
             setNewDate(formatDate(new Date()));
+            setDiagnosisFile(null);
             await loadDiagnoses(); // Reload immediately
         } catch (error: any) {
             console.error('Error saving diagnosis:', error);
@@ -179,28 +218,62 @@ export const Diagnosis = () => {
         setSaveError(null);
 
         try {
+            let uploadResult = null;
+            
+            // Upload file if selected
+            if (noteFile) {
+                uploadResult = await uploadAttachment(
+                    noteFile,
+                    currentUser.id,
+                    currentPetId,
+                    'diagnosis',
+                    selectedDiagnosisId
+                );
+            }
+
             if (editingNote) {
+                // Delete old attachment if replacing
+                if (uploadResult && editingNote.attachment_url) {
+                    await deleteAttachment(editingNote.attachment_url);
+                }
+
                 // Update existing note
+                const updateData: any = {
+                    date: noteDate,
+                    note: noteText.trim()
+                };
+
+                if (uploadResult) {
+                    updateData.attachment_url = uploadResult.url;
+                    updateData.attachment_type = uploadResult.type;
+                    updateData.attachment_name = uploadResult.name;
+                }
+
                 const { error } = await supabase
                     .from('diagnosis_notes')
-                    .update({
-                        date: noteDate,
-                        note: noteText.trim()
-                    })
+                    .update(updateData)
                     .eq('id', editingNote.id);
 
                 if (error) throw error;
             } else {
                 // Insert new note
+                const noteData: any = {
+                    diagnosis_id: selectedDiagnosisId,
+                    user_id: currentUser.id,
+                    pet_id: currentPetId,
+                    date: noteDate,
+                    note: noteText.trim()
+                };
+
+                if (uploadResult) {
+                    noteData.attachment_url = uploadResult.url;
+                    noteData.attachment_type = uploadResult.type;
+                    noteData.attachment_name = uploadResult.name;
+                }
+
                 const { error } = await supabase
                     .from('diagnosis_notes')
-                    .insert({
-                        diagnosis_id: selectedDiagnosisId,
-                        user_id: currentUser.id,
-                        pet_id: currentPetId,
-                        date: noteDate,
-                        note: noteText.trim()
-                    });
+                    .insert(noteData);
 
                 if (error) throw error;
             }
@@ -210,6 +283,7 @@ export const Diagnosis = () => {
             setEditingNote(null);
             setNoteText('');
             setNoteDate(formatDate(new Date()));
+            setNoteFile(null);
             await loadDiagnosisNotes(); // Reload notes immediately
         } catch (error: any) {
             console.error('Error saving note:', error);
@@ -227,8 +301,13 @@ export const Diagnosis = () => {
         setShowNoteModal(true);
     };
 
-    const handleDeleteNote = async (noteId: number) => {
+    const handleDeleteNote = async (noteId: number, attachmentUrl?: string) => {
         try {
+            // Delete attachment if exists
+            if (attachmentUrl) {
+                await deleteAttachment(attachmentUrl);
+            }
+
             const { error } = await supabase
                 .from('diagnosis_notes')
                 .delete()
@@ -240,6 +319,7 @@ export const Diagnosis = () => {
         } catch (error) {
             console.error('Error deleting note:', error);
         }
+    };
     };
 
     const handleDeleteDiagnosis = async (id: number) => {
@@ -332,7 +412,7 @@ export const Diagnosis = () => {
                                                             <Edit2 size={14} />
                                                         </button>
                                                         <button
-                                                            onClick={() => handleDeleteNote(note.id)}
+                                                            onClick={() => handleDeleteNote(note.id, note.attachment_url)}
                                                             className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all flex-shrink-0"
                                                         >
                                                             <Trash2 size={14} />
@@ -384,6 +464,7 @@ export const Diagnosis = () => {
                     setNewDiagnosis('');
                     setNewNotes('');
                     setNewDate(formatDate(new Date()));
+                    setDiagnosisFile(null);
                 }} 
                 title={editingDiagnosis ? 'Редактировать диагноз' : 'Новый диагноз'}
                 maxWidth="lg"
@@ -412,6 +493,18 @@ export const Diagnosis = () => {
                         placeholder="Дополнительная информация от врача..."
                         rows={4}
                     />
+
+                    <FileUpload
+                        onFileSelect={(file) => setDiagnosisFile(file)}
+                        currentAttachment={editingDiagnosis?.attachment_url ? {
+                            url: editingDiagnosis.attachment_url,
+                            type: editingDiagnosis.attachment_type!,
+                            name: editingDiagnosis.attachment_name!
+                        } : null}
+                        onRemove={() => setDiagnosisFile(null)}
+                        disabled={saving}
+                    />
+
                     {saveError && (
                         <div className="bg-red-50 border border-red-100 text-red-600 text-xs p-3 rounded-xl">
                             {saveError}
@@ -423,6 +516,7 @@ export const Diagnosis = () => {
                     onCancel={() => {
                         setShowAddModal(false);
                         setEditingDiagnosis(null);
+                        setDiagnosisFile(null);
                     }}
                     onSubmit={handleAddDiagnosis}
                     cancelText="Отмена"
@@ -441,6 +535,7 @@ export const Diagnosis = () => {
                     setEditingNote(null);
                     setNoteText('');
                     setNoteDate(formatDate(new Date()));
+                    setNoteFile(null);
                 }}
                 title={editingNote ? 'Редактировать заметку' : 'Добавить заметку'}
                 maxWidth="lg"
@@ -461,6 +556,17 @@ export const Diagnosis = () => {
                         placeholder="Новая информация о диагнозе..."
                         rows={4}
                     />
+
+                    <FileUpload
+                        onFileSelect={(file) => setNoteFile(file)}
+                        currentAttachment={editingNote?.attachment_url ? {
+                            url: editingNote.attachment_url,
+                            type: editingNote.attachment_type!,
+                            name: editingNote.attachment_name!
+                        } : null}
+                        onRemove={() => setNoteFile(null)}
+                        disabled={saving}
+                    />
                     
                     {saveError && (
                         <div className="bg-red-50 border border-red-100 text-red-600 text-xs p-3 rounded-xl">
@@ -475,6 +581,7 @@ export const Diagnosis = () => {
                         setSelectedDiagnosisId(null);
                         setEditingNote(null);
                         setNoteText('');
+                        setNoteFile(null);
                     }}
                     onSubmit={handleAddNote}
                     cancelText="Отмена"
