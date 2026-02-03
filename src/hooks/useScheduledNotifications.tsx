@@ -44,7 +44,7 @@ export const useScheduledNotifications = () => {
             <div className="flex-1">
               <h3 className="font-bold text-xl text-black mb-1">Время пришло!</h3>
               <p className="text-gray-600">
-                {notification.type === 'medication' && `Дать лекарство: ${notification.data.medication_name} ${notification.data.dosage}`}
+                {notification.type === 'medication' && `Дать лекарство: ${notification.data.medication_name} ${notification.data.dosage_amount ? `${notification.data.dosage_amount} ${notification.data.dosage_unit || ''}`.trim() : notification.data.dosage || ''}`}
                 {notification.type === 'feeding' && `Покормить: ${notification.data.food_name} ${notification.data.amount} ${notification.data.unit === 'g' ? 'г' : notification.data.unit === 'ml' ? 'мл' : ''}`}
               </p>
             </div>

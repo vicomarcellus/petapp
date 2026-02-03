@@ -253,23 +253,30 @@ export const Calendar = () => {
                     <span className="text-base font-semibold text-gray-700">
                       {format(date, 'd')}
                     </span>
-                    {avgDayScore && isCurrentMonth && (
+                    {isCurrentMonth && (avgDayScore || (dayMeds && dayMeds.length > 0)) && (
                       <div className="flex items-center justify-center gap-0.5">
-                        <div
-                          className="w-1.5 h-1.5 rounded-full"
-                          style={{ backgroundColor: STATE_COLORS[avgDayScore] }}
-                        />
-                        {dayTrend && (
-                          <div 
-                            className="w-3 h-3 rounded-full flex items-center justify-center"
-                            style={{
-                              backgroundColor: dayTrend === 'up' ? '#10B98120' : dayTrend === 'down' ? '#EF444420' : '#3B82F620'
-                            }}
-                          >
-                            <span className="text-[10px] leading-none">
-                              {dayTrend === 'up' ? '↑' : dayTrend === 'down' ? '↓' : '→'}
-                            </span>
-                          </div>
+                        {avgDayScore && (
+                          <>
+                            <div
+                              className="w-1.5 h-1.5 rounded-full"
+                              style={{ backgroundColor: STATE_COLORS[avgDayScore] }}
+                            />
+                            {dayTrend && (
+                              <div 
+                                className="w-3 h-3 rounded-full flex items-center justify-center"
+                                style={{
+                                  backgroundColor: dayTrend === 'up' ? '#10B98120' : dayTrend === 'down' ? '#EF444420' : '#3B82F620'
+                                }}
+                              >
+                                <span className="text-[10px] leading-none">
+                                  {dayTrend === 'up' ? '↑' : dayTrend === 'down' ? '↓' : '→'}
+                                </span>
+                              </div>
+                            )}
+                          </>
+                        )}
+                        {dayMeds && dayMeds.length > 0 && (
+                          <span className="text-[10px]">💊</span>
                         )}
                       </div>
                     )}
@@ -349,10 +356,10 @@ export const Calendar = () => {
                           <div key={idx} className="flex items-center gap-2 mb-1 last:mb-0">
                             <div
                               className="w-2 h-2 rounded-full flex-shrink-0"
-                              style={{ backgroundColor: med.color }}
+                              style={{ backgroundColor: med.color || '#8B5CF6' }}
                             />
                             <span className="text-sm text-white font-medium whitespace-nowrap">
-                              {med.medication_name} {med.dosage} • {med.time}
+                              {med.medication_name} {med.dosage_amount ? `${med.dosage_amount} ${med.dosage_unit || ''}`.trim() : med.dosage || ''} • {med.time}
                             </span>
                           </div>
                         ))}

@@ -32,7 +32,7 @@ export const EntryView = () => {
   // Таймеры для запланированных событий (обновляются каждую секунду)
   const [, setTick] = useState(0);
 
-  const [savedMedications, setSavedMedications] = useState<Array<{ name: string, dosage: string }>>([]);
+  const [savedMedications, setSavedMedications] = useState<Array<{ name: string; amount: string; unit: string }>>([]);
   const [savedFoods, setSavedFoods] = useState<Array<{ name: string, amount: string, unit: 'g' | 'ml' | 'none' }>>([]);
   const [savedSymptoms, setSavedSymptoms] = useState<string[]>([]);
 
@@ -262,9 +262,8 @@ export const EntryView = () => {
       if (medTags) {
         setSavedMedications(medTags.map(tag => ({
           name: tag.name,
-          dosage: tag.default_dosage_amount && tag.default_dosage_unit
-            ? `${tag.default_dosage_amount} ${tag.default_dosage_unit}`
-            : ''
+          amount: tag.default_dosage_amount || '',
+          unit: tag.default_dosage_unit || 'мл'
         })));
       }
 
@@ -1314,12 +1313,8 @@ export const EntryView = () => {
                 setMedicationName(e.target.value);
                 const saved = savedMedications.find(m => m.name === e.target.value);
                 if (saved && !medicationAmount) {
-                  // Парсим dosage на amount и unit
-                  const match = saved.dosage.match(/^([0-9.,]+)\s*(мл|мг|г|таб|капс)?$/);
-                  if (match) {
-                    setMedicationAmount(match[1]);
-                    setMedicationUnit((match[2] || 'мл') as 'мл' | 'мг' | 'г' | 'таб' | 'капс');
-                  }
+                  setMedicationAmount(saved.amount);
+                  setMedicationUnit(saved.unit);
                 }
               }}
               list="medications-list"
@@ -1341,16 +1336,12 @@ export const EntryView = () => {
                     type="button"
                     onClick={() => {
                       setMedicationName(med.name);
-                      // Парсим dosage на amount и unit
-                      const match = med.dosage.match(/^([0-9.,]+)\s*(мл|мг|г|таб|капс)?$/);
-                      if (match) {
-                        setMedicationAmount(match[1]);
-                        setMedicationUnit((match[2] || 'мл') as 'мл' | 'мг' | 'г' | 'таб' | 'капс');
-                      }
+                      setMedicationAmount(med.amount);
+                      setMedicationUnit(med.unit);
                     }}
                     className="px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-sm font-medium hover:bg-purple-200 transition-colors"
                   >
-                    {med.name}{med.dosage ? ` ${med.dosage}` : ''}
+                    {med.name}{med.amount ? ` ${med.amount} ${med.unit}` : ''}
                   </button>
                 ))}
               </div>
