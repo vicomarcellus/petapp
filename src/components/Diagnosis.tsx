@@ -33,6 +33,7 @@ export const Diagnosis = () => {
     // Note modal
     const [showNoteModal, setShowNoteModal] = useState(false);
     const [selectedDiagnosisId, setSelectedDiagnosisId] = useState<number | null>(null);
+    const [editingNote, setEditingNote] = useState<DiagnosisNote | null>(null);
     const [noteText, setNoteText] = useState('');
     const [noteDate, setNoteDate] = useState(formatDate(new Date()));
 
@@ -151,6 +152,7 @@ export const Diagnosis = () => {
             setNewDiagnosis('');
             setNewNotes('');
             setNewDate(formatDate(new Date()));
+            await loadDiagnoses(); // Reload immediately
         } catch (error: any) {
             console.error('Error saving diagnosis:', error);
             const errorMessage = error?.message || 'Ошибка при сохранении';
@@ -177,28 +179,52 @@ export const Diagnosis = () => {
         setSaveError(null);
 
         try {
-            const { error } = await supabase
-                .from('diagnosis_notes')
-                .insert({
-                    diagnosis_id: selectedDiagnosisId,
-                    user_id: currentUser.id,
-                    pet_id: currentPetId,
-                    date: noteDate,
-                    note: noteText.trim()
-                });
+            if (editingNote) {
+                // Update existing note
+                const { error } = await supabase
+                    .from('diagnosis_notes')
+                    .update({
+                        date: noteDate,
+                        note: noteText.trim()
+                    })
+                    .eq('id', editingNote.id);
 
-            if (error) throw error;
+                if (error) throw error;
+            } else {
+                // Insert new note
+                const { error } = await supabase
+                    .from('diagnosis_notes')
+                    .insert({
+                        diagnosis_id: selectedDiagnosisId,
+                        user_id: currentUser.id,
+                        pet_id: currentPetId,
+                        date: noteDate,
+                        note: noteText.trim()
+                    });
+
+                if (error) throw error;
+            }
 
             setShowNoteModal(false);
             setSelectedDiagnosisId(null);
+            setEditingNote(null);
             setNoteText('');
             setNoteDate(formatDate(new Date()));
+            await loadDiagnosisNotes(); // Reload notes immediately
         } catch (error: any) {
-            console.error('Error adding note:', error);
+            console.error('Error saving note:', error);
             setSaveError(error?.message || 'Ошибка при сохранении');
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleEditNote = (note: DiagnosisNote) => {
+        setEditingNote(note);
+        setSelectedDiagnosisId(note.diagnosis_id);
+        setNoteText(note.note);
+        setNoteDate(note.date);
+        setShowNoteModal(true);
     };
 
     const handleDeleteNote = async (noteId: number) => {
@@ -209,6 +235,8 @@ export const Diagnosis = () => {
                 .eq('id', noteId);
 
             if (error) throw error;
+            
+            await loadDiagnosisNotes(); // Reload notes immediately
         } catch (error) {
             console.error('Error deleting note:', error);
         }
@@ -296,12 +324,20 @@ export const Diagnosis = () => {
                                                             {note.note}
                                                         </p>
                                                     </div>
-                                                    <button
-                                                        onClick={() => handleDeleteNote(note.id)}
-                                                        className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all opacity-0 group-hover/note:opacity-100 flex-shrink-0"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
+                                                    <div className="flex gap-1 opacity-0 group-hover/note:opacity-100 transition-opacity">
+                                                        <button
+                                                            onClick={() => handleEditNote(note)}
+                                                            className="p-1 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-full transition-all flex-shrink-0"
+                                                        >
+                                                            <Edit2 size={14} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteNote(note.id)}
+                                                            className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all flex-shrink-0"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
@@ -396,16 +432,17 @@ export const Diagnosis = () => {
                 />
             </Modal>
 
-            {/* Modal for adding note */}
+            {/* Modal for adding/editing note */}
             <Modal
                 isOpen={showNoteModal}
                 onClose={() => {
                     setShowNoteModal(false);
                     setSelectedDiagnosisId(null);
+                    setEditingNote(null);
                     setNoteText('');
                     setNoteDate(formatDate(new Date()));
                 }}
-                title="Добавить заметку"
+                title={editingNote ? 'Редактировать заметку' : 'Добавить заметку'}
                 maxWidth="lg"
             >
                 <div className="space-y-5">
@@ -436,11 +473,12 @@ export const Diagnosis = () => {
                     onCancel={() => {
                         setShowNoteModal(false);
                         setSelectedDiagnosisId(null);
+                        setEditingNote(null);
                         setNoteText('');
                     }}
                     onSubmit={handleAddNote}
                     cancelText="Отмена"
-                    submitText="Добавить"
+                    submitText={editingNote ? 'Сохранить' : 'Добавить'}
                     submitDisabled={!noteText.trim()}
                     loading={saving}
                 />
