@@ -29,6 +29,9 @@ export interface Diagnosis {
   date: string; // YYYY-MM-DD
   diagnosis: string;
   notes?: string;
+  attachment_url?: string;
+  attachment_type?: 'image' | 'pdf';
+  attachment_name?: string;
   created_at?: string;
 }
 
@@ -45,6 +48,9 @@ export interface MedicationEntry {
   timestamp: number; // полный timestamp
   color?: string;
   note?: string;
+  attachment_url?: string;
+  attachment_type?: 'image' | 'pdf';
+  attachment_name?: string;
   is_scheduled?: boolean; // Было ли запланировано
   completed?: boolean; // Выполнено ли (для запланированных)
   scheduled_time?: number; // Целевое время выполнения (timestamp)
@@ -102,6 +108,9 @@ export interface StateEntry {
   state_score: 1 | 2 | 3 | 4 | 5;
   trend?: 'up' | 'same' | 'down'; // Динамика по сравнению с предыдущим днем
   note?: string; // Опциональная заметка к конкретному состоянию
+  attachment_url?: string;
+  attachment_type?: 'image' | 'pdf';
+  attachment_name?: string;
   is_scheduled?: boolean; // Было ли запланировано
   completed?: boolean; // Выполнено ли (для запланированных)
   scheduled_time?: number; // Целевое время выполнения (timestamp)
@@ -117,6 +126,9 @@ export interface SymptomEntry {
   timestamp: number; // полный timestamp для сортировки
   symptom: string; // Название симптома
   note?: string; // Опциональная заметка
+  attachment_url?: string;
+  attachment_type?: 'image' | 'pdf';
+  attachment_name?: string;
   is_scheduled?: boolean; // Было ли запланировано
   completed?: boolean; // Выполнено ли (для запланированных)
   scheduled_time?: number; // Целевое время выполнения (timestamp)
@@ -134,6 +146,9 @@ export interface FeedingEntry {
   amount: string; // Количество (например "50 г" или "100 мл")
   unit: 'g' | 'ml' | 'none'; // Единица измерения
   note?: string; // Опциональная заметка
+  attachment_url?: string;
+  attachment_type?: 'image' | 'pdf';
+  attachment_name?: string;
   is_scheduled?: boolean; // Было ли запланировано
   completed?: boolean; // Выполнено ли (для запланированных)
   scheduled_time?: number; // Целевое время выполнения (timestamp)
@@ -173,6 +188,9 @@ export interface Note {
   content: string;
   color?: string;
   is_pinned?: boolean;
+  attachment_url?: string;
+  attachment_type?: 'image' | 'pdf';
+  attachment_name?: string;
   created_at?: string;
   updated_at?: string;
   tags?: NoteTag[]; // Теги заметки
