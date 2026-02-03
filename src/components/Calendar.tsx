@@ -314,7 +314,7 @@ export const Calendar = () => {
                   <div 
                     className="bg-black text-white p-4 rounded-2xl text-sm shadow-2xl animate-scaleIn"
                     style={{
-                      originBottom: shouldShowBelow ? 'top' : 'bottom'
+                      transformOrigin: shouldShowBelow ? 'top' : 'bottom'
                     }}
                   >
                     {states && states.length > 0 && (
