@@ -6,6 +6,8 @@ import { AnimatedModal } from './AnimatedModal';
 import { ConfirmModal } from './Modal';
 import { Input } from './ui/Input';
 import { Modal, ModalActions } from './ui/Modal';
+import { FileUpload } from './ui/FileUpload';
+import { uploadAttachment, deleteAttachment } from '../services/storage';
 import type { MedicationEntry, FeedingEntry } from '../types';
 import { useUnits } from '../hooks/useUnits';
 
@@ -48,6 +50,9 @@ export const Scheduler = () => {
   const [medicationAmount, setMedicationAmount] = useState('');
   const [medicationUnit, setMedicationUnit] = useState<string>('мл');
   const [foodName, setFoodName] = useState('');
+  const [foodAmount, setFoodAmount] = useState('');
+  const [foodUnit, setFoodUnit] = useState<string>('g');
+  const [schedulerFile, setSchedulerFile] = useState<File | null>(null);
   const [foodAmount, setFoodAmount] = useState('');
   const [foodUnit, setFoodUnit] = useState<string>('g');
 
@@ -244,10 +249,34 @@ export const Scheduler = () => {
       const scheduledTime = new Date(`${eventDate}T${eventTime}`).getTime();
       const timestamp = scheduledTime;
 
+      let uploadResult = null;
+      
+      // Upload file if selected
+      if (schedulerFile) {
+        uploadResult = await uploadAttachment(
+          schedulerFile,
+          currentUser.id,
+          currentPetId,
+          'entry'
+        );
+      }
+
       if (editingEvent) {
         // Редактирование существующего события
         if (editingEvent.type === 'medication' && medicationName && medicationAmount) {
-          await supabase.from('medication_entries').update({
+          // Get existing entry to check for old attachment
+          const { data: existingEntry } = await supabase
+            .from('medication_entries')
+            .select('attachment_url')
+            .eq('id', editingEvent.id)
+            .single();
+
+          // Delete old attachment if replacing
+          if (uploadResult && existingEntry?.attachment_url) {
+            await deleteAttachment(existingEntry.attachment_url);
+          }
+
+          const updateData: any = {
             date: eventDate,
             time: eventTime,
             timestamp,
@@ -255,9 +284,29 @@ export const Scheduler = () => {
             dosage_amount: medicationAmount,
             dosage_unit: medicationUnit,
             scheduled_time: scheduledTime
-          }).eq('id', editingEvent.id);
+          };
+
+          if (uploadResult) {
+            updateData.attachment_url = uploadResult.url;
+            updateData.attachment_type = uploadResult.type;
+            updateData.attachment_name = uploadResult.name;
+          }
+
+          await supabase.from('medication_entries').update(updateData).eq('id', editingEvent.id);
         } else if (editingEvent.type === 'feeding' && foodName) {
-          await supabase.from('feeding_entries').update({
+          // Get existing entry to check for old attachment
+          const { data: existingEntry } = await supabase
+            .from('feeding_entries')
+            .select('attachment_url')
+            .eq('id', editingEvent.id)
+            .single();
+
+          // Delete old attachment if replacing
+          if (uploadResult && existingEntry?.attachment_url) {
+            await deleteAttachment(existingEntry.attachment_url);
+          }
+
+          const updateData: any = {
             date: eventDate,
             time: eventTime,
             timestamp,
@@ -265,12 +314,20 @@ export const Scheduler = () => {
             amount: foodAmount,
             unit: foodUnit,
             scheduled_time: scheduledTime
-          }).eq('id', editingEvent.id);
+          };
+
+          if (uploadResult) {
+            updateData.attachment_url = uploadResult.url;
+            updateData.attachment_type = uploadResult.type;
+            updateData.attachment_name = uploadResult.name;
+          }
+
+          await supabase.from('feeding_entries').update(updateData).eq('id', editingEvent.id);
         }
       } else {
         // Создание нового события
         if (eventType === 'medication' && medicationName && medicationAmount) {
-          await supabase.from('medication_entries').insert({
+          const insertData: any = {
             user_id: currentUser.id,
             pet_id: currentPetId,
             date: eventDate,
@@ -283,9 +340,17 @@ export const Scheduler = () => {
             is_scheduled: true,
             completed: false,
             scheduled_time: scheduledTime
-          });
+          };
+
+          if (uploadResult) {
+            insertData.attachment_url = uploadResult.url;
+            insertData.attachment_type = uploadResult.type;
+            insertData.attachment_name = uploadResult.name;
+          }
+
+          await supabase.from('medication_entries').insert(insertData);
         } else if (eventType === 'feeding' && foodName) {
-          await supabase.from('feeding_entries').insert({
+          const insertData: any = {
             user_id: currentUser.id,
             pet_id: currentPetId,
             date: eventDate,
@@ -297,7 +362,15 @@ export const Scheduler = () => {
             is_scheduled: true,
             completed: false,
             scheduled_time: scheduledTime
-          });
+          };
+
+          if (uploadResult) {
+            insertData.attachment_url = uploadResult.url;
+            insertData.attachment_type = uploadResult.type;
+            insertData.attachment_name = uploadResult.name;
+          }
+
+          await supabase.from('feeding_entries').insert(insertData);
         }
       }
 
@@ -312,6 +385,7 @@ export const Scheduler = () => {
       setFoodName('');
       setFoodAmount('');
       setFoodUnit('g');
+      setSchedulerFile(null);
       loadEvents();
     } catch (error) {
       console.error('Error adding event:', error);
@@ -828,6 +902,7 @@ export const Scheduler = () => {
           setFoodName('');
           setFoodAmount('');
           setFoodUnit('g');
+          setSchedulerFile(null);
         }}
         title={editingEvent
           ? (eventType === 'medication' ? 'Редактировать лекарство' : 'Редактировать питание')
@@ -991,12 +1066,20 @@ export const Scheduler = () => {
               </div>
             </>
           )}
+
+          {/* File Upload */}
+          <FileUpload
+            onFileSelect={(file) => setSchedulerFile(file)}
+            currentAttachment={null}
+            onRemove={() => setSchedulerFile(null)}
+          />
         </div>
 
         <ModalActions
           onCancel={() => {
             setShowAddModal(false);
             setEditingEvent(null);
+            setSchedulerFile(null);
           }}
           onSubmit={handleAddEvent}
           cancelText="Отмена"
