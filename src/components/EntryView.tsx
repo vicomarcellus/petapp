@@ -9,6 +9,8 @@ import { AlertModal, ConfirmModal } from './Modal';
 import { AnimatedModal } from './AnimatedModal';
 import { Input, Textarea } from './ui/Input';
 import { Modal, ModalActions } from './ui/Modal';
+import { FileUpload } from './ui/FileUpload';
+import { uploadAttachment, deleteAttachment } from '../services/storage';
 import { AddMenu } from './EntryView/AddMenu';
 import type { StateEntry, SymptomEntry, MedicationEntry, FeedingEntry } from '../types';
 import { useUnits } from '../hooks/useUnits';
@@ -121,6 +123,12 @@ export const EntryView = () => {
   const [foodUnit, setFoodUnit] = useState<string>('g');
   const [foodTime, setFoodTime] = useState('');
   const [foodNote, setFoodNote] = useState('');
+
+  // File states
+  const [stateFile, setStateFile] = useState<File | null>(null);
+  const [symptomFile, setSymptomFile] = useState<File | null>(null);
+  const [medicationFile, setMedicationFile] = useState<File | null>(null);
+  const [feedingFile, setFeedingFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (selectedDate && currentPetId && currentUser) {
@@ -338,6 +346,11 @@ export const EntryView = () => {
       const timeToUse = stateTime || new Date().toTimeString().slice(0, 5);
       const timestamp = new Date(`${selectedDate}T${timeToUse}`).getTime();
 
+      let uploadResult = null;
+      if (stateFile) {
+        uploadResult = await uploadAttachment(stateFile, currentUser.id, currentPetId, 'entry');
+      }
+
       // Автоматически определяем тренд на основе предыдущего дня
       let trend: 'up' | 'same' | 'down' | undefined = stateTrend || undefined;
       if (!trend && previousDayScore !== null) {
@@ -351,7 +364,10 @@ export const EntryView = () => {
       }
 
       if (editingEntry && editingEntry.type === 'state') {
-        // Обновление
+        if (uploadResult && editingEntry.data.attachment_url) {
+          await deleteAttachment(editingEntry.data.attachment_url);
+        }
+
         const updateData: any = {
           time: timeToUse,
           timestamp,
@@ -359,14 +375,15 @@ export const EntryView = () => {
           note: stateNote || null
         };
         
-        // Добавляем trend только если он определен
-        if (trend) {
-          updateData.trend = trend;
+        if (trend) updateData.trend = trend;
+        if (uploadResult) {
+          updateData.attachment_url = uploadResult.url;
+          updateData.attachment_type = uploadResult.type;
+          updateData.attachment_name = uploadResult.name;
         }
         
         await supabase.from('state_entries').update(updateData).eq('id', editingEntry.data.id);
       } else {
-        // Создание
         const insertData: any = {
           user_id: currentUser.id,
           pet_id: currentPetId,
@@ -377,9 +394,11 @@ export const EntryView = () => {
           note: stateNote || null
         };
         
-        // Добавляем trend только если он определен
-        if (trend) {
-          insertData.trend = trend;
+        if (trend) insertData.trend = trend;
+        if (uploadResult) {
+          insertData.attachment_url = uploadResult.url;
+          insertData.attachment_type = uploadResult.type;
+          insertData.attachment_name = uploadResult.name;
         }
         
         await supabase.from('state_entries').insert(insertData);
@@ -390,6 +409,7 @@ export const EntryView = () => {
       setStateTime('');
       setStateNote('');
       setStateScore(3);
+      setStateFile(null);
       setStateTrend(null);
       loadData();
     } catch (error) {
