@@ -30,6 +30,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
   const analyticsRef = useRef<HTMLButtonElement>(null);
   const logRef = useRef<HTMLButtonElement>(null);
   const diagnosisRef = useRef<HTMLButtonElement>(null);
+  const notesRef = useRef<HTMLButtonElement>(null);
   const schedulerRef = useRef<HTMLButtonElement>(null);
   const settingsRef = useRef<HTMLButtonElement>(null);
 
@@ -123,6 +124,8 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
         activeRef = logRef;
       } else if (view === 'diagnosis') {
         activeRef = diagnosisRef;
+      } else if (view === 'notes') {
+        activeRef = notesRef;
       } else if (view === 'scheduler') {
         activeRef = schedulerRef;
       } else if (view === 'settings' || view === 'history') {
@@ -220,6 +223,16 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
               }`}
           >
             Диагноз
+          </button>
+          <button
+            ref={notesRef}
+            onClick={() => setView('notes')}
+            className={`relative z-10 px-5 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${view === 'notes'
+              ? 'text-gray-900'
+              : 'text-gray-600 hover:text-gray-900'
+              }`}
+          >
+            Заметки
           </button>
           <button
             ref={schedulerRef}

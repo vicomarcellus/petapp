@@ -5,6 +5,8 @@ import { Activity, Plus, Trash2, Calendar as CalendarIcon, FileText } from 'luci
 import { Diagnosis as DiagnosisType } from '../types';
 import { formatDate } from '../utils';
 import { ConfirmModal } from './Modal';
+import { Input, Textarea } from './ui/Input';
+import { Modal, ModalActions } from './ui/Modal';
 
 export const Diagnosis = () => {
     const { currentUser, currentPetId } = useStore();
@@ -184,75 +186,52 @@ export const Diagnosis = () => {
             </div>
 
             {/* Modal for adding diagnosis */}
-            {showAddModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-[40px] w-full max-w-lg overflow-hidden animate-scaleIn">
-                        <div className="p-8">
-                            <h3 className="text-2xl font-bold text-gray-900 mb-6">Новый диагноз</h3>
+            <Modal 
+                isOpen={showAddModal} 
+                onClose={() => setShowAddModal(false)} 
+                title="Новый диагноз"
+                maxWidth="lg"
+            >
+                <div className="space-y-5">
+                    <Input
+                        type="date"
+                        label="Дата"
+                        value={newDate}
+                        onChange={(e) => setNewDate(e.target.value)}
+                        onClick={(e) => e.currentTarget.showPicker()}
+                    />
 
-                            <div className="space-y-5">
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Дата</label>
-                                    <div className="relative">
-                                        <input
-                                            type="date"
-                                            value={newDate}
-                                            onChange={(e) => setNewDate(e.target.value)}
-                                            onClick={(e) => e.currentTarget.showPicker()}
-                                            className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-gray-200 transition-all text-gray-900 outline-none [&::-webkit-calendar-picker-indicator]:hidden"
-                                        />
-                                        <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
-                                    </div>
-                                </div>
+                    <Input
+                        type="text"
+                        label="Диагноз"
+                        value={newDiagnosis}
+                        onChange={(e) => setNewDiagnosis(e.target.value)}
+                        placeholder="Напр. Хроническая болезнь почек"
+                    />
 
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Диагноз</label>
-                                    <input
-                                        type="text"
-                                        value={newDiagnosis}
-                                        onChange={(e) => setNewDiagnosis(e.target.value)}
-                                        placeholder="Напр. Хроническая болезнь почек"
-                                        className="w-full px-5 py-3.5 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-gray-200 transition-all text-gray-900 placeholder-gray-400 outline-none"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Заметки (необязательно)</label>
-                                    <textarea
-                                        value={newNotes}
-                                        onChange={(e) => setNewNotes(e.target.value)}
-                                        placeholder="Дополнительная информация от врача..."
-                                        rows={4}
-                                        className="w-full px-5 py-3.5 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-gray-200 transition-all text-gray-900 placeholder-gray-400 outline-none resize-none"
-                                    />
-                                </div>
-                                {saveError && (
-                                    <div className="bg-red-50 border border-red-100 text-red-600 text-xs p-3 rounded-xl">
-                                        {saveError}
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="flex gap-3 mt-8">
-                                <button
-                                    onClick={handleAddDiagnosis}
-                                    disabled={!newDiagnosis.trim() || saving}
-                                    className="flex-1 py-4 bg-black text-white rounded-[24px] font-bold hover:bg-gray-800 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                                >
-                                    {saving && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                                    {saving ? 'Сохранение...' : 'Сохранить'}
-                                </button>
-                                <button
-                                    onClick={() => setShowAddModal(false)}
-                                    className="px-8 py-4 bg-gray-100 text-gray-800 rounded-[24px] font-bold hover:bg-gray-200 transition-all"
-                                >
-                                    Отмена
-                                </button>
-                            </div>
+                    <Textarea
+                        label="Заметки (необязательно)"
+                        value={newNotes}
+                        onChange={(e) => setNewNotes(e.target.value)}
+                        placeholder="Дополнительная информация от врача..."
+                        rows={4}
+                    />
+                    {saveError && (
+                        <div className="bg-red-50 border border-red-100 text-red-600 text-xs p-3 rounded-xl">
+                            {saveError}
                         </div>
-                    </div>
+                    )}
                 </div>
-            )}
+
+                <ModalActions
+                    onCancel={() => setShowAddModal(false)}
+                    onSubmit={handleAddDiagnosis}
+                    cancelText="Отмена"
+                    submitText="Сохранить"
+                    submitDisabled={!newDiagnosis.trim()}
+                    loading={saving}
+                />
+            </Modal>
 
             <ConfirmModal
                 isOpen={deleteConfirm !== null}

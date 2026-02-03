@@ -3,6 +3,7 @@ import { useStore } from '../store';
 import { supabase } from '../lib/supabase';
 import { LogOut, PawPrint } from 'lucide-react';
 import { AlertModal } from './Modal';
+import { Input } from './ui/Input';
 
 export function Auth() {
   const { currentUser, setCurrentUser } = useStore();
@@ -146,48 +147,33 @@ export function Auth() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {!isLogin && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Имя
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-3 bg-white/50 border border-white/60 rounded-2xl focus:border-black transition-all outline-none text-black placeholder-gray-400"
-                placeholder="Ваше имя"
-                disabled={loading}
-              />
-            </div>
+            <Input
+              label="Имя"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ваше имя"
+              disabled={loading}
+            />
           )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-white/50 border border-white/60 rounded-2xl focus:border-black transition-all outline-none text-black placeholder-gray-400"
-              placeholder="your@email.com"
-              disabled={loading}
-            />
-          </div>
+          <Input
+            label="Email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="your@email.com"
+            disabled={loading}
+          />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Пароль
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-white/50 border border-white/60 rounded-2xl focus:border-black transition-all outline-none text-black placeholder-gray-400"
-              placeholder="••••••••"
-              disabled={loading}
-            />
-          </div>
+          <Input
+            label="Пароль"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            disabled={loading}
+          />
 
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">

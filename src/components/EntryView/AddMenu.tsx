@@ -1,3 +1,5 @@
+import { Activity, AlertCircle, Pill, Utensils } from 'lucide-react';
+
 interface AddMenuProps {
   onSelect: (type: 'state' | 'symptom' | 'medication' | 'feeding') => void;
   onCancel: () => void;
@@ -10,31 +12,31 @@ export const AddMenu = ({ onSelect, onCancel }: AddMenuProps) => {
       <div className="grid grid-cols-2 gap-3">
         <button
           onClick={() => onSelect('state')}
-          className="p-4 bg-gradient-to-br from-blue-50 to-white rounded-2xl hover:from-blue-100 hover:to-blue-50 transition-all text-center border-2 border-blue-100"
+          className="py-4 px-4 rounded-2xl font-medium transition-all bg-gray-100 text-gray-700 border-2 border-transparent hover:bg-blue-100 hover:text-blue-700 hover:border-blue-500"
         >
-          <div className="text-3xl mb-2">😊</div>
-          <div className="text-sm font-semibold text-gray-700">Состояние</div>
+          <Activity size={24} className="mx-auto mb-2" />
+          Состояние
         </button>
         <button
           onClick={() => onSelect('symptom')}
-          className="p-4 bg-gradient-to-br from-orange-50 to-white rounded-2xl hover:from-orange-100 hover:to-orange-50 transition-all text-center border-2 border-orange-100"
+          className="py-4 px-4 rounded-2xl font-medium transition-all bg-gray-100 text-gray-700 border-2 border-transparent hover:bg-red-100 hover:text-red-700 hover:border-red-500"
         >
-          <div className="text-3xl mb-2">🤒</div>
-          <div className="text-sm font-semibold text-gray-700">Симптом</div>
+          <AlertCircle size={24} className="mx-auto mb-2" />
+          Симптом
         </button>
         <button
           onClick={() => onSelect('medication')}
-          className="p-4 bg-gradient-to-br from-gray-50 to-white rounded-2xl hover:from-gray-100 hover:to-gray-50 transition-all text-center border-2 border-gray-200"
+          className="py-4 px-4 rounded-2xl font-medium transition-all bg-gray-100 text-gray-700 border-2 border-transparent hover:bg-purple-100 hover:text-purple-700 hover:border-purple-500"
         >
-          <div className="text-3xl mb-2">💊</div>
-          <div className="text-sm font-semibold text-gray-700">Лекарство</div>
+          <Pill size={24} className="mx-auto mb-2" />
+          Лекарство
         </button>
         <button
           onClick={() => onSelect('feeding')}
-          className="p-4 bg-gradient-to-br from-green-50 to-white rounded-2xl hover:from-green-100 hover:to-green-50 transition-all text-center border-2 border-green-100"
+          className="py-4 px-4 rounded-2xl font-medium transition-all bg-gray-100 text-gray-700 border-2 border-transparent hover:bg-green-100 hover:text-green-700 hover:border-green-500"
         >
-          <div className="text-3xl mb-2">🍽️</div>
-          <div className="text-sm font-semibold text-gray-700">Кормление</div>
+          <Utensils size={24} className="mx-auto mb-2" />
+          Кормление
         </button>
       </div>
       <button

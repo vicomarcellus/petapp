@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { ArrowLeft, Utensils } from 'lucide-react';
+import { Input, Textarea } from '../ui/Input';
 
 interface FeedingFormProps {
   selectedDate: string;
@@ -185,35 +186,25 @@ export const FeedingForm = ({
         </div>
       )}
 
-      <div>
-        <label className="block text-sm font-semibold text-gray-600 mb-2">
-          Название
-        </label>
-        <input
-          type="text"
-          value={foodName}
-          onChange={(e) => setFoodName(e.target.value)}
-          placeholder="Корм / Вода"
-          className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-black transition-all text-black placeholder-gray-400 outline-none"
-          required
-          autoFocus
-        />
-      </div>
+      <Input
+        label="Название"
+        type="text"
+        value={foodName}
+        onChange={(e) => setFoodName(e.target.value)}
+        placeholder="Корм / Вода"
+        required
+        autoFocus
+      />
 
       <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-semibold text-gray-600 mb-2">
-            Количество
-          </label>
-          <input
-            type="text"
-            value={foodAmount}
-            onChange={(e) => setFoodAmount(e.target.value)}
-            placeholder="50"
-            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-black transition-all text-black placeholder-gray-400 outline-none"
-            disabled={foodUnit === 'none'}
-          />
-        </div>
+        <Input
+          label="Количество"
+          type="text"
+          value={foodAmount}
+          onChange={(e) => setFoodAmount(e.target.value)}
+          placeholder="50"
+          disabled={foodUnit === 'none'}
+        />
 
         <div>
           <label className="block text-sm font-semibold text-gray-600 mb-2">
@@ -231,41 +222,35 @@ export const FeedingForm = ({
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-semibold text-gray-600 mb-2">
-          Время
-        </label>
-        <input
-          type="time"
-          value={foodTime}
-          onChange={(e) => setFoodTime(e.target.value)}
-          className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-black transition-all text-black outline-none"
-          required
-        />
-      </div>
+      <Input
+        label="Время"
+        type="time"
+        value={foodTime}
+        onChange={(e) => setFoodTime(e.target.value)}
+        required
+      />
 
-      <textarea
+      <Textarea
         value={foodNote}
         onChange={(e) => setFoodNote(e.target.value)}
         placeholder="Заметка (опционально)..."
-        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-black transition-all text-black placeholder-gray-400 outline-none resize-none"
         rows={3}
       />
 
       <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={!foodName.trim() || !foodTime}
-          className="flex-1 px-4 py-3 bg-black text-white rounded-full hover:bg-gray-800 transition-colors font-semibold disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          Сохранить
-        </button>
         <button
           type="button"
           onClick={onCancel}
           className="px-6 py-3 bg-gray-100 text-black rounded-full hover:bg-gray-200 transition-colors font-semibold"
         >
           Отмена
+        </button>
+        <button
+          type="submit"
+          disabled={!foodName.trim() || !foodTime}
+          className="flex-1 px-4 py-3 bg-black text-white rounded-full hover:bg-gray-800 transition-colors font-semibold disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          Сохранить
         </button>
       </div>
     </form>

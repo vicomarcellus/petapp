@@ -4,6 +4,8 @@ import { useStore } from '../store';
 import { Header } from './Header';
 import { Plus, Check, Trash2, Pill, UtensilsCrossed, AlertCircle, Clock } from 'lucide-react';
 import { ConfirmModal } from './Modal';
+import { Input } from './ui/Input';
+import { Modal, ModalActions } from './ui/Modal';
 import type { ChecklistTask } from '../types';
 import { useTaskNotifications } from '../hooks/useTaskNotifications';
 
@@ -249,178 +251,146 @@ export const Checklist = () => {
           )}
         </div>
 
-        {showAdd && (
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setShowAdd(false);
-            }}
-          >
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full">
-              <h3 className="text-xl font-bold mb-4">Новая задача</h3>
-              <div className="space-y-4">
-                <input 
-                  type="time" 
-                  value={taskTime} 
-                  onChange={(e) => setTaskTime(e.target.value)} 
-                  className="w-full px-4 py-2 border rounded-lg" 
-                />
-                <input 
-                  type="text" 
-                  value={taskText} 
-                  onChange={(e) => setTaskText(e.target.value)} 
-                  placeholder="Описание задачи" 
-                  className="w-full px-4 py-2 border rounded-lg" 
-                />
-                <div className="flex gap-2">
-                  <button 
-                    onClick={handleAddTask} 
-                    disabled={!taskText || !taskTime} 
-                    className="flex-1 py-2 bg-black text-white rounded-full disabled:opacity-50"
-                  >
-                    Добавить
-                  </button>
-                  <button 
-                    onClick={() => setShowAdd(false)} 
-                    className="px-4 py-2 bg-gray-200 rounded-full"
-                  >
-                    Отмена
-                  </button>
-                </div>
+        {/* Add Task Modal */}
+        <Modal 
+          isOpen={showAdd} 
+          onClose={() => setShowAdd(false)} 
+          title="Новая задача"
+          maxWidth="lg"
+        >
+          <div className="space-y-5">
+            <Input
+              label="Время"
+              type="time"
+              value={taskTime}
+              onChange={(e) => setTaskTime(e.target.value)}
+            />
+            <Input
+              label="Описание задачи"
+              type="text"
+              value={taskText}
+              onChange={(e) => setTaskText(e.target.value)}
+              placeholder="Описание задачи"
+            />
+          </div>
+
+          <ModalActions
+            onCancel={() => setShowAdd(false)}
+            onSubmit={handleAddTask}
+            cancelText="Отмена"
+            submitText="Добавить"
+            submitDisabled={!taskText || !taskTime}
+          />
+        </Modal>
+
+        {/* Schedule Task Modal */}
+        <Modal 
+          isOpen={showSchedule} 
+          onClose={() => {
+            setShowSchedule(false);
+            setTaskText('');
+            setTaskTime('');
+            setTaskType('other');
+            setLinkedItemName('');
+            setLinkedItemAmount('');
+          }} 
+          title="Запланировать задачу"
+          maxWidth="lg"
+        >
+          <div className="space-y-5">
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">Тип задачи</label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => setTaskType('medication')}
+                  className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    taskType === 'medication' 
+                      ? 'bg-purple-100 text-purple-700 border-2 border-purple-500' 
+                      : 'bg-gray-100 text-gray-600 border-2 border-transparent'
+                  }`}
+                >
+                  <Pill size={16} className="mx-auto mb-1" />
+                  Лекарство
+                </button>
+                <button
+                  onClick={() => setTaskType('feeding')}
+                  className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    taskType === 'feeding' 
+                      ? 'bg-green-100 text-green-700 border-2 border-green-500' 
+                      : 'bg-gray-100 text-gray-600 border-2 border-transparent'
+                  }`}
+                >
+                  <UtensilsCrossed size={16} className="mx-auto mb-1" />
+                  Питание
+                </button>
+                <button
+                  onClick={() => setTaskType('other')}
+                  className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    taskType === 'other' 
+                      ? 'bg-gray-200 text-gray-700 border-2 border-gray-500' 
+                      : 'bg-gray-100 text-gray-600 border-2 border-transparent'
+                  }`}
+                >
+                  <Clock size={16} className="mx-auto mb-1" />
+                  Другое
+                </button>
               </div>
             </div>
-          </div>
-        )}
 
-        {showSchedule && (
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setShowSchedule(false);
+            <Input
+              label="Время"
+              type="time"
+              value={taskTime}
+              onChange={(e) => setTaskTime(e.target.value)}
+            />
+
+            <Input
+              label="Описание"
+              type="text"
+              value={taskText}
+              onChange={(e) => setTaskText(e.target.value)}
+              placeholder={
+                taskType === 'medication' ? 'Дать лекарство' :
+                taskType === 'feeding' ? 'Покормить' :
+                'Описание задачи'
+              }
+            />
+
+            {(taskType === 'medication' || taskType === 'feeding') && (
+              <>
+                <Input
+                  label={taskType === 'medication' ? 'Название лекарства' : 'Название корма'}
+                  type="text"
+                  value={linkedItemName}
+                  onChange={(e) => setLinkedItemName(e.target.value)}
+                  placeholder={taskType === 'medication' ? 'Преднизолон' : 'Корм'}
+                />
+                <Input
+                  label={taskType === 'medication' ? 'Дозировка' : 'Количество'}
+                  type="text"
+                  value={linkedItemAmount}
+                  onChange={(e) => setLinkedItemAmount(e.target.value)}
+                  placeholder={taskType === 'medication' ? '0,3 мл' : '50 г'}
+                />
+              </>
+            )}
+          </div>
+
+          <ModalActions
+            onCancel={() => {
+              setShowSchedule(false);
+              setTaskText('');
+              setTaskTime('');
+              setTaskType('other');
+              setLinkedItemName('');
+              setLinkedItemAmount('');
             }}
-          >
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full">
-              <h3 className="text-xl font-bold mb-4">Запланировать задачу</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Тип задачи</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      onClick={() => setTaskType('medication')}
-                      className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                        taskType === 'medication' 
-                          ? 'bg-purple-100 text-purple-700 border-2 border-purple-500' 
-                          : 'bg-gray-100 text-gray-600 border-2 border-transparent'
-                      }`}
-                    >
-                      <Pill size={16} className="mx-auto mb-1" />
-                      Лекарство
-                    </button>
-                    <button
-                      onClick={() => setTaskType('feeding')}
-                      className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                        taskType === 'feeding' 
-                          ? 'bg-green-100 text-green-700 border-2 border-green-500' 
-                          : 'bg-gray-100 text-gray-600 border-2 border-transparent'
-                      }`}
-                    >
-                      <UtensilsCrossed size={16} className="mx-auto mb-1" />
-                      Питание
-                    </button>
-                    <button
-                      onClick={() => setTaskType('other')}
-                      className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                        taskType === 'other' 
-                          ? 'bg-gray-200 text-gray-700 border-2 border-gray-500' 
-                          : 'bg-gray-100 text-gray-600 border-2 border-transparent'
-                      }`}
-                    >
-                      <Clock size={16} className="mx-auto mb-1" />
-                      Другое
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Время</label>
-                  <input 
-                    type="time" 
-                    value={taskTime} 
-                    onChange={(e) => setTaskTime(e.target.value)} 
-                    className="w-full px-4 py-2 border rounded-lg" 
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Описание</label>
-                  <input 
-                    type="text" 
-                    value={taskText} 
-                    onChange={(e) => setTaskText(e.target.value)} 
-                    placeholder={
-                      taskType === 'medication' ? 'Дать лекарство' :
-                      taskType === 'feeding' ? 'Покормить' :
-                      'Описание задачи'
-                    }
-                    className="w-full px-4 py-2 border rounded-lg" 
-                  />
-                </div>
-
-                {(taskType === 'medication' || taskType === 'feeding') && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        {taskType === 'medication' ? 'Название лекарства' : 'Название корма'}
-                      </label>
-                      <input 
-                        type="text" 
-                        value={linkedItemName} 
-                        onChange={(e) => setLinkedItemName(e.target.value)} 
-                        placeholder={taskType === 'medication' ? 'Преднизолон' : 'Корм'}
-                        className="w-full px-4 py-2 border rounded-lg" 
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        {taskType === 'medication' ? 'Дозировка' : 'Количество'}
-                      </label>
-                      <input 
-                        type="text" 
-                        value={linkedItemAmount} 
-                        onChange={(e) => setLinkedItemAmount(e.target.value)} 
-                        placeholder={taskType === 'medication' ? '0,3 мл' : '50 г'}
-                        className="w-full px-4 py-2 border rounded-lg" 
-                      />
-                    </div>
-                  </>
-                )}
-
-                <div className="flex gap-2">
-                  <button 
-                    onClick={handleAddTask} 
-                    disabled={!taskText || !taskTime} 
-                    className="flex-1 py-2 bg-black text-white rounded-full disabled:opacity-50"
-                  >
-                    Запланировать
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setShowSchedule(false);
-                      setTaskText('');
-                      setTaskTime('');
-                      setTaskType('other');
-                      setLinkedItemName('');
-                      setLinkedItemAmount('');
-                    }} 
-                    className="px-4 py-2 bg-gray-200 rounded-full"
-                  >
-                    Отмена
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+            onSubmit={handleAddTask}
+            cancelText="Отмена"
+            submitText="Запланировать"
+            submitDisabled={!taskText || !taskTime}
+          />
+        </Modal>
 
         {NotificationModal && <NotificationModal />}
 

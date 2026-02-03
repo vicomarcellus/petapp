@@ -4,6 +4,8 @@ import { useStore } from '../store';
 import { Plus, Trash2, Pill, Utensils, Clock, Bell, Check, Calendar as CalendarIcon, Edit2 } from 'lucide-react';
 import { AnimatedModal } from './AnimatedModal';
 import { ConfirmModal } from './Modal';
+import { Input } from './ui/Input';
+import { Modal, ModalActions } from './ui/Modal';
 import type { MedicationEntry, FeedingEntry } from '../types';
 import { useUnits } from '../hooks/useUnits';
 
@@ -34,6 +36,10 @@ export const Scheduler = () => {
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
 
+  // Saved medications and food tags
+  const [savedMedications, setSavedMedications] = useState<Array<{ name: string; amount: string; unit: string }>>([]);
+  const [savedFood, setSavedFood] = useState<Array<{ name: string; amount: string; unit: string }>>([]);
+
   // Form fields
   const [eventType, setEventType] = useState<'medication' | 'feeding'>('medication');
   const [eventDate, setEventDate] = useState('');
@@ -51,6 +57,7 @@ export const Scheduler = () => {
   useEffect(() => {
     if (currentUser && currentPetId) {
       loadEvents();
+      loadSavedMedicationsAndFood();
 
       // Подписка на изменения в таблицах
       const channel = supabase
@@ -81,6 +88,44 @@ export const Scheduler = () => {
       };
     }
   }, [currentUser, currentPetId]);
+
+  const loadSavedMedicationsAndFood = async () => {
+    if (!currentUser || !currentPetId) return;
+
+    try {
+      // Load medication tags
+      const { data: medTags } = await supabase
+        .from('medication_tags')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('pet_id', currentPetId);
+
+      if (medTags) {
+        setSavedMedications(medTags.map(tag => ({
+          name: tag.name,
+          amount: tag.default_dosage_amount || '',
+          unit: tag.default_dosage_unit || 'мл'
+        })));
+      }
+
+      // Load food tags
+      const { data: foodTags } = await supabase
+        .from('food_tags')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('pet_id', currentPetId);
+
+      if (foodTags) {
+        setSavedFood(foodTags.map(tag => ({
+          name: tag.name,
+          amount: tag.default_amount || '',
+          unit: tag.default_unit || 'g'
+        })));
+      }
+    } catch (error) {
+      console.error('Error loading saved medications and food:', error);
+    }
+  };
 
   const loadEvents = async () => {
     if (!currentUser || !currentPetId) return;
@@ -769,7 +814,8 @@ export const Scheduler = () => {
         </div>
       )}
 
-      <AnimatedModal
+      {/* Add/Edit Event Modal */}
+      <Modal
         isOpen={showAddModal}
         onClose={() => {
           setShowAddModal(false);
@@ -786,13 +832,13 @@ export const Scheduler = () => {
         title={editingEvent
           ? (eventType === 'medication' ? 'Редактировать лекарство' : 'Редактировать питание')
           : 'Запланировать событие'}
+        maxWidth="lg"
       >
-
-        <div className="space-y-4">
+        <div className="space-y-5">
           {/* Type selector - hide when editing */}
           {!editingEvent && (
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Тип</label>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">Тип</label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setEventType('medication')}
@@ -820,60 +866,63 @@ export const Scheduler = () => {
 
           {/* Date and Time */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Дата</label>
-              <div className="relative">
-                <input
-                  type="date"
-                  value={eventDate}
-                  onChange={(e) => setEventDate(e.target.value)}
-                  onClick={(e) => e.currentTarget.showPicker()}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400 [&::-webkit-calendar-picker-indicator]:hidden"
-                />
-                <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Время</label>
-              <div className="relative">
-                <input
-                  type="time"
-                  value={eventTime}
-                  onChange={(e) => setEventTime(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400 [&::-webkit-calendar-picker-indicator]:hidden"
-                />
-                <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
-              </div>
-            </div>
+            <Input
+              label="Дата"
+              type="date"
+              value={eventDate}
+              onChange={(e) => setEventDate(e.target.value)}
+              onClick={(e) => e.currentTarget.showPicker()}
+              min={new Date().toISOString().split('T')[0]}
+            />
+            <Input
+              label="Время"
+              type="time"
+              value={eventTime}
+              onChange={(e) => setEventTime(e.target.value)}
+            />
           </div>
 
           {/* Medication fields */}
           {eventType === 'medication' && (
             <>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Название лекарства</label>
-                <input
+                <Input
+                  label="Название лекарства"
                   type="text"
                   value={medicationName}
                   onChange={(e) => setMedicationName(e.target.value)}
                   placeholder="Преднизолон"
-                  className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
                 />
+                {savedMedications.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {savedMedications.map((med, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setMedicationName(med.name);
+                          setMedicationAmount(med.amount);
+                          setMedicationUnit(med.unit);
+                        }}
+                        className="px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-sm font-medium hover:bg-purple-200 transition-colors"
+                      >
+                        {med.name}{med.amount ? ` ${med.amount} ${med.unit}` : ''}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 mt-2">Нет сохраненных лекарств. Добавьте в Настройках.</p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Количество"
+                  type="text"
+                  value={medicationAmount}
+                  onChange={(e) => setMedicationAmount(e.target.value)}
+                  placeholder="0,3"
+                />
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Количество</label>
-                  <input
-                    type="text"
-                    value={medicationAmount}
-                    onChange={(e) => setMedicationAmount(e.target.value)}
-                    placeholder="0,3"
-                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Единица</label>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">Единица</label>
                   <select
                     value={medicationUnit}
                     onChange={(e) => setMedicationUnit(e.target.value)}
@@ -892,28 +941,43 @@ export const Scheduler = () => {
           {eventType === 'feeding' && (
             <>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Название корма</label>
-                <input
+                <Input
+                  label="Название корма"
                   type="text"
                   value={foodName}
                   onChange={(e) => setFoodName(e.target.value)}
                   placeholder="Корм"
-                  className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
                 />
+                {savedFood.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {savedFood.map((food, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setFoodName(food.name);
+                          setFoodAmount(food.amount);
+                          setFoodUnit(food.unit);
+                        }}
+                        className="px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-sm font-medium hover:bg-green-200 transition-colors"
+                      >
+                        {food.name}{food.amount ? ` ${food.amount} ${food.unit === 'g' ? 'г' : food.unit === 'ml' ? 'мл' : ''}` : ''}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 mt-2">Нет сохраненной еды. Добавьте в Настройках.</p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Количество"
+                  type="text"
+                  value={foodAmount}
+                  onChange={(e) => setFoodAmount(e.target.value)}
+                  placeholder="50"
+                />
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Количество</label>
-                  <input
-                    type="text"
-                    value={foodAmount}
-                    onChange={(e) => setFoodAmount(e.target.value)}
-                    placeholder="50"
-                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Единица</label>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">Единица</label>
                   <select
                     value={foodUnit}
                     onChange={(e) => setFoodUnit(e.target.value)}
@@ -927,42 +991,24 @@ export const Scheduler = () => {
               </div>
             </>
           )}
-
-          {editingEvent ? (
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setEditingEvent(null);
-                }}
-                className="py-3.5 bg-gray-100 text-gray-700 rounded-2xl font-semibold hover:bg-gray-200 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-              >
-                Назад
-              </button>
-              <button
-                onClick={handleAddEvent}
-                className="py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-sm"
-              >
-                Добавить
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={handleAddEvent}
-              disabled={
-                !eventDate ||
-                !eventTime ||
-                (eventType === 'medication' && (!medicationName || !medicationAmount)) ||
-                (eventType === 'feeding' && !foodName)
-              }
-              className="w-full py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Запланировать
-            </button>
-          )}
-
         </div>
-      </AnimatedModal>
+
+        <ModalActions
+          onCancel={() => {
+            setShowAddModal(false);
+            setEditingEvent(null);
+          }}
+          onSubmit={handleAddEvent}
+          cancelText="Отмена"
+          submitText={editingEvent ? 'Сохранить' : 'Запланировать'}
+          submitDisabled={
+            !eventDate ||
+            !eventTime ||
+            (eventType === 'medication' && (!medicationName || !medicationAmount)) ||
+            (eventType === 'feeding' && !foodName)
+          }
+        />
+      </Modal>
 
       {/* Delete Confirmation */}
       <ConfirmModal
@@ -980,42 +1026,30 @@ export const Scheduler = () => {
       />
 
       {/* Edit Task Modal */}
-      <AnimatedModal
+      <Modal
         isOpen={editingTask !== null}
         onClose={() => setEditingTask(null)}
         title="Редактировать задачу"
+        maxWidth="lg"
       >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Название задачи
-            </label>
-            <input
-              type="text"
-              value={editingTask?.name || ''}
-              onChange={(e) => setEditingTask(editingTask ? { ...editingTask, name: e.target.value } : null)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black"
-              placeholder="Например: Дать воду 1 мл"
-            />
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={() => setEditingTask(null)}
-              className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"
-            >
-              Отмена
-            </button>
-            <button
-              onClick={handleSaveTask}
-              disabled={!editingTask?.name.trim()}
-              className="flex-1 px-6 py-3 bg-black text-white rounded-xl hover:bg-gray-800 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Сохранить
-            </button>
-          </div>
+        <div className="space-y-5">
+          <Input
+            label="Название задачи"
+            type="text"
+            value={editingTask?.name || ''}
+            onChange={(e) => setEditingTask(editingTask ? { ...editingTask, name: e.target.value } : null)}
+            placeholder="Например: Дать воду 1 мл"
+          />
         </div>
-      </AnimatedModal>
+
+        <ModalActions
+          onCancel={() => setEditingTask(null)}
+          onSubmit={handleSaveTask}
+          cancelText="Отмена"
+          submitText="Сохранить"
+          submitDisabled={!editingTask?.name.trim()}
+        />
+      </Modal>
     </div>
   );
 };

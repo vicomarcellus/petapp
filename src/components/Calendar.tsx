@@ -287,19 +287,29 @@ export const Calendar = () => {
 
               if (!entry && !states && !meds) return null;
 
-              // Тултип над датой
+              // Определяем, показывать тултип сверху или снизу
+              const shouldShowBelow = tooltipPosition.y < 250; // Если близко к верху экрана
+              const offset = 24; // Одинаковый отступ для обоих направлений
+
               return (
                 <div
                   className="fixed z-50 pointer-events-none"
                   style={{
                     left: `${tooltipPosition.x}px`,
                     top: `${tooltipPosition.y}px`,
-                    transform: 'translate(-50%, calc(-100% - 16px))',
+                    transform: shouldShowBelow 
+                      ? `translate(-50%, calc(100% + ${offset}px))` 
+                      : `translate(-50%, calc(-100% - ${offset}px))`,
                     width: 'max-content',
                     maxWidth: '300px',
                   }}
                 >
-                  <div className="bg-black text-white p-4 rounded-2xl text-sm shadow-2xl animate-scaleIn origin-bottom">
+                  <div 
+                    className="bg-black text-white p-4 rounded-2xl text-sm shadow-2xl animate-scaleIn"
+                    style={{
+                      originBottom: shouldShowBelow ? 'top' : 'bottom'
+                    }}
+                  >
                     {states && states.length > 0 && (
                       <div className="mb-3 last:mb-0">
                         <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">

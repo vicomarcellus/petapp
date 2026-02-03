@@ -75,7 +75,7 @@ export const AIChat = ({ onEntryParsed, onClose }: AIChatProps) => {
           </div>
         </div>
 
-        {/* Input */}
+        {/* Input - keeping as simple input since this is deprecated */}
         <form onSubmit={handleSubmit} className="p-6 border-t border-gray-100">
           <div className="flex gap-3">
             <input

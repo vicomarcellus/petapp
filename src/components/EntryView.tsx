@@ -7,6 +7,9 @@ import { Trash2, Plus, Activity, AlertCircle, Pill, Utensils, X, Edit2, ArrowLef
 import { useScheduledNotifications } from '../hooks/useScheduledNotifications';
 import { AlertModal, ConfirmModal } from './Modal';
 import { AnimatedModal } from './AnimatedModal';
+import { Input, Textarea } from './ui/Input';
+import { Modal, ModalActions } from './ui/Modal';
+import { AddMenu } from './EntryView/AddMenu';
 import type { StateEntry, SymptomEntry, MedicationEntry, FeedingEntry } from '../types';
 import { useUnits } from '../hooks/useUnits';
 
@@ -38,6 +41,7 @@ export const EntryView = () => {
   const [showAddSymptom, setShowAddSymptom] = useState(false);
   const [showAddMedication, setShowAddMedication] = useState(false);
   const [showAddFeeding, setShowAddFeeding] = useState(false);
+  const [isTimelineExpanded, setIsTimelineExpanded] = useState(false);
 
   const [editingEntry, setEditingEntry] = useState<TimelineEntry | null>(null);
   const [editingScheduledId, setEditingScheduledId] = useState<string | null>(null);
@@ -123,6 +127,7 @@ export const EntryView = () => {
       loadData();
       loadSavedItems();
       loadPreviousDayScore();
+      setIsTimelineExpanded(false); // Сбрасываем при смене даты
     }
   }, [selectedDate, currentPetId, currentUser]);
 
@@ -247,41 +252,38 @@ export const EntryView = () => {
     if (!currentUser || !currentPetId) return;
 
     try {
-      // Загружаем уникальные лекарства
-      const { data: meds } = await supabase
-        .from('medication_entries')
-        .select('medication_name, dosage, dosage_amount, dosage_unit')
+      // Загружаем medication_tags
+      const { data: medTags } = await supabase
+        .from('medication_tags')
+        .select('*')
         .eq('user_id', currentUser.id)
-        .eq('pet_id', currentPetId)
-        .order('timestamp', { ascending: false })
-        .limit(50);
+        .eq('pet_id', currentPetId);
 
-      if (meds) {
-        const uniqueMeds = Array.from(new Map(meds.map(m => {
-          // Формируем dosage для обратной совместимости
-          const dosage = m.dosage_amount && m.dosage_unit
-            ? `${m.dosage_amount} ${m.dosage_unit}`
-            : m.dosage || '';
-          return [m.medication_name, { name: m.medication_name, dosage }];
-        })).values());
-        setSavedMedications(uniqueMeds);
+      if (medTags) {
+        setSavedMedications(medTags.map(tag => ({
+          name: tag.name,
+          dosage: tag.default_dosage_amount && tag.default_dosage_unit
+            ? `${tag.default_dosage_amount} ${tag.default_dosage_unit}`
+            : ''
+        })));
       }
 
-      // Загружаем уникальные корма
-      const { data: foods } = await supabase
-        .from('feeding_entries')
-        .select('food_name, amount, unit')
+      // Загружаем food_tags
+      const { data: foodTags } = await supabase
+        .from('food_tags')
+        .select('*')
         .eq('user_id', currentUser.id)
-        .eq('pet_id', currentPetId)
-        .order('timestamp', { ascending: false })
-        .limit(50);
+        .eq('pet_id', currentPetId);
 
-      if (foods) {
-        const uniqueFoods = Array.from(new Map(foods.map(f => [f.food_name, { name: f.food_name, amount: f.amount, unit: f.unit }])).values());
-        setSavedFoods(uniqueFoods);
+      if (foodTags) {
+        setSavedFoods(foodTags.map(tag => ({
+          name: tag.name,
+          amount: tag.default_amount || '',
+          unit: tag.default_unit || 'g'
+        })));
       }
 
-      // Загружаем уникальные симптомы
+      // Загружаем уникальные симптомы из истории
       const { data: symptoms } = await supabase
         .from('symptom_entries')
         .select('symptom')
@@ -943,36 +945,16 @@ export const EntryView = () => {
         onClose={() => setShowAddMenu(false)}
         title="Добавить запись"
       >
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => { setShowAddState(true); setShowAddMenu(false); }}
-            className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-gray-50 transition-all duration-200 border-2 border-gray-100 hover:scale-105 active:scale-95"
-          >
-            <Activity size={24} className="text-blue-600" />
-            <span className="text-sm font-medium">Состояние</span>
-          </button>
-          <button
-            onClick={() => { setShowAddSymptom(true); setShowAddMenu(false); }}
-            className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-gray-50 transition-all duration-200 border-2 border-gray-100 hover:scale-105 active:scale-95"
-          >
-            <AlertCircle size={24} className="text-red-600" />
-            <span className="text-sm font-medium">Симптом</span>
-          </button>
-          <button
-            onClick={() => { setShowAddMedication(true); setShowAddMenu(false); }}
-            className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-gray-50 transition-all duration-200 border-2 border-gray-100 hover:scale-105 active:scale-95"
-          >
-            <Pill size={24} className="text-purple-600" />
-            <span className="text-sm font-medium">Лекарство</span>
-          </button>
-          <button
-            onClick={() => { setShowAddFeeding(true); setShowAddMenu(false); }}
-            className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-gray-50 transition-all duration-200 border-2 border-gray-100 hover:scale-105 active:scale-95"
-          >
-            <Utensils size={24} className="text-green-600" />
-            <span className="text-sm font-medium">Питание</span>
-          </button>
-        </div>
+        <AddMenu
+          onSelect={(type) => {
+            setShowAddMenu(false);
+            if (type === 'state') setShowAddState(true);
+            else if (type === 'symptom') setShowAddSymptom(true);
+            else if (type === 'medication') setShowAddMedication(true);
+            else if (type === 'feeding') setShowAddFeeding(true);
+          }}
+          onCancel={() => setShowAddMenu(false)}
+        />
       </AnimatedModal>
 
       <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6">
@@ -1029,7 +1011,7 @@ export const EntryView = () => {
               allItems.sort((a, b) => a.timestamp - b.timestamp);
 
               // Если больше 10 записей, сворачиваем средние
-              const shouldCollapse = allItems.length > 10;
+              const shouldCollapse = allItems.length > 10 && !isTimelineExpanded;
               const visibleItems = shouldCollapse
                 ? [...allItems.slice(0, 5), ...allItems.slice(-5)]
                 : allItems;
@@ -1043,8 +1025,8 @@ export const EntryView = () => {
                       return (
                         <div key="divider" className="py-2">
                           <button
-                            onClick={() => {/* TODO: развернуть */ }}
-                            className="w-full text-center text-sm text-gray-400 hover:text-gray-600 transition-colors"
+                            onClick={() => setIsTimelineExpanded(true)}
+                            className="w-full py-2 px-4 text-center text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-xl transition-all duration-200"
                           >
                             ... еще {hiddenCount} записей ...
                           </button>
@@ -1139,28 +1121,23 @@ export const EntryView = () => {
         )}
       </div>
 
-      <AnimatedModal
+      <Modal
         isOpen={showAddState}
         onClose={() => setShowAddState(false)}
         title={editingEntry ? 'Редактировать состояние' : 'Добавить состояние'}
+        maxWidth="lg"
       >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Время (необязательно)</label>
-            <div className="relative">
-              <input
-                type="time"
-                value={stateTime}
-                onChange={(e) => setStateTime(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 [&::-webkit-calendar-picker-indicator]:hidden"
-                placeholder="Текущее время"
-              />
-              <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
-            </div>
-          </div>
+        <div className="space-y-5">
+          <Input
+            label="Время (необязательно)"
+            type="time"
+            value={stateTime}
+            onChange={(e) => setStateTime(e.target.value)}
+            placeholder="Текущее время"
+          />
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Оценка состояния</label>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">Оценка состояния</label>
             <div className="flex gap-2">
               {[1, 2, 3, 4, 5].map((score) => (
                 <button key={score} onClick={() => setStateScore(score as 1 | 2 | 3 | 4 | 5)} className={`flex-1 py-3 rounded-2xl font-bold transition-all duration-200 ${stateScore === score ? 'text-white scale-105' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:scale-105'}`} style={{ backgroundColor: stateScore === score ? STATE_COLORS[score] : undefined }}>{score}</button>
@@ -1170,7 +1147,7 @@ export const EntryView = () => {
 
           {previousDayScore !== null && (
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">
                 Динамика <span className="text-gray-400 font-normal">(вчера было: {previousDayScore})</span>
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -1232,55 +1209,39 @@ export const EntryView = () => {
             </div>
           )}
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Заметка (опционально)</label>
-            <textarea
-              value={stateNote}
-              onChange={(e) => setStateNote(e.target.value)}
-              className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none resize-none text-gray-900 placeholder-gray-400"
-              rows={3}
-              placeholder="Дополнительная информация..."
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => { setShowAddState(false); setShowAddMenu(true); }}
-              className="py-3.5 bg-gray-100 text-gray-700 rounded-2xl font-semibold hover:bg-gray-200 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-            >
-              Назад
-            </button>
-            <button
-              onClick={handleAddState}
-              className="py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-sm"
-            >
-              Добавить
-            </button>
-          </div>
+          <Textarea
+            label="Заметка (опционально)"
+            value={stateNote}
+            onChange={(e) => setStateNote(e.target.value)}
+            rows={3}
+            placeholder="Дополнительная информация..."
+          />
         </div>
-      </AnimatedModal>
 
-      <AnimatedModal
+        <ModalActions
+          onCancel={() => { setShowAddState(false); setShowAddMenu(true); }}
+          onSubmit={handleAddState}
+          cancelText="Назад"
+          submitText="Добавить"
+        />
+      </Modal>
+
+      <Modal
         isOpen={showAddSymptom}
         onClose={() => setShowAddSymptom(false)}
         title={editingEntry ? 'Редактировать симптом' : 'Добавить симптом'}
+        maxWidth="lg"
       >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Время (необязательно)</label>
-            <div className="relative">
-              <input
-                type="time"
-                value={symptomTime}
-                onChange={(e) => setSymptomTime(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 [&::-webkit-calendar-picker-indicator]:hidden"
-              />
-              <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
-            </div>
-          </div>
+        <div className="space-y-5">
+          <Input
+            label="Время (необязательно)"
+            type="time"
+            value={symptomTime}
+            onChange={(e) => setSymptomTime(e.target.value)}
+          />
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Симптом</label>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">Симптом</label>
             <input
               type="text"
               value={symptomName}
@@ -1312,56 +1273,40 @@ export const EntryView = () => {
             )}
           </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Заметка (опционально)</label>
-            <textarea
-              value={symptomNote}
-              onChange={(e) => setSymptomNote(e.target.value)}
-              className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none resize-none text-gray-900 placeholder-gray-400"
-              rows={3}
-              placeholder="Дополнительная информация..."
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => { setShowAddSymptom(false); setShowAddMenu(true); }}
-              className="py-3.5 bg-gray-100 text-gray-700 rounded-2xl font-semibold hover:bg-gray-200 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-            >
-              Назад
-            </button>
-            <button
-              onClick={handleAddSymptom}
-              disabled={!symptomName}
-              className="py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-            >
-              Добавить
-            </button>
-          </div>
+          <Textarea
+            label="Заметка (опционально)"
+            value={symptomNote}
+            onChange={(e) => setSymptomNote(e.target.value)}
+            rows={3}
+            placeholder="Дополнительная информация..."
+          />
         </div>
-      </AnimatedModal>
 
-      <AnimatedModal
+        <ModalActions
+          onCancel={() => { setShowAddSymptom(false); setShowAddMenu(true); }}
+          onSubmit={handleAddSymptom}
+          cancelText="Назад"
+          submitText="Добавить"
+          submitDisabled={!symptomName}
+        />
+      </Modal>
+
+      <Modal
         isOpen={showAddMedication}
         onClose={() => setShowAddMedication(false)}
         title={editingEntry ? 'Редактировать лекарство' : 'Добавить лекарство'}
+        maxWidth="lg"
       >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Время (необязательно)</label>
-            <div className="relative">
-              <input
-                type="time"
-                value={medicationTime}
-                onChange={(e) => setMedicationTime(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 [&::-webkit-calendar-picker-indicator]:hidden"
-              />
-              <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
-            </div>
-          </div>
+        <div className="space-y-5">
+          <Input
+            label="Время (необязательно)"
+            type="time"
+            value={medicationTime}
+            onChange={(e) => setMedicationTime(e.target.value)}
+          />
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Название</label>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">Название</label>
             <input
               type="text"
               value={medicationName}
@@ -1403,9 +1348,9 @@ export const EntryView = () => {
                         setMedicationUnit((match[2] || 'мл') as 'мл' | 'мг' | 'г' | 'таб' | 'капс');
                       }
                     }}
-                    className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-full transition-all duration-200 hover:scale-105 active:scale-95"
+                    className="px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-sm font-medium hover:bg-purple-200 transition-colors"
                   >
-                    {med.name} {med.dosage}
+                    {med.name}{med.dosage ? ` ${med.dosage}` : ''}
                   </button>
                 ))}
               </div>
@@ -1413,18 +1358,15 @@ export const EntryView = () => {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Количество"
+              type="text"
+              value={medicationAmount}
+              onChange={(e) => setMedicationAmount(e.target.value)}
+              placeholder="0,3"
+            />
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Количество</label>
-              <input
-                type="text"
-                value={medicationAmount}
-                onChange={(e) => setMedicationAmount(e.target.value)}
-                className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
-                placeholder="0,3"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Единица</label>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">Единица</label>
               <select
                 value={medicationUnit}
                 onChange={(e) => setMedicationUnit(e.target.value)}
@@ -1447,66 +1389,50 @@ export const EntryView = () => {
                   onChange={(e) => setIsScheduling(e.target.checked)}
                   className="w-5 h-5 rounded border-gray-300 text-black focus:ring-black cursor-pointer"
                 />
-                <label htmlFor="schedule-med" className="text-sm font-semibold text-gray-700 flex items-center gap-2 cursor-pointer">
+                <label htmlFor="schedule-med" className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2 cursor-pointer">
                   <Clock size={18} />
                   Запланировать
                 </label>
               </div>
               {isScheduling && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Дать через (минут)</label>
-                  <input
-                    type="number"
-                    value={scheduleMinutes}
-                    onChange={(e) => setScheduleMinutes(e.target.value)}
-                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
-                    placeholder="Например: 30"
-                    min="1"
-                  />
-                </div>
+                <Input
+                  label="Дать через (минут)"
+                  type="number"
+                  value={scheduleMinutes}
+                  onChange={(e) => setScheduleMinutes(e.target.value)}
+                  placeholder="Например: 30"
+                  min="1"
+                />
               )}
             </div>
           )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => { setShowAddMedication(false); setShowAddMenu(true); }}
-              className="py-3.5 bg-gray-100 text-gray-700 rounded-2xl font-semibold hover:bg-gray-200 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-            >
-              Назад
-            </button>
-            <button
-              onClick={handleAddMedication}
-              disabled={!medicationName || !medicationAmount || (isScheduling && !scheduleMinutes)}
-              className="py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-            >
-              {isScheduling ? 'Запланировать' : 'Добавить'}
-            </button>
-          </div>
         </div>
-      </AnimatedModal>
 
-      <AnimatedModal
+        <ModalActions
+          onCancel={() => { setShowAddMedication(false); setShowAddMenu(true); }}
+          onSubmit={handleAddMedication}
+          cancelText="Назад"
+          submitText={isScheduling ? 'Запланировать' : 'Добавить'}
+          submitDisabled={!medicationName || !medicationAmount || (isScheduling && !scheduleMinutes)}
+        />
+      </Modal>
+
+      <Modal
         isOpen={showAddFeeding}
         onClose={() => setShowAddFeeding(false)}
         title={editingEntry ? 'Редактировать питание' : 'Добавить питание'}
+        maxWidth="lg"
       >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Время (необязательно)</label>
-            <div className="relative">
-              <input
-                type="time"
-                value={foodTime}
-                onChange={(e) => setFoodTime(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 [&::-webkit-calendar-picker-indicator]:hidden"
-              />
-              <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
-            </div>
-          </div>
+        <div className="space-y-5">
+          <Input
+            label="Время (необязательно)"
+            type="time"
+            value={foodTime}
+            onChange={(e) => setFoodTime(e.target.value)}
+          />
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Название</label>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">Название</label>
             <input
               type="text"
               value={foodName}
@@ -1540,9 +1466,9 @@ export const EntryView = () => {
                       setFoodAmount(food.amount);
                       setFoodUnit(food.unit);
                     }}
-                    className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-full transition-all duration-200 hover:scale-105 active:scale-95"
+                    className="px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-sm font-medium hover:bg-green-200 transition-colors"
                   >
-                    {food.name} {food.amount} {food.unit === 'g' ? 'г' : food.unit === 'ml' ? 'мл' : ''}
+                    {food.name}{food.amount ? ` ${food.amount} ${food.unit === 'g' ? 'г' : food.unit === 'ml' ? 'мл' : ''}` : ''}
                   </button>
                 ))}
               </div>
@@ -1550,18 +1476,15 @@ export const EntryView = () => {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Количество"
+              type="text"
+              value={foodAmount}
+              onChange={(e) => setFoodAmount(e.target.value)}
+              placeholder="50"
+            />
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Количество</label>
-              <input
-                type="text"
-                value={foodAmount}
-                onChange={(e) => setFoodAmount(e.target.value)}
-                className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
-                placeholder="50"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Единица</label>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">Единица</label>
               <select
                 value={foodUnit}
                 onChange={(e) => setFoodUnit(e.target.value)}
@@ -1574,16 +1497,13 @@ export const EntryView = () => {
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Заметка (опционально)</label>
-            <textarea
-              value={foodNote}
-              onChange={(e) => setFoodNote(e.target.value)}
-              className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none resize-none text-gray-900 placeholder-gray-400"
-              rows={2}
-              placeholder="Дополнительная информация..."
-            />
-          </div>
+          <Textarea
+            label="Заметка (опционально)"
+            value={foodNote}
+            onChange={(e) => setFoodNote(e.target.value)}
+            rows={2}
+            placeholder="Дополнительная информация..."
+          />
 
           {!editingEntry && (
             <div className="border-t border-gray-200 pt-4">
@@ -1595,44 +1515,33 @@ export const EntryView = () => {
                   onChange={(e) => setIsScheduling(e.target.checked)}
                   className="w-5 h-5 rounded border-gray-300 text-black focus:ring-black cursor-pointer"
                 />
-                <label htmlFor="schedule-feed" className="text-sm font-semibold text-gray-700 flex items-center gap-2 cursor-pointer">
+                <label htmlFor="schedule-feed" className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2 cursor-pointer">
                   <Clock size={18} />
                   Запланировать
                 </label>
               </div>
               {isScheduling && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Покормить через (минут)</label>
-                  <input
-                    type="number"
-                    value={scheduleMinutes}
-                    onChange={(e) => setScheduleMinutes(e.target.value)}
-                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
-                    placeholder="Например: 30"
-                    min="1"
-                  />
-                </div>
+                <Input
+                  label="Покормить через (минут)"
+                  type="number"
+                  value={scheduleMinutes}
+                  onChange={(e) => setScheduleMinutes(e.target.value)}
+                  placeholder="Например: 30"
+                  min="1"
+                />
               )}
             </div>
           )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => { setShowAddFeeding(false); setShowAddMenu(true); }}
-              className="py-3.5 bg-gray-100 text-gray-700 rounded-2xl font-semibold hover:bg-gray-200 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-            >
-              Назад
-            </button>
-            <button
-              onClick={handleAddFeeding}
-              disabled={!foodName || (isScheduling && !scheduleMinutes)}
-              className="py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-            >
-              {isScheduling ? 'Запланировать' : 'Добавить'}
-            </button>
-          </div>
         </div>
-      </AnimatedModal>
+
+        <ModalActions
+          onCancel={() => { setShowAddFeeding(false); setShowAddMenu(true); }}
+          onSubmit={handleAddFeeding}
+          cancelText="Назад"
+          submitText={isScheduling ? 'Запланировать' : 'Добавить'}
+          submitDisabled={!foodName || (isScheduling && !scheduleMinutes)}
+        />
+      </Modal>
 
       {NotificationModal && <NotificationModal />}
 
@@ -1655,75 +1564,65 @@ export const EntryView = () => {
       />
 
       {/* Модалка редактирования запланированного события */}
-      {editingScheduledId && (
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={() => setEditingScheduledId(null)}
-        >
-          <div className="bg-white border border-white/60 rounded-[32px] p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-xl font-bold mb-4">Изменить время</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Через сколько минут</label>
-                <input
-                  type="number"
-                  value={scheduleMinutes}
-                  onChange={(e) => setScheduleMinutes(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="Например: 30"
-                  min="1"
-                />
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={async () => {
-                    const minutes = parseInt(scheduleMinutes);
-                    if (minutes > 0) {
-                      const newScheduledTime = Date.now() + minutes * 60000;
-                      const id = parseInt(editingScheduledId);
-
-                      // Определяем тип события
-                      const medEntry = medicationEntries.find(e => e.id === id);
-                      const feedEntry = feedingEntries.find(e => e.id === id);
-
-                      try {
-                        if (medEntry) {
-                          await supabase.from('medication_entries').update({
-                            scheduled_time: newScheduledTime
-                          }).eq('id', id);
-                        } else if (feedEntry) {
-                          await supabase.from('feeding_entries').update({
-                            scheduled_time: newScheduledTime
-                          }).eq('id', id);
-                        }
-
-                        setEditingScheduledId(null);
-                        setScheduleMinutes('');
-                        loadData();
-                      } catch (error) {
-                        console.error('Error updating scheduled time:', error);
-                      }
-                    }
-                  }}
-                  disabled={!scheduleMinutes}
-                  className="flex-1 py-2 bg-black text-white rounded-full disabled:opacity-50"
-                >
-                  Сохранить
-                </button>
-                <button
-                  onClick={() => {
-                    setEditingScheduledId(null);
-                    setScheduleMinutes('');
-                  }}
-                  className="px-4 py-2 bg-gray-200 rounded-full"
-                >
-                  Отмена
-                </button>
-              </div>
-            </div>
-          </div>
+      <Modal
+        isOpen={!!editingScheduledId}
+        onClose={() => {
+          setEditingScheduledId(null);
+          setScheduleMinutes('');
+        }}
+        title="Изменить время"
+        maxWidth="lg"
+      >
+        <div className="space-y-5">
+          <Input
+            label="Через сколько минут"
+            type="number"
+            value={scheduleMinutes}
+            onChange={(e) => setScheduleMinutes(e.target.value)}
+            placeholder="Например: 30"
+            min="1"
+          />
         </div>
-      )}
+
+        <ModalActions
+          onCancel={() => {
+            setEditingScheduledId(null);
+            setScheduleMinutes('');
+          }}
+          onSubmit={async () => {
+            const minutes = parseInt(scheduleMinutes);
+            if (minutes > 0) {
+              const newScheduledTime = Date.now() + minutes * 60000;
+              const id = parseInt(editingScheduledId!);
+
+              // Определяем тип события
+              const medEntry = medicationEntries.find(e => e.id === id);
+              const feedEntry = feedingEntries.find(e => e.id === id);
+
+              try {
+                if (medEntry) {
+                  await supabase.from('medication_entries').update({
+                    scheduled_time: newScheduledTime
+                  }).eq('id', id);
+                } else if (feedEntry) {
+                  await supabase.from('feeding_entries').update({
+                    scheduled_time: newScheduledTime
+                  }).eq('id', id);
+                }
+
+                setEditingScheduledId(null);
+                setScheduleMinutes('');
+                loadData();
+              } catch (error) {
+                console.error('Error updating scheduled time:', error);
+              }
+            }
+          }}
+          cancelText="Отмена"
+          submitText="Сохранить"
+          submitDisabled={!scheduleMinutes}
+        />
+      </Modal>
     </div>
   );
 };

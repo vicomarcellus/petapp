@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface AlertModalProps {
   isOpen: boolean;
@@ -22,7 +23,7 @@ export const AlertModal = ({ isOpen, title, message, onClose }: AlertModalProps)
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div 
       className={`fixed inset-0 bg-black flex items-center justify-center z-[100] p-4 transition-all duration-300 ${
         isAnimating ? 'bg-opacity-50 backdrop-blur-sm' : 'bg-opacity-0'
@@ -59,7 +60,8 @@ export const AlertModal = ({ isOpen, title, message, onClose }: AlertModalProps)
           Понятно
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
@@ -96,7 +98,7 @@ export const ConfirmModal = ({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div 
       className={`fixed inset-0 bg-black flex items-center justify-center z-[100] p-4 transition-all duration-300 ${
         isAnimating ? 'bg-opacity-50 backdrop-blur-sm' : 'bg-opacity-0'
@@ -145,6 +147,7 @@ export const ConfirmModal = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

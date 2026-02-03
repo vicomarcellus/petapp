@@ -11,6 +11,7 @@ import { Auth } from './components/Auth';
 import { Header } from './components/Header';
 import { QuickChat } from './components/QuickChat';
 import { Diagnosis } from './components/Diagnosis';
+import Notes from './components/Notes';
 import { usePetInit } from './hooks/usePetInit';
 import { runMigrations } from './lib/migrations';
 
@@ -50,6 +51,7 @@ function App() {
           {view === 'analytics' && <Analytics />}
           {view === 'scheduler' && <Scheduler />}
           {view === 'diagnosis' && <Diagnosis />}
+          {view === 'notes' && <Notes />}
         </div>
       </div>
       <QuickChat />

@@ -149,6 +149,38 @@ CREATE TABLE IF NOT EXISTS diagnoses (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Таблица заметок
+CREATE TABLE IF NOT EXISTS notes (
+  id BIGSERIAL PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  pet_id BIGINT REFERENCES pets(id) ON DELETE CASCADE NOT NULL,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  is_pinned BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Таблица тегов для заметок
+CREATE TABLE IF NOT EXISTS note_tags (
+  id BIGSERIAL PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  pet_id BIGINT REFERENCES pets(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  color TEXT DEFAULT '#3B82F6',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, pet_id, name)
+);
+
+-- Таблица связи заметок и тегов (many-to-many)
+CREATE TABLE IF NOT EXISTS note_tag_relations (
+  id BIGSERIAL PRIMARY KEY,
+  note_id BIGINT REFERENCES notes(id) ON DELETE CASCADE NOT NULL,
+  tag_id BIGINT REFERENCES note_tags(id) ON DELETE CASCADE NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(note_id, tag_id)
+);
+
 -- Индексы для оптимизации
 CREATE INDEX IF NOT EXISTS idx_pets_user_id ON pets(user_id);
 CREATE INDEX IF NOT EXISTS idx_day_entries_user_pet_date ON day_entries(user_id, pet_id, date);
@@ -158,6 +190,11 @@ CREATE INDEX IF NOT EXISTS idx_medication_entries_user_pet_date ON medication_en
 CREATE INDEX IF NOT EXISTS idx_feeding_entries_user_pet_date ON feeding_entries(user_id, pet_id, date);
 CREATE INDEX IF NOT EXISTS idx_checklist_tasks_user_pet_date ON checklist_tasks(user_id, pet_id, date);
 CREATE INDEX IF NOT EXISTS idx_diagnoses_user_pet_date ON diagnoses(user_id, pet_id, date);
+CREATE INDEX IF NOT EXISTS idx_notes_user_pet ON notes(user_id, pet_id);
+CREATE INDEX IF NOT EXISTS idx_notes_pinned ON notes(is_pinned) WHERE is_pinned = true;
+CREATE INDEX IF NOT EXISTS idx_note_tags_user_pet ON note_tags(user_id, pet_id);
+CREATE INDEX IF NOT EXISTS idx_note_tag_relations_note ON note_tag_relations(note_id);
+CREATE INDEX IF NOT EXISTS idx_note_tag_relations_tag ON note_tag_relations(tag_id);
 
 -- Row Level Security (RLS) политики
 ALTER TABLE pets ENABLE ROW LEVEL SECURITY;
@@ -172,6 +209,9 @@ ALTER TABLE medication_tags ENABLE ROW LEVEL SECURITY;
 ALTER TABLE food_tags ENABLE ROW LEVEL SECURITY;
 ALTER TABLE checklist_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE diagnoses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE note_tags ENABLE ROW LEVEL SECURITY;
+ALTER TABLE note_tag_relations ENABLE ROW LEVEL SECURITY;
 
 -- Политики для pets
 CREATE POLICY "Users can view own pets" ON pets FOR SELECT USING (auth.uid() = user_id);
@@ -245,6 +285,32 @@ CREATE POLICY "Users can insert own diagnoses" ON diagnoses FOR INSERT WITH CHEC
 CREATE POLICY "Users can update own diagnoses" ON diagnoses FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete own diagnoses" ON diagnoses FOR DELETE USING (auth.uid() = user_id);
 
+-- Политики для notes
+CREATE POLICY "Users can view own notes" ON notes FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own notes" ON notes FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own notes" ON notes FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own notes" ON notes FOR DELETE USING (auth.uid() = user_id);
+
+-- Политики для note_tags
+CREATE POLICY "Users can view own note_tags" ON note_tags FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own note_tags" ON note_tags FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own note_tags" ON note_tags FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own note_tags" ON note_tags FOR DELETE USING (auth.uid() = user_id);
+
+-- Политики для note_tag_relations
+CREATE POLICY "Users can view own note_tag_relations" ON note_tag_relations FOR SELECT 
+  USING (EXISTS (
+    SELECT 1 FROM notes WHERE notes.id = note_tag_relations.note_id AND notes.user_id = auth.uid()
+  ));
+CREATE POLICY "Users can insert own note_tag_relations" ON note_tag_relations FOR INSERT 
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM notes WHERE notes.id = note_tag_relations.note_id AND notes.user_id = auth.uid()
+  ));
+CREATE POLICY "Users can delete own note_tag_relations" ON note_tag_relations FOR DELETE 
+  USING (EXISTS (
+    SELECT 1 FROM notes WHERE notes.id = note_tag_relations.note_id AND notes.user_id = auth.uid()
+  ));
+
 -- Функция для автоматического обновления updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -256,4 +322,8 @@ $$ language 'plpgsql';
 
 -- Триггер для day_entries
 CREATE TRIGGER update_day_entries_updated_at BEFORE UPDATE ON day_entries
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Триггер для notes
+CREATE TRIGGER update_notes_updated_at BEFORE UPDATE ON notes
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

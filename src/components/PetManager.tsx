@@ -4,7 +4,8 @@ import { useStore } from '../store';
 import { Plus, Check, Trash2 } from 'lucide-react';
 import { Pet } from '../types';
 import { AlertModal, ConfirmModal } from './Modal';
-import { AnimatedModal } from './AnimatedModal';
+import { Input } from './ui/Input';
+import { Modal, ModalActions } from './ui/Modal';
 
 const PET_TYPES = [
   { value: 'cat', label: '🐱 Кот', emoji: '🐱' },
@@ -216,7 +217,7 @@ export const PetManager = () => {
       )}
 
       {/* Модальное окно добавления */}
-      <AnimatedModal
+      <Modal
         isOpen={showAddForm}
         onClose={() => {
           setShowAddForm(false);
@@ -224,23 +225,19 @@ export const PetManager = () => {
           setPetType('cat');
         }}
         title="Добавить питомца"
+        maxWidth="lg"
       >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Имя питомца
-            </label>
-            <input
-              type="text"
-              value={petName}
-              onChange={(e) => setPetName(e.target.value)}
-              placeholder="Например: Барсик"
-              className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 placeholder-gray-400"
-            />
-          </div>
+        <div className="space-y-5">
+          <Input
+            label="Имя питомца"
+            type="text"
+            value={petName}
+            onChange={(e) => setPetName(e.target.value)}
+            placeholder="Например: Барсик"
+          />
           
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">
               Тип питомца
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -259,16 +256,20 @@ export const PetManager = () => {
               ))}
             </div>
           </div>
-
-          <button
-            onClick={handleAddPet}
-            disabled={!petName.trim()}
-            className="w-full py-3.5 bg-black text-white rounded-2xl font-semibold hover:bg-gray-800 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-          >
-            Добавить
-          </button>
         </div>
-      </AnimatedModal>
+
+        <ModalActions
+          onCancel={() => {
+            setShowAddForm(false);
+            setPetName('');
+            setPetType('cat');
+          }}
+          onSubmit={handleAddPet}
+          cancelText="Отмена"
+          submitText="Добавить"
+          submitDisabled={!petName.trim()}
+        />
+      </Modal>
 
       <AlertModal
         isOpen={!!errorModal}

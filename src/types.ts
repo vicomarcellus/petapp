@@ -165,6 +165,28 @@ export interface ChecklistTask {
   created_at?: string;
 }
 
+export interface Note {
+  id?: number;
+  user_id: string; // Supabase User ID (UUID)
+  pet_id: number; // ID питомца
+  title: string;
+  content: string;
+  color?: string;
+  is_pinned?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  tags?: NoteTag[]; // Теги заметки
+}
+
+export interface NoteTag {
+  id?: number;
+  user_id: string; // Supabase User ID (UUID)
+  pet_id: number; // ID питомца
+  name: string;
+  color: string;
+  created_at?: string;
+}
+
 export interface HistoryEntry {
   id?: number;
   timestamp: number;
@@ -215,5 +237,17 @@ export const SYMPTOM_COLORS = [
   '#3B82F6', // blue
   '#8B5CF6', // violet
   '#EC4899', // pink
+  '#6B7280', // gray
+];
+
+export const NOTE_COLORS = [
+  '#3B82F6', // blue
+  '#10B981', // emerald
+  '#F59E0B', // amber
+  '#EF4444', // red
+  '#8B5CF6', // violet
+  '#EC4899', // pink
+  '#06B6D4', // cyan
+  '#84CC16', // lime
   '#6B7280', // gray
 ];
