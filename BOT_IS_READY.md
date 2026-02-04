@@ -43,7 +43,7 @@ https://t.me/petappkent_bot
 - ✅ RLS политики настроены
 
 ### Бот
-- ✅ Токен: `8549711657:AAHNqObD02ht79FAO-7m7IKDKvGgdOe-jwA`
+- ✅ Токен: `СКРЫТ (см. bot/.env)`
 - ✅ Username: `@petappkent_bot`
 - ✅ Ссылка: https://t.me/petappkent_bot
 - ✅ Запущен и работает

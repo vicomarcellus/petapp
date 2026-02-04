@@ -50,7 +50,7 @@ src/components/TelegramBot.tsx - Веб-компонент
 ## Переменные окружения
 
 ```env
-BOT_TOKEN=8549711657:AAHNqObD02ht79FAO-7m7IKDKvGgdOe-jwA
+BOT_TOKEN=your_bot_token_here
 SUPABASE_URL=https://jweegvbywvixwzcliyzr.supabase.co
 SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
