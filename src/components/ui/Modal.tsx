@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, Children, isValidElement } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
@@ -21,17 +21,30 @@ const maxWidthClasses = {
 export function Modal({ isOpen, onClose, title, children, maxWidth = 'lg' }: ModalProps) {
   if (!isOpen) return null;
 
+  // Автоматически разделяем children на контент и футер
+  let content: ReactNode[] = [];
+  let footer: ReactNode = null;
+
+  Children.forEach(children, (child) => {
+    if (isValidElement(child) && child.type === ModalActions) {
+      footer = child;
+    } else {
+      content.push(child);
+    }
+  });
+
   return createPortal(
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm overflow-y-auto"
       onClick={onClose}
     >
       <div
-        className={`bg-white rounded-[40px] w-full ${maxWidthClasses[maxWidth]} animate-scaleIn`}
+        className={`bg-white rounded-[40px] w-full ${maxWidthClasses[maxWidth]} animate-scaleIn my-8 flex flex-col max-h-[calc(100vh-4rem)]`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-8">
-          <div className="flex items-center justify-between mb-6">
+        {/* Header - fixed */}
+        <div className="p-8 pb-4 flex-shrink-0">
+          <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-gray-900">{title}</h3>
             <button
               onClick={onClose}
@@ -40,8 +53,19 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'lg' }: Mod
               <X size={24} className="text-gray-600" />
             </button>
           </div>
-          {children}
         </div>
+        
+        {/* Content - scrollable */}
+        <div className="px-8 overflow-y-auto flex-1 min-h-0">
+          {content}
+        </div>
+
+        {/* Footer - fixed */}
+        {footer && (
+          <div className="flex-shrink-0">
+            {footer}
+          </div>
+        )}
       </div>
     </div>,
     document.body
@@ -66,7 +90,7 @@ export function ModalActions({
   loading = false,
 }: ModalActionsProps) {
   return (
-    <div className="flex gap-3 mt-8">
+    <div className="flex gap-3 px-8 py-6 border-t border-gray-100 flex-shrink-0">
       <button
         onClick={onCancel}
         type="button"

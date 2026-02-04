@@ -53,8 +53,6 @@ export const Scheduler = () => {
   const [foodAmount, setFoodAmount] = useState('');
   const [foodUnit, setFoodUnit] = useState<string>('g');
   const [schedulerFile, setSchedulerFile] = useState<File | null>(null);
-  const [foodAmount, setFoodAmount] = useState('');
-  const [foodUnit, setFoodUnit] = useState<string>('g');
 
   // Таймер для обновления
   const [, setTick] = useState(0);

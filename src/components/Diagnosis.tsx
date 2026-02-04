@@ -320,7 +320,6 @@ export const Diagnosis = () => {
             console.error('Error deleting note:', error);
         }
     };
-    };
 
     const handleDeleteDiagnosis = async (id: number) => {
         try {

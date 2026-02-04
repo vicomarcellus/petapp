@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import type { Attachment } from '../types';
 
 const BUCKET_NAME = 'attachments';
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -9,6 +10,7 @@ export interface UploadResult {
   url: string;
   type: AttachmentType;
   name: string;
+  size: number;
 }
 
 /**
@@ -107,16 +109,67 @@ export const uploadAttachment = async (
     throw new Error(`Ошибка загрузки: ${error.message}`);
   }
 
-  // Get public URL
-  const { data: urlData } = supabase.storage
-    .from(BUCKET_NAME)
-    .getPublicUrl(data.path);
-
   return {
     url: data.path, // Store path, not full URL (for flexibility)
     type: attachmentType,
-    name: file.name
+    name: file.name,
+    size: file.size
   };
+};
+
+/**
+ * Save attachment record to database
+ */
+export const saveAttachmentRecord = async (
+  userId: string,
+  petId: number,
+  parentType: Attachment['parent_type'],
+  parentId: number,
+  uploadResult: UploadResult
+): Promise<Attachment> => {
+  const { data, error } = await supabase
+    .from('attachments')
+    .insert({
+      user_id: userId,
+      pet_id: petId,
+      parent_type: parentType,
+      parent_id: parentId,
+      file_url: uploadResult.url,
+      file_type: uploadResult.type,
+      file_name: uploadResult.name,
+      file_size: uploadResult.size
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error saving attachment record:', error);
+    throw new Error(`Ошибка сохранения записи: ${error.message}`);
+  }
+
+  return data;
+};
+
+/**
+ * Load attachments for a parent record
+ */
+export const loadAttachments = async (
+  parentType: Attachment['parent_type'],
+  parentId: number
+): Promise<Attachment[]> => {
+  const { data, error } = await supabase
+    .from('attachments')
+    .select('*')
+    .eq('parent_type', parentType)
+    .eq('parent_id', parentId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('Error loading attachments:', error);
+    return [];
+  }
+
+  return data || [];
 };
 
 /**
@@ -131,16 +184,27 @@ export const getAttachmentUrl = (path: string): string => {
 };
 
 /**
- * Delete attachment from storage
+ * Delete attachment from storage and database
  */
-export const deleteAttachment = async (path: string): Promise<void> => {
-  const { error } = await supabase.storage
+export const deleteAttachment = async (attachmentId: number, filePath: string): Promise<void> => {
+  // Delete from storage
+  const { error: storageError } = await supabase.storage
     .from(BUCKET_NAME)
-    .remove([path]);
+    .remove([filePath]);
 
-  if (error) {
-    console.error('Delete error:', error);
-    throw new Error(`Ошибка удаления: ${error.message}`);
+  if (storageError) {
+    console.error('Storage delete error:', storageError);
+  }
+
+  // Delete from database
+  const { error: dbError } = await supabase
+    .from('attachments')
+    .delete()
+    .eq('id', attachmentId);
+
+  if (dbError) {
+    console.error('Database delete error:', dbError);
+    throw new Error(`Ошибка удаления: ${dbError.message}`);
   }
 };
 
@@ -165,3 +229,4 @@ export const validateFile = (file: File): { valid: boolean; error?: string } => 
 
   return { valid: true };
 };
+

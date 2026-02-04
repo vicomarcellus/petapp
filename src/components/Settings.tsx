@@ -4,6 +4,7 @@ import { useStore } from '../store';
 import { Edit3, Check, X, Plus, Pill, Utensils } from 'lucide-react';
 import { SYMPTOM_COLORS } from '../types';
 import { PetManager } from './PetManager';
+import TelegramBotAuth from './TelegramBotAuth';
 import { ConfirmModal } from './Modal';
 import { Input } from './ui/Input';
 import { Modal, ModalActions } from './ui/Modal';
@@ -545,6 +546,16 @@ export const Settings = () => {
               <Plus size={16} />
               Добавить питание
             </button>
+          </div>
+        </div>
+
+        {/* Telegram Bot */}
+        <div>
+          <h2 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide px-1">
+            Telegram Bot
+          </h2>
+          <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm overflow-hidden">
+            <TelegramBotAuth />
           </div>
         </div>
       </div>

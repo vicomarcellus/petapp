@@ -3,16 +3,19 @@ import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
 import { STATE_COLORS, STATE_LABELS } from '../types';
 import { formatDisplayDate } from '../utils';
-import { Trash2, Plus, Activity, AlertCircle, Pill, Utensils, X, Edit2, ArrowLeft, Clock, Bell, Check, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Trash2, Plus, Activity, AlertCircle, Pill, Utensils, X, Edit2, ArrowLeft, Clock, Bell, Check, TrendingUp, TrendingDown, Minus, Paperclip } from 'lucide-react';
 import { useScheduledNotifications } from '../hooks/useScheduledNotifications';
+import { useAttachments } from '../hooks/useAttachments';
 import { AlertModal, ConfirmModal } from './Modal';
 import { AnimatedModal } from './AnimatedModal';
 import { Input, Textarea } from './ui/Input';
 import { Modal, ModalActions } from './ui/Modal';
 import { FileUpload } from './ui/FileUpload';
-import { uploadAttachment, deleteAttachment } from '../services/storage';
+import { AttachmentIcons } from './AttachmentIcons';
+import { loadAttachments } from '../services/storage';
+import { createFilePreviews, type FileWithPreview } from '../utils/filePreview';
 import { AddMenu } from './EntryView/AddMenu';
-import type { StateEntry, SymptomEntry, MedicationEntry, FeedingEntry } from '../types';
+import type { StateEntry, SymptomEntry, MedicationEntry, FeedingEntry, Attachment } from '../types';
 import { useUnits } from '../hooks/useUnits';
 
 type TimelineEntry =
@@ -25,6 +28,22 @@ export const EntryView = () => {
   const { selectedDate, setView, currentPetId, currentUser } = useStore();
   const { showNotification, NotificationModal } = useScheduledNotifications();
   const { medicationUnits, feedingUnits } = useUnits();
+  
+  // Attachments hooks for each entry type
+  const stateAttachments = useAttachments(currentUser?.id || '', currentPetId || 0);
+  const symptomAttachments = useAttachments(currentUser?.id || '', currentPetId || 0);
+  const medicationAttachments = useAttachments(currentUser?.id || '', currentPetId || 0);
+  const feedingAttachments = useAttachments(currentUser?.id || '', currentPetId || 0);
+  
+  // File previews for new files
+  const [stateFilePreviews, setStateFilePreviews] = useState<FileWithPreview[]>([]);
+  const [symptomFilePreviews, setSymptomFilePreviews] = useState<FileWithPreview[]>([]);
+  const [medicationFilePreviews, setMedicationFilePreviews] = useState<FileWithPreview[]>([]);
+  const [feedingFilePreviews, setFeedingFilePreviews] = useState<FileWithPreview[]>([]);
+  
+  // Entry attachments loaded from DB
+  const [entryAttachments, setEntryAttachments] = useState<Map<string, Attachment[]>>(new Map());
+  
   const [stateEntries, setStateEntries] = useState<StateEntry[]>([]);
   const [symptomEntries, setSymptomEntries] = useState<SymptomEntry[]>([]);
   const [medicationEntries, setMedicationEntries] = useState<MedicationEntry[]>([]);
@@ -123,12 +142,6 @@ export const EntryView = () => {
   const [foodUnit, setFoodUnit] = useState<string>('g');
   const [foodTime, setFoodTime] = useState('');
   const [foodNote, setFoodNote] = useState('');
-
-  // File states
-  const [stateFile, setStateFile] = useState<File | null>(null);
-  const [symptomFile, setSymptomFile] = useState<File | null>(null);
-  const [medicationFile, setMedicationFile] = useState<File | null>(null);
-  const [feedingFile, setFeedingFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (selectedDate && currentPetId && currentUser) {
@@ -324,6 +337,24 @@ export const EntryView = () => {
       if (symptomRes.data) setSymptomEntries(symptomRes.data);
       if (medRes.data) setMedicationEntries(medRes.data);
       if (feedRes.data) setFeedingEntries(feedRes.data);
+      
+      // Загружаем вложения для всех записей
+      const allEntries: Array<{ type: 'state' | 'symptom' | 'medication' | 'feeding'; id: number }> = [
+        ...(stateRes.data || []).map(e => ({ type: 'state' as const, id: e.id! })),
+        ...(symptomRes.data || []).map(e => ({ type: 'symptom' as const, id: e.id! })),
+        ...(medRes.data || []).map(e => ({ type: 'medication' as const, id: e.id! })),
+        ...(feedRes.data || []).map(e => ({ type: 'feeding' as const, id: e.id! }))
+      ];
+      
+      const attachmentsMap = new Map<string, Attachment[]>();
+      await Promise.all(
+        allEntries.map(async (entry) => {
+          const attachments = await loadAttachments(entry.type, entry.id);
+          const key = `${entry.type}-${entry.id}`;
+          attachmentsMap.set(key, attachments);
+        })
+      );
+      setEntryAttachments(attachmentsMap);
     } catch (error) {
       console.error('Error loading entry data:', error);
     } finally {
@@ -346,11 +377,6 @@ export const EntryView = () => {
       const timeToUse = stateTime || new Date().toTimeString().slice(0, 5);
       const timestamp = new Date(`${selectedDate}T${timeToUse}`).getTime();
 
-      let uploadResult = null;
-      if (stateFile) {
-        uploadResult = await uploadAttachment(stateFile, currentUser.id, currentPetId, 'entry');
-      }
-
       // Автоматически определяем тренд на основе предыдущего дня
       let trend: 'up' | 'same' | 'down' | undefined = stateTrend || undefined;
       if (!trend && previousDayScore !== null) {
@@ -364,10 +390,7 @@ export const EntryView = () => {
       }
 
       if (editingEntry && editingEntry.type === 'state') {
-        if (uploadResult && editingEntry.data.attachment_url) {
-          await deleteAttachment(editingEntry.data.attachment_url);
-        }
-
+        // Обновление существующей записи
         const updateData: any = {
           time: timeToUse,
           timestamp,
@@ -376,14 +399,15 @@ export const EntryView = () => {
         };
         
         if (trend) updateData.trend = trend;
-        if (uploadResult) {
-          updateData.attachment_url = uploadResult.url;
-          updateData.attachment_type = uploadResult.type;
-          updateData.attachment_name = uploadResult.name;
-        }
         
         await supabase.from('state_entries').update(updateData).eq('id', editingEntry.data.id);
+        
+        // Загружаем новые файлы
+        if (stateAttachments.newFiles.length > 0) {
+          await stateAttachments.uploadNewFiles('state', editingEntry.data.id!, 'entry');
+        }
       } else {
+        // Создание новой записи
         const insertData: any = {
           user_id: currentUser.id,
           pet_id: currentPetId,
@@ -395,13 +419,13 @@ export const EntryView = () => {
         };
         
         if (trend) insertData.trend = trend;
-        if (uploadResult) {
-          insertData.attachment_url = uploadResult.url;
-          insertData.attachment_type = uploadResult.type;
-          insertData.attachment_name = uploadResult.name;
-        }
         
-        await supabase.from('state_entries').insert(insertData);
+        const { data } = await supabase.from('state_entries').insert(insertData).select().single();
+        
+        // Загружаем файлы для новой записи
+        if (data && stateAttachments.newFiles.length > 0) {
+          await stateAttachments.uploadNewFiles('state', data.id, 'entry');
+        }
       }
 
       setShowAddState(false);
@@ -409,12 +433,12 @@ export const EntryView = () => {
       setStateTime('');
       setStateNote('');
       setStateScore(3);
-      setStateFile(null);
       setStateTrend(null);
+      stateAttachments.reset();
+      setStateFilePreviews([]);
       loadData();
     } catch (error) {
       console.error('Error saving state:', error);
-      // Показываем ошибку пользователю
       setErrorModal({ 
         title: 'Ошибка сохранения', 
         message: error instanceof Error ? error.message : 'Не удалось сохранить состояние' 
@@ -430,14 +454,23 @@ export const EntryView = () => {
       const timestamp = new Date(`${selectedDate}T${timeToUse}`).getTime();
 
       if (editingEntry && editingEntry.type === 'symptom') {
-        await supabase.from('symptom_entries').update({
+        // Обновление существующей записи
+        const updateData: any = {
           time: timeToUse,
           timestamp,
           symptom: symptomName,
           note: symptomNote || null
-        }).eq('id', editingEntry.data.id);
+        };
+
+        await supabase.from('symptom_entries').update(updateData).eq('id', editingEntry.data.id);
+        
+        // Загружаем новые файлы
+        if (symptomAttachments.newFiles.length > 0) {
+          await symptomAttachments.uploadNewFiles('symptom', editingEntry.data.id!, 'entry');
+        }
       } else {
-        await supabase.from('symptom_entries').insert({
+        // Создание новой записи
+        const insertData: any = {
           user_id: currentUser.id,
           pet_id: currentPetId,
           date: selectedDate,
@@ -445,7 +478,14 @@ export const EntryView = () => {
           timestamp,
           symptom: symptomName,
           note: symptomNote || null
-        });
+        };
+
+        const { data } = await supabase.from('symptom_entries').insert(insertData).select().single();
+        
+        // Загружаем файлы для новой записи
+        if (data && symptomAttachments.newFiles.length > 0) {
+          await symptomAttachments.uploadNewFiles('symptom', data.id, 'entry');
+        }
       }
 
       setShowAddSymptom(false);
@@ -453,8 +493,10 @@ export const EntryView = () => {
       setSymptomName('');
       setSymptomTime('');
       setSymptomNote('');
+      symptomAttachments.reset();
+      setSymptomFilePreviews([]);
       loadData();
-      loadSavedItems(); // Обновляем список сохранённых вариантов
+      loadSavedItems();
     } catch (error) {
       console.error('Error saving symptom:', error);
     }
@@ -528,16 +570,24 @@ export const EntryView = () => {
       const timestamp = new Date(`${selectedDate}T${timeToUse}`).getTime();
 
       if (editingEntry && editingEntry.type === 'medication') {
-        await supabase.from('medication_entries').update({
+        // Обновление существующей записи
+        const updateData: any = {
           time: timeToUse,
           timestamp,
           medication_name: medicationName,
           dosage_amount: medicationAmount,
           dosage_unit: medicationUnit,
-        }).eq('id', editingEntry.data.id);
+        };
+
+        await supabase.from('medication_entries').update(updateData).eq('id', editingEntry.data.id);
+        
+        // Загружаем новые файлы
+        if (medicationAttachments.newFiles.length > 0) {
+          await medicationAttachments.uploadNewFiles('medication', editingEntry.data.id!, 'entry');
+        }
       } else {
-        // Создаем запись лекарства
-        const { data: medData, error: medError } = await supabase.from('medication_entries').insert({
+        // Создание новой записи
+        const insertData: any = {
           user_id: currentUser.id,
           pet_id: currentPetId,
           date: selectedDate,
@@ -548,12 +598,19 @@ export const EntryView = () => {
           dosage_unit: medicationUnit,
           color: '#8B5CF6',
           is_scheduled: false
-        }).select().single();
+        };
+
+        const { data: medData, error: medError } = await supabase.from('medication_entries').insert(insertData).select().single();
         
         if (medError) {
           console.error('Ошибка при сохранении лекарства:', medError);
           setErrorModal({ title: 'Ошибка сохранения', message: medError.message });
           return;
+        }
+
+        // Загружаем файлы для новой записи
+        if (medData && medicationAttachments.newFiles.length > 0) {
+          await medicationAttachments.uploadNewFiles('medication', medData.id, 'entry');
         }
 
         // Автоматически создаем задачу в чеклисте
@@ -565,7 +622,7 @@ export const EntryView = () => {
             time: timeToUse,
             timestamp,
             task: `Дать лекарство`,
-            completed: true, // Сразу отмечаем как выполненную, т.к. уже дали
+            completed: true,
             task_type: 'medication',
             linked_item_id: medData.id,
             linked_item_name: medicationName,
@@ -582,8 +639,10 @@ export const EntryView = () => {
       setMedicationAmount('');
       setMedicationUnit('мл');
       setMedicationTime('');
+      medicationAttachments.reset();
+      setMedicationFilePreviews([]);
       loadData();
-      loadSavedItems(); // Обновляем список сохранённых вариантов
+      loadSavedItems();
     } catch (error) {
       console.error('Error saving medication:', error);
     }
@@ -657,17 +716,25 @@ export const EntryView = () => {
       const timestamp = new Date(`${selectedDate}T${timeToUse}`).getTime();
 
       if (editingEntry && editingEntry.type === 'feeding') {
-        await supabase.from('feeding_entries').update({
+        // Обновление существующей записи
+        const updateData: any = {
           time: timeToUse,
           timestamp,
           food_name: foodName,
           amount: foodAmount,
           unit: foodUnit,
           note: foodNote || null
-        }).eq('id', editingEntry.data.id);
+        };
+
+        await supabase.from('feeding_entries').update(updateData).eq('id', editingEntry.data.id);
+        
+        // Загружаем новые файлы
+        if (feedingAttachments.newFiles.length > 0) {
+          await feedingAttachments.uploadNewFiles('feeding', editingEntry.data.id!, 'entry');
+        }
       } else {
-        // Создаем запись питания
-        const { data: feedData } = await supabase.from('feeding_entries').insert({
+        // Создание новой записи
+        const insertData: any = {
           user_id: currentUser.id,
           pet_id: currentPetId,
           date: selectedDate,
@@ -677,8 +744,15 @@ export const EntryView = () => {
           amount: foodAmount,
           unit: foodUnit,
           note: foodNote || null,
-          is_scheduled: false // Добавлено сейчас, не было запланировано
-        }).select().single();
+          is_scheduled: false
+        };
+
+        const { data: feedData } = await supabase.from('feeding_entries').insert(insertData).select().single();
+
+        // Загружаем файлы для новой записи
+        if (feedData && feedingAttachments.newFiles.length > 0) {
+          await feedingAttachments.uploadNewFiles('feeding', feedData.id, 'entry');
+        }
 
         // Автоматически создаем задачу в чеклисте
         if (feedData) {
@@ -690,7 +764,7 @@ export const EntryView = () => {
             time: timeToUse,
             timestamp,
             task: `Покормить`,
-            completed: true, // Сразу отмечаем как выполненную, т.к. уже покормили
+            completed: true,
             task_type: 'feeding',
             linked_item_id: feedData.id,
             linked_item_name: foodName,
@@ -708,8 +782,10 @@ export const EntryView = () => {
       setFoodUnit('g');
       setFoodTime('');
       setFoodNote('');
+      feedingAttachments.reset();
+      setFeedingFilePreviews([]);
       loadData();
-      loadSavedItems(); // Обновляем список сохранённых вариантов
+      loadSavedItems();
     } catch (error) {
       console.error('Error saving feeding:', error);
     }
@@ -747,11 +823,13 @@ export const EntryView = () => {
       setStateTrend(entry.data.trend || null);
       setStateTime(entry.data.time);
       setStateNote(entry.data.note || '');
+      stateAttachments.loadEntryAttachments('state', entry.data.id!);
       setShowAddState(true);
     } else if (entry.type === 'symptom') {
       setSymptomName(entry.data.symptom);
       setSymptomTime(entry.data.time);
       setSymptomNote(entry.data.note || '');
+      symptomAttachments.loadEntryAttachments('symptom', entry.data.id!);
       setShowAddSymptom(true);
     } else if (entry.type === 'medication') {
       setMedicationName(entry.data.medication_name);
@@ -771,6 +849,7 @@ export const EntryView = () => {
         }
       }
       setMedicationTime(entry.data.time);
+      medicationAttachments.loadEntryAttachments('medication', entry.data.id!);
       setShowAddMedication(true);
     } else if (entry.type === 'feeding') {
       setFoodName(entry.data.food_name);
@@ -778,6 +857,7 @@ export const EntryView = () => {
       setFoodUnit(entry.data.unit);
       setFoodTime(entry.data.time);
       setFoodNote(entry.data.note || '');
+      feedingAttachments.loadEntryAttachments('feeding', entry.data.id!);
       setShowAddFeeding(true);
     }
   };
@@ -819,6 +899,7 @@ export const EntryView = () => {
                   </span>
                 )}
               </div>
+              <AttachmentIcons attachments={entryAttachments.get(`state-${data.id}`) || []} />
               {data.is_scheduled && (
                 <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center gap-1">
                   <Bell size={10} />
@@ -849,6 +930,7 @@ export const EntryView = () => {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <div className="text-sm font-medium text-black">Симптом: {data.symptom}</div>
+              <AttachmentIcons attachments={entryAttachments.get(`symptom-${data.id}`) || []} />
               {data.is_scheduled && (
                 <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center gap-1">
                   <Bell size={10} />
@@ -883,6 +965,7 @@ export const EntryView = () => {
                   ? ` • ${data.dosage_amount} ${data.dosage_unit || ''}`.trim()
                   : data.dosage ? ` • ${data.dosage}` : ''}
               </div>
+              <AttachmentIcons attachments={entryAttachments.get(`medication-${data.id}`) || []} />
               {data.is_scheduled && (
                 <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center gap-1">
                   <Bell size={10} />
@@ -915,6 +998,7 @@ export const EntryView = () => {
                 Питание: {data.food_name}
                 {data.amount ? ` • ${data.amount} ${data.unit === 'g' ? 'г' : data.unit === 'ml' ? 'мл' : ''}` : ''}
               </div>
+              <AttachmentIcons attachments={entryAttachments.get(`feeding-${data.id}`) || []} />
               {data.is_scheduled && (
                 <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center gap-1">
                   <Bell size={10} />
@@ -1145,6 +1229,14 @@ export const EntryView = () => {
         onClose={() => setShowAddState(false)}
         title={editingEntry ? 'Редактировать состояние' : 'Добавить состояние'}
         maxWidth="lg"
+        footer={
+          <ModalActions
+            onCancel={() => { setShowAddState(false); setShowAddMenu(true); }}
+            onSubmit={handleAddState}
+            cancelText="Назад"
+            submitText="Добавить"
+          />
+        }
       >
         <div className="space-y-5">
           <Input
@@ -1235,14 +1327,22 @@ export const EntryView = () => {
             rows={3}
             placeholder="Дополнительная информация..."
           />
-        </div>
 
-        <ModalActions
-          onCancel={() => { setShowAddState(false); setShowAddMenu(true); }}
-          onSubmit={handleAddState}
-          cancelText="Назад"
-          submitText="Добавить"
-        />
+          <FileUpload
+            onFilesSelect={async (files) => {
+              stateAttachments.addFiles(files);
+              const previews = await createFilePreviews(files);
+              setStateFilePreviews(prev => [...prev, ...previews]);
+            }}
+            currentAttachments={stateAttachments.attachments}
+            newFiles={stateFilePreviews}
+            onRemoveAttachment={(id, path) => stateAttachments.removeAttachment(id, path)}
+            onRemoveNewFile={(index) => {
+              stateAttachments.removeNewFile(index);
+              setStateFilePreviews(prev => prev.filter((_, i) => i !== index));
+            }}
+          />
+        </div>
       </Modal>
 
       <Modal
@@ -1298,6 +1398,21 @@ export const EntryView = () => {
             onChange={(e) => setSymptomNote(e.target.value)}
             rows={3}
             placeholder="Дополнительная информация..."
+          />
+
+          <FileUpload
+            onFilesSelect={async (files) => {
+              symptomAttachments.addFiles(files);
+              const previews = await createFilePreviews(files);
+              setSymptomFilePreviews(prev => [...prev, ...previews]);
+            }}
+            currentAttachments={symptomAttachments.attachments}
+            newFiles={symptomFilePreviews}
+            onRemoveAttachment={(id, path) => symptomAttachments.removeAttachment(id, path)}
+            onRemoveNewFile={(index) => {
+              symptomAttachments.removeNewFile(index);
+              setSymptomFilePreviews(prev => prev.filter((_, i) => i !== index));
+            }}
           />
         </div>
 
@@ -1417,6 +1532,21 @@ export const EntryView = () => {
               )}
             </div>
           )}
+
+          <FileUpload
+            onFilesSelect={async (files) => {
+              medicationAttachments.addFiles(files);
+              const previews = await createFilePreviews(files);
+              setMedicationFilePreviews(prev => [...prev, ...previews]);
+            }}
+            currentAttachments={medicationAttachments.attachments}
+            newFiles={medicationFilePreviews}
+            onRemoveAttachment={(id, path) => medicationAttachments.removeAttachment(id, path)}
+            onRemoveNewFile={(index) => {
+              medicationAttachments.removeNewFile(index);
+              setMedicationFilePreviews(prev => prev.filter((_, i) => i !== index));
+            }}
+          />
         </div>
 
         <ModalActions
@@ -1543,6 +1673,21 @@ export const EntryView = () => {
               )}
             </div>
           )}
+
+          <FileUpload
+            onFilesSelect={async (files) => {
+              feedingAttachments.addFiles(files);
+              const previews = await createFilePreviews(files);
+              setFeedingFilePreviews(prev => [...prev, ...previews]);
+            }}
+            currentAttachments={feedingAttachments.attachments}
+            newFiles={feedingFilePreviews}
+            onRemoveAttachment={(id, path) => feedingAttachments.removeAttachment(id, path)}
+            onRemoveNewFile={(index) => {
+              feedingAttachments.removeNewFile(index);
+              setFeedingFilePreviews(prev => prev.filter((_, i) => i !== index));
+            }}
+          />
         </div>
 
         <ModalActions

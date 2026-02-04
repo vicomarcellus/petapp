@@ -8,6 +8,19 @@ export interface User {
   password?: string; // Не используется с Supabase
 }
 
+export interface Attachment {
+  id?: number;
+  user_id: string;
+  pet_id: number;
+  parent_type: 'state' | 'symptom' | 'medication' | 'feeding' | 'note' | 'diagnosis' | 'diagnosis_note' | 'scheduled_medication' | 'scheduled_feeding';
+  parent_id: number;
+  file_url: string;
+  file_type: 'image' | 'pdf';
+  file_name: string;
+  file_size?: number;
+  created_at?: string;
+}
+
 export interface Pet {
   id?: number;
   user_id: string; // Supabase User ID (UUID)
