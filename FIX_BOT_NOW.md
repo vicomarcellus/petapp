@@ -33,11 +33,11 @@ SUPABASE_SERVICE_KEY=твой_скопированный_ключ_здесь
 
 ```env
 # Telegram Bot Token
-BOT_TOKEN=8549711657:AAHsdTi0kiodbHI73QUcdZB6obbR9YXtz5E
+BOT_TOKEN=ТВОЙ_ТОКЕН_ОТ_BOTFATHER
 
 # Supabase
-SUPABASE_URL=https://jweegvbywvixwzcliyzr.supabase.co
-SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp3ZWVndmJ5d3ZpeHd6Y2xpeXpyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTYxMjE3MywiZXhwIjoyMDg1MTg4MTczfQ.ТВОЙ_КЛЮЧ_ЗДЕСЬ
+SUPABASE_URL=https://твой-проект.supabase.co
+SUPABASE_SERVICE_KEY=ТВОЙ_SERVICE_ROLE_КЛЮЧ_ЗДЕСЬ
 
 # Webhook
 WEBHOOK_URL=
