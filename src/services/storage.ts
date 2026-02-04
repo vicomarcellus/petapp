@@ -209,6 +209,20 @@ export const deleteAttachment = async (attachmentId: number, filePath: string): 
 };
 
 /**
+ * Delete attachment by URL (legacy - for old single-file components)
+ */
+export const deleteAttachmentByUrl = async (fileUrl: string): Promise<void> => {
+  const { error } = await supabase.storage
+    .from(BUCKET_NAME)
+    .remove([fileUrl]);
+
+  if (error) {
+    console.error('Storage delete error:', error);
+    throw new Error(`Ошибка удаления: ${error.message}`);
+  }
+};
+
+/**
  * Validate file before upload
  */
 export const validateFile = (file: File): { valid: boolean; error?: string } => {

@@ -5,8 +5,8 @@ import { Note, NoteTag, NOTE_COLORS } from '../types';
 import { Bookmark, Plus, Pencil, Trash2, Search, X, Tag } from 'lucide-react';
 import { Input, Textarea } from './ui/Input';
 import { Modal, ModalActions } from './ui/Modal';
-import { FileUpload } from './ui/FileUpload';
-import { uploadAttachment, deleteAttachment } from '../services/storage';
+import { SingleFileUpload } from './ui/SingleFileUpload';
+import { uploadAttachment, deleteAttachmentByUrl } from '../services/storage';
 
 export default function Notes() {
   const { currentPetId } = useStore();
@@ -177,7 +177,7 @@ export default function Notes() {
       if (editingNote?.id) {
         // Delete old attachment if replacing
         if (uploadResult && editingNote.attachment_url) {
-          await deleteAttachment(editingNote.attachment_url);
+          await deleteAttachmentByUrl(editingNote.attachment_url);
         }
 
         // Обновление
@@ -253,7 +253,7 @@ export default function Notes() {
     try {
       // Delete attachment if exists
       if (attachmentUrl) {
-        await deleteAttachment(attachmentUrl);
+        await deleteAttachmentByUrl(attachmentUrl);
       }
 
       const { error } = await supabase.from('notes').delete().eq('id', noteId);
@@ -589,7 +589,7 @@ export default function Notes() {
           </div>
 
           {/* File Upload */}
-          <FileUpload
+          <SingleFileUpload
             onFileSelect={(file) => setNoteFile(file)}
             currentAttachment={editingNote?.attachment_url ? {
               url: editingNote.attachment_url,

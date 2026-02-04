@@ -6,8 +6,8 @@ import { AnimatedModal } from './AnimatedModal';
 import { ConfirmModal } from './Modal';
 import { Input } from './ui/Input';
 import { Modal, ModalActions } from './ui/Modal';
-import { FileUpload } from './ui/FileUpload';
-import { uploadAttachment, deleteAttachment } from '../services/storage';
+import { SingleFileUpload } from './ui/SingleFileUpload';
+import { uploadAttachment, deleteAttachmentByUrl } from '../services/storage';
 import type { MedicationEntry, FeedingEntry } from '../types';
 import { useUnits } from '../hooks/useUnits';
 
@@ -271,7 +271,7 @@ export const Scheduler = () => {
 
           // Delete old attachment if replacing
           if (uploadResult && existingEntry?.attachment_url) {
-            await deleteAttachment(existingEntry.attachment_url);
+            await deleteAttachmentByUrl(existingEntry.attachment_url);
           }
 
           const updateData: any = {
@@ -301,7 +301,7 @@ export const Scheduler = () => {
 
           // Delete old attachment if replacing
           if (uploadResult && existingEntry?.attachment_url) {
-            await deleteAttachment(existingEntry.attachment_url);
+            await deleteAttachmentByUrl(existingEntry.attachment_url);
           }
 
           const updateData: any = {
@@ -1066,7 +1066,7 @@ export const Scheduler = () => {
           )}
 
           {/* File Upload */}
-          <FileUpload
+          <SingleFileUpload
             onFileSelect={(file) => setSchedulerFile(file)}
             currentAttachment={null}
             onRemove={() => setSchedulerFile(null)}

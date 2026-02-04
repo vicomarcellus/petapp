@@ -1229,14 +1229,6 @@ export const EntryView = () => {
         onClose={() => setShowAddState(false)}
         title={editingEntry ? 'Редактировать состояние' : 'Добавить состояние'}
         maxWidth="lg"
-        footer={
-          <ModalActions
-            onCancel={() => { setShowAddState(false); setShowAddMenu(true); }}
-            onSubmit={handleAddState}
-            cancelText="Назад"
-            submitText="Добавить"
-          />
-        }
       >
         <div className="space-y-5">
           <Input
@@ -1343,6 +1335,13 @@ export const EntryView = () => {
             }}
           />
         </div>
+
+        <ModalActions
+          onCancel={() => { setShowAddState(false); setShowAddMenu(true); }}
+          onSubmit={handleAddState}
+          cancelText="Назад"
+          submitText="Добавить"
+        />
       </Modal>
 
       <Modal

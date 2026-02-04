@@ -7,8 +7,8 @@ import { formatDate } from '../utils';
 import { ConfirmModal } from './Modal';
 import { Input, Textarea } from './ui/Input';
 import { Modal, ModalActions } from './ui/Modal';
-import { FileUpload } from './ui/FileUpload';
-import { uploadAttachment, deleteAttachment } from '../services/storage';
+import { SingleFileUpload } from './ui/SingleFileUpload';
+import { uploadAttachment, deleteAttachmentByUrl } from '../services/storage';
 
 interface DiagnosisNote {
     id: number;
@@ -140,7 +140,7 @@ export const Diagnosis = () => {
             if (editingDiagnosis) {
                 // Delete old attachment if replacing
                 if (uploadResult && editingDiagnosis.attachment_url) {
-                    await deleteAttachment(editingDiagnosis.attachment_url);
+                    await deleteAttachmentByUrl(editingDiagnosis.attachment_url);
                 }
 
                 // Update existing diagnosis
@@ -234,7 +234,7 @@ export const Diagnosis = () => {
             if (editingNote) {
                 // Delete old attachment if replacing
                 if (uploadResult && editingNote.attachment_url) {
-                    await deleteAttachment(editingNote.attachment_url);
+                    await deleteAttachmentByUrl(editingNote.attachment_url);
                 }
 
                 // Update existing note
@@ -305,7 +305,7 @@ export const Diagnosis = () => {
         try {
             // Delete attachment if exists
             if (attachmentUrl) {
-                await deleteAttachment(attachmentUrl);
+                await deleteAttachmentByUrl(attachmentUrl);
             }
 
             const { error } = await supabase
@@ -493,7 +493,7 @@ export const Diagnosis = () => {
                         rows={4}
                     />
 
-                    <FileUpload
+                    <SingleFileUpload
                         onFileSelect={(file) => setDiagnosisFile(file)}
                         currentAttachment={editingDiagnosis?.attachment_url ? {
                             url: editingDiagnosis.attachment_url,
@@ -556,7 +556,7 @@ export const Diagnosis = () => {
                         rows={4}
                     />
 
-                    <FileUpload
+                    <SingleFileUpload
                         onFileSelect={(file) => setNoteFile(file)}
                         currentAttachment={editingNote?.attachment_url ? {
                             url: editingNote.attachment_url,
