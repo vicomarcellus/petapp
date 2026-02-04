@@ -93,16 +93,19 @@ export default function TelegramBotAuth() {
         </h3>
         
         {/* Метод 1: Telegram Login Widget */}
-        <div className="mb-6">
-          <h4 className="text-sm font-bold text-gray-700 mb-3">Метод 1: Быстрая авторизация</h4>
+        <div className="mb-6 opacity-50">
+          <h4 className="text-sm font-bold text-gray-700 mb-3">
+            Метод 1: Быстрая авторизация 
+            <span className="text-red-600 ml-2">(временно не работает)</span>
+          </h4>
           <div className="space-y-4">
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
+              <div className="w-8 h-8 bg-gray-400 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
                 1
               </div>
               <div>
-                <p className="text-gray-800 font-medium mb-2">Нажмите кнопку для авторизации</p>
-                <div className="bg-white border-2 border-blue-300 rounded-2xl p-4 inline-block">
+                <p className="text-gray-600 font-medium mb-2">Нажмите кнопку для авторизации</p>
+                <div className="bg-white border-2 border-gray-300 rounded-2xl p-4 inline-block">
                   <LoginButton
                     botUsername="petappkent_bot"
                     onAuthCallback={handleTelegramAuth}
@@ -112,8 +115,8 @@ export default function TelegramBotAuth() {
                     lang="ru"
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  Работает только на опубликованном сайте
+                <p className="text-xs text-red-600 mt-2 font-medium">
+                  ⚠️ Telegram показывает неправильного бота из-за кэша. Используйте Метод 2 ниже.
                 </p>
               </div>
             </div>
@@ -132,7 +135,10 @@ export default function TelegramBotAuth() {
 
         {/* Метод 2: Код привязки */}
         <div>
-          <h4 className="text-sm font-bold text-gray-700 mb-3">Метод 2: Привязка по коду</h4>
+          <h4 className="text-sm font-bold text-green-700 mb-3">
+            Метод 2: Привязка по коду 
+            <span className="text-green-600 ml-2">✓ Рекомендуется</span>
+          </h4>
           <div className="space-y-4">
             <div className="flex items-start gap-3">
               <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
