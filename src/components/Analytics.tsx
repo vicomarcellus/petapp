@@ -310,47 +310,101 @@ export const Analytics = () => {
     const CustomDot = (props: any) => {
       const { cx, cy, payload } = props;
 
-      if (payload.medications && payload.medications.length > 0) {
-        return (
-          <g 
-            className="animate-fadeIn cursor-pointer" 
-            style={{ 
-              filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))',
-              isolation: 'isolate'
-            }}
-          >
-            {/* The dot on the line */}
-            <circle cx={cx} cy={cy} r={5} stroke="white" strokeWidth={2} fill="#8B5CF6" />
-
-            {/* Custom Pin Shape - Shifted Higher with higher paint-order */}
-            <path
-              d={`M${cx - 14},${cy - 42} 
-                 a14,14 0 1,1 28,0 
-                 c0,9 -14,18 -14,18 
-                 c0,0 -14,-9 -14,-18 z`}
-              fill="white"
-              stroke="#E5E7EB"
-              strokeWidth="1"
-              style={{ paintOrder: 'fill' }}
-            />
-
-            {/* Emoji centered in the circular part */}
-            <text
-              x={cx}
-              y={cy - 41}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize="14"
-              style={{ pointerEvents: 'none', paintOrder: 'fill' }}
-            >
-              💊
-            </text>
-          </g>
-        );
-      }
-
+      // Просто обычная точка - без пина
       return (
         <circle cx={cx} cy={cy} r={5} stroke="white" strokeWidth={2} fill="#8B5CF6" />
+      );
+    };
+                <p className="text-xs text-gray-400 mb-1">Лекарства:</p>
+                <div className="flex flex-wrap gap-1">
+                  {data.medications.map((med: string, idx: number) => (
+                    <span key={idx} className="text-xs bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded">
+                      💊 {med}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {data.symptoms && data.symptoms.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-gray-700">
+                <p className="text-xs text-gray-400 mb-1">Симптомы:</p>
+                <div className="flex flex-wrap gap-1">
+                  {data.symptoms.map((symptom: string, idx: number) => (
+                    <span key={idx} className="text-xs bg-red-500/20 text-red-300 px-1.5 py-0.5 rounded">
+                      ⚠️ {symptom}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+      return null;
+    };
+
+    const CustomDot = (props: any) => {
+      const { cx, cy, payload } = props;
+
+      // Просто обычная точка - без пина
+      return (
+        <circle cx={cx} cy={cy} r={5} stroke="white" strokeWidth={2} fill="#8B5CF6" />
+      );
+    };
+
+    // HTML-тултипы для лекарств (рендерятся поверх SVG)
+    const MedicationMarkers = () => {
+      if (!data || data.length === 0) return null;
+
+      // Вычисляем позиции для каждого дня с лекарствами
+      const chartWidth = 1000; // примерная ширина
+      const chartHeight = 300;
+      const leftMargin = 50;
+      const rightMargin = 10;
+      const topMargin = 40;
+      
+      const dataWidth = chartWidth - leftMargin - rightMargin;
+      const pointSpacing = dataWidth / (data.length - 1 || 1);
+
+      return (
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+          {data.map((point, index) => {
+            if (!point.medications || point.medications.length === 0) return null;
+
+            // Вычисляем позицию точки
+            const x = leftMargin + (index * pointSpacing);
+            // Вычисляем Y на основе score (0-5 scale, inverted)
+            const yScale = (chartHeight - topMargin - 20) / 5;
+            const y = topMargin + (5 - point.score) * yScale;
+
+            return (
+              <div
+                key={index}
+                style={{
+                  position: 'absolute',
+                  left: `${(x / chartWidth) * 100}%`,
+                  top: `${(y / chartHeight) * 100}%`,
+                  transform: 'translate(-50%, -100%)',
+                  marginTop: '-10px',
+                  pointerEvents: 'auto',
+                  zIndex: 1000
+                }}
+              >
+                <div
+                  className="bg-white rounded-lg shadow-lg px-2 py-1 text-sm border border-gray-200"
+                  style={{
+                    fontSize: '16px',
+                    lineHeight: '1',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  💊
+                </div>
+              </div>
+            );
+          })}
+        </div>
       );
     };
 
@@ -382,23 +436,12 @@ export const Analytics = () => {
             stroke="#8B5CF6"
             strokeWidth={3}
             fill="transparent"
-            dot={false}
-            activeDot={false}
-            isAnimationActive={false}
-          />
-
-          {/* Layer 2: The Dots/Pins FIRST (so they render behind cursor) */}
-          <Area
-            type="monotone"
-            dataKey="score"
-            stroke="none"
-            fill="none"
             dot={<CustomDot />}
             activeDot={{ r: 7, stroke: "white", strokeWidth: 2, fill: "#8B5CF6" }}
             isAnimationActive={false}
           />
 
-          {/* Layer 3: Tooltip with Cursor LAST (so cursor renders on top) */}
+          {/* Tooltip with Cursor */}
           <Tooltip 
             content={<CustomTooltip />} 
             cursor={{ 
@@ -410,6 +453,56 @@ export const Analytics = () => {
           />
         </AreaChart>
       </ResponsiveContainer>
+    );
+  };
+
+  // HTML-тултипы для лекарств (рендерятся поверх SVG)
+  const MedicationMarkers = () => {
+    if (!chartData || chartData.length === 0) return null;
+
+    // Подготавливаем данные
+    const data = chartData.map(day => ({
+      date: new Date(day.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }),
+      score: day.avgScore,
+      medications: day.medications
+    }));
+
+    return (
+      <>
+        {data.map((point, index) => {
+          if (!point.medications || point.medications.length === 0) return null;
+
+          // Вычисляем позицию в процентах
+          const xPercent = (index / (data.length - 1 || 1)) * 100;
+          // Y позиция на основе score (инвертированная шкала 0-5)
+          const yPercent = ((5 - point.score) / 5) * 100;
+
+          return (
+            <div
+              key={index}
+              style={{
+                position: 'absolute',
+                left: `calc(${xPercent}% + 30px)`, // +30px для компенсации левого margin
+                top: `calc(${yPercent}% + 40px - 35px)`, // +40px для top margin, -35px чтобы быть выше точки
+                transform: 'translateX(-50%)',
+                pointerEvents: 'auto',
+                zIndex: 1000
+              }}
+            >
+              <div
+                className="bg-white rounded-lg shadow-md px-2 py-1 border border-gray-200 hover:shadow-lg transition-shadow"
+                style={{
+                  fontSize: '18px',
+                  lineHeight: '1'
+                }}
+                title={point.medications.join(', ')}
+              >
+                💊
+              </div>
+            </div>
+          );
+        })}
+      </>
     );
   };
 
@@ -438,7 +531,10 @@ export const Analytics = () => {
       {/* Main chart */}
       <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6 mb-4 animate-fadeInUp">
         <h2 className="text-xl font-bold mb-4">График состояния</h2>
-        {renderChart()}
+        <div style={{ position: 'relative' }}>
+          {renderChart()}
+          <MedicationMarkers />
+        </div>
       </div>
 
       {/* Stats cards */}
