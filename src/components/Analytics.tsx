@@ -312,18 +312,20 @@ export const Analytics = () => {
 
       if (payload.medications && payload.medications.length > 0) {
         return (
-          <g className="animate-fadeIn cursor-pointer hover:scale-110 transition-transform duration-200">
-            <circle
-              cx={cx}
-              cy={cy - 12}
-              r={12}
-              fill="#F3F4F6"
-              stroke="#E5E7EB"
-              strokeWidth={1}
+          <g className="animate-fadeIn cursor-pointer hover:scale-110 transition-transform duration-200 filter drop-shadow-sm">
+            {/* Custom Pin Shape */}
+            <path
+              d={`M${cx - 14},${cy - 28} 
+                 a14,14 0 1,1 28,0 
+                 c0,9 -14,18 -14,18 
+                 c0,0 -14,-9 -14,-18 z`}
+              fill="white"
             />
+
+            {/* Emoji centered in the circular part */}
             <text
               x={cx}
-              y={cy - 11} // Adjusted for vertical centering
+              y={cy - 27}
               textAnchor="middle"
               dominantBaseline="middle"
               fontSize="14"
