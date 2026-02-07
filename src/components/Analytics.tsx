@@ -312,10 +312,14 @@ export const Analytics = () => {
 
       if (payload.medications && payload.medications.length > 0) {
         return (
-          <g className="animate-fadeIn cursor-pointer hover:scale-110 transition-transform duration-200 filter drop-shadow-sm">
-            {/* Custom Pin Shape */}
+          <g className="animate-fadeIn cursor-pointer filter drop-shadow-sm">
+            {/* The dot on the line */}
+            <circle cx={cx} cy={cy} r={5} stroke="white" strokeWidth={2} fill="#8B5CF6" />
+
+            {/* Custom Pin Shape - Shifted Higher */}
+            {/* Tip should be pointing to the dot but from above */}
             <path
-              d={`M${cx - 14},${cy - 28} 
+              d={`M${cx - 14},${cy - 42} 
                  a14,14 0 1,1 28,0 
                  c0,9 -14,18 -14,18 
                  c0,0 -14,-9 -14,-18 z`}
@@ -325,7 +329,7 @@ export const Analytics = () => {
             {/* Emoji centered in the circular part */}
             <text
               x={cx}
-              y={cy - 27}
+              y={cy - 41}
               textAnchor="middle"
               dominantBaseline="middle"
               fontSize="14"
