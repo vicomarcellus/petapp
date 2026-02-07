@@ -3,8 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
 import { TrendingUp, Activity, Pill, AlertCircle, TrendingDown, Calendar, BarChart3, Zap } from 'lucide-react';
 import { STATE_COLORS } from '../types';
-import type { MedicationEntry, SymptomEntry } from '../types';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 
 interface DayData {
   date: string;
@@ -269,9 +268,70 @@ export const Analytics = () => {
       symptoms: day.symptoms
     }));
 
+    const CustomTooltip = ({ active, payload, label }: any) => {
+      if (active && payload && payload.length) {
+        const data = payload[0].payload;
+        return (
+          <div className="bg-[#1F2937] border-none rounded-xl p-3 shadow-lg text-white">
+            <p className="text-sm font-medium text-gray-200 mb-1">{label}</p>
+            <p className="text-xl font-bold mb-2">{data.score.toFixed(1)} <span className="text-sm font-normal text-gray-400">/ 5.0</span></p>
+
+            {data.medications && data.medications.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-gray-700">
+                <p className="text-xs text-gray-400 mb-1">Лекарства:</p>
+                <div className="flex flex-wrap gap-1">
+                  {data.medications.map((med: string, idx: number) => (
+                    <span key={idx} className="text-xs bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded">
+                      💊 {med}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {data.symptoms && data.symptoms.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-gray-700">
+                <p className="text-xs text-gray-400 mb-1">Симптомы:</p>
+                <div className="flex flex-wrap gap-1">
+                  {data.symptoms.map((symptom: string, idx: number) => (
+                    <span key={idx} className="text-xs bg-red-500/20 text-red-300 px-1.5 py-0.5 rounded">
+                      ⚠️ {symptom}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+      return null;
+    };
+
+    const CustomDot = (props: any) => {
+      const { cx, cy, payload } = props;
+
+      if (payload.medications && payload.medications.length > 0) {
+        return (
+          <text
+            x={cx}
+            y={cy - 10}
+            textAnchor="middle"
+            fontSize="14"
+            className="animate-fadeIn"
+          >
+            💊
+          </text>
+        );
+      }
+
+      return (
+        <circle cx={cx} cy={cy} r={5} stroke="white" strokeWidth={2} fill="#8B5CF6" />
+      );
+    };
+
     return (
       <ResponsiveContainer width="100%" height={300}>
-        <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+        <AreaChart data={data} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
           <XAxis
             dataKey="date"
@@ -284,40 +344,15 @@ export const Analytics = () => {
             tick={{ fontSize: 12, fill: '#9CA3AF' }}
             stroke="#E5E7EB"
           />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: '#1F2937',
-              border: 'none',
-              borderRadius: '12px',
-              padding: '8px 12px',
-              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-            }}
-            labelStyle={{
-              color: '#E5E7EB',
-              marginBottom: '4px',
-              fontSize: '12px',
-              fontWeight: '500'
-            }}
-            itemStyle={{
-              color: '#FFFFFF',
-              fontSize: '14px',
-              fontWeight: 'bold'
-            }}
-            formatter={(value: any) => [value.toFixed(1), 'Оценка']}
-          />
+          <Tooltip content={<CustomTooltip />} />
           <Area
             type="monotone"
             dataKey="score"
             stroke="#8B5CF6"
             strokeWidth={3}
             fill="transparent"
-            dot={{
-              fill: '#8B5CF6',
-              strokeWidth: 2,
-              stroke: 'white',
-              r: 5
-            }}
-            activeDot={{ r: 7 }}
+            dot={<CustomDot />}
+            activeDot={{ r: 7, stroke: "white", strokeWidth: 2 }}
           />
         </AreaChart>
       </ResponsiveContainer>
@@ -337,8 +372,8 @@ export const Analytics = () => {
             key={days}
             onClick={() => setSelectedPeriod(days as 7 | 14 | 30)}
             className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedPeriod === days
-                ? 'bg-black text-white'
-                : 'bg-white/60 text-gray-700 hover:bg-white'
+              ? 'bg-black text-white'
+              : 'bg-white/60 text-gray-700 hover:bg-white'
               }`}
           >
             {days} дней
@@ -384,7 +419,7 @@ export const Analytics = () => {
           <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6 animate-fadeInUp" style={{ animationDelay: '200ms' }}>
             <div className="flex items-center gap-3 mb-2">
               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${trend.direction === 'up' ? 'bg-green-100' :
-                  trend.direction === 'down' ? 'bg-red-100' : 'bg-gray-100'
+                trend.direction === 'down' ? 'bg-red-100' : 'bg-gray-100'
                 }`}>
                 {trend.direction === 'up' ? <TrendingUp className="text-green-600" size={24} /> :
                   trend.direction === 'down' ? <TrendingDown className="text-red-600" size={24} /> :
@@ -435,7 +470,7 @@ export const Analytics = () => {
                   <div className="flex items-center justify-between mb-2">
                     <div className="font-medium text-sm">{corr.medication}</div>
                     <div className={`text-sm font-bold ${corr.impact > 0 ? 'text-green-600' :
-                        corr.impact < 0 ? 'text-red-600' : 'text-gray-600'
+                      corr.impact < 0 ? 'text-red-600' : 'text-gray-600'
                       }`}>
                       {corr.impact > 0 ? '+' : ''}{corr.impact}
                     </div>
@@ -449,7 +484,7 @@ export const Analytics = () => {
                   <div className="mt-2 h-1.5 bg-gray-200 rounded-full overflow-hidden">
                     <div
                       className={`h-full ${corr.impact > 0 ? 'bg-green-500' :
-                          corr.impact < 0 ? 'bg-red-500' : 'bg-gray-400'
+                        corr.impact < 0 ? 'bg-red-500' : 'bg-gray-400'
                         }`}
                       style={{ width: `${Math.min(100, Math.abs(corr.impact) * 20)}%` }}
                     />
