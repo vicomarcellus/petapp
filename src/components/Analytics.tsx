@@ -313,13 +313,28 @@ export const Analytics = () => {
       if (payload.medications && payload.medications.length > 0) {
         return (
           <g className="animate-fadeIn cursor-pointer hover:scale-110 transition-transform duration-200">
-            {/* Shadow effect using filter or simply a second circle */}
-            <circle cx={cx} cy={cy - 15} r={12} fill="white" stroke="#8B5CF6" strokeWidth={2} />
+            {/* Tooltip Body */}
+            <rect
+              x={cx - 14}
+              y={cy - 34}
+              width={28}
+              height={20}
+              rx={4}
+              fill="#4B5563" // gray-600
+            />
+            {/* Arrow */}
+            <polygon
+              points={`${cx - 4},${cy - 14} ${cx + 4},${cy - 14} ${cx},${cy - 8}`}
+              fill="#4B5563"
+            />
+            {/* Emoji */}
             <text
               x={cx}
-              y={cy - 11}
+              y={cy - 19}
               textAnchor="middle"
-              fontSize="14"
+              dominantBaseline="middle"
+              fontSize="12"
+              fill="white"
               style={{ pointerEvents: 'none' }}
             >
               💊
