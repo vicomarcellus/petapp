@@ -348,7 +348,7 @@ export const Analytics = () => {
 
     return (
       <ResponsiveContainer width="100%" height={300}>
-        <AreaChart data={data} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
+        <AreaChart data={data} margin={{ top: 40, right: 10, left: -20, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
           <XAxis
             dataKey="date"
@@ -361,15 +361,31 @@ export const Analytics = () => {
             tick={{ fontSize: 12, fill: '#9CA3AF' }}
             stroke="#E5E7EB"
           />
-          <Tooltip content={<CustomTooltip />} />
+
+          {/* Layer 1: The Line (rendered behind tooltip cursor) */}
           <Area
             type="monotone"
             dataKey="score"
             stroke="#8B5CF6"
             strokeWidth={3}
             fill="transparent"
+            dot={false}
+            activeDot={false}
+            isAnimationActive={false}
+          />
+
+          {/* Tooltip (Cursor is rendered here) */}
+          <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#9CA3AF', strokeWidth: 1, strokeDasharray: '4 4' }} />
+
+          {/* Layer 2: The Dots/Pins (rendered on top of cursor) */}
+          <Area
+            type="monotone"
+            dataKey="score"
+            stroke="none"
+            fill="none"
             dot={<CustomDot />}
-            activeDot={{ r: 7, stroke: "white", strokeWidth: 2 }}
+            activeDot={{ r: 7, stroke: "white", strokeWidth: 2, fill: "#8B5CF6" }}
+            isAnimationActive={false}
           />
         </AreaChart>
       </ResponsiveContainer>
