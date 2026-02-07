@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
-import { ChevronDown, BarChart3, ClipboardList, Settings, Calendar as CalendarIcon, LogOut, ArrowLeft, Clock } from 'lucide-react';
+import { ChevronDown, BarChart3, ClipboardList, Settings, Calendar as CalendarIcon, ArrowLeft, Clock, Menu, X } from 'lucide-react';
 import { Pet } from '../types';
 import { useSchedulerBadge } from '../hooks/useSchedulerBadge';
 
@@ -22,6 +22,7 @@ const PET_EMOJIS: Record<string, string> = {
 export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
   const { setView, currentPetId, setCurrentPetId, view, currentUser, setCurrentUser } = useStore();
   const [showPetMenu, setShowPetMenu] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [pets, setPets] = useState<Pet[]>([]);
   const overdueCount = useSchedulerBadge();
 
@@ -109,6 +110,12 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
     setCurrentMonth(today.getMonth());
     setSelectedDate(null);
     setView('calendar');
+    setIsMobileMenuOpen(false);
+  };
+
+  const handleMobileNavClick = (viewName: any) => {
+    setView(viewName);
+    setIsMobileMenuOpen(false);
   };
 
   // Обновляем позицию пилюли при изменении view
@@ -154,24 +161,34 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
   }, [view]);
 
   return (
-    <header className="mb-8">
+    <header className="mb-8 relative z-50">
       {/* Top Bar - Glass Morphism Style */}
       <div className="flex items-center justify-between mb-6">
-        {/* Left: Logo */}
-        <div className="flex items-center gap-6">
-          {showBackButton && onBack && (
-            <button
-              onClick={onBack}
-              className="p-2.5 hover:bg-white/60 rounded-full transition-all backdrop-blur-sm"
-            >
-              <ArrowLeft size={20} className="text-gray-700" />
-            </button>
-          )}
-          <span className="text-2xl font-bold text-gray-800">petapp</span>
+        {/* Left: Logo & Mobile Toggle */}
+        <div className="flex items-center gap-4">
+          {/* Mobile Menu Toggle */}
+          <button
+            className="md:hidden p-2 -ml-2 hover:bg-white/60 rounded-full transition-colors"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          >
+            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+
+          <div className="flex items-center gap-6">
+            {showBackButton && onBack && (
+              <button
+                onClick={onBack}
+                className="p-2.5 hover:bg-white/60 rounded-full transition-all backdrop-blur-sm hidden md:block"
+              >
+                <ArrowLeft size={20} className="text-gray-700" />
+              </button>
+            )}
+            <span className="text-2xl font-bold text-gray-800">petapp</span>
+          </div>
         </div>
 
-        {/* Center: Navigation - Glass Pills */}
-        <nav className="relative flex items-center gap-2 bg-white/40 backdrop-blur-md rounded-full p-1 border border-white/60">
+        {/* Center: Desktop Navigation - Glass Pills */}
+        <nav className="hidden md:flex relative items-center gap-2 bg-white/40 backdrop-blur-md rounded-full p-1 border border-white/60">
           {/* Анимированная пилюля-индикатор */}
           <div
             className="absolute bg-white rounded-full transition-all duration-300 ease-in-out"
@@ -268,11 +285,11 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
             <div className="relative">
               <button
                 onClick={() => pets.length > 1 && setShowPetMenu(!showPetMenu)}
-                className={`flex items-center gap-2.5 px-4 py-2 bg-white/60 backdrop-blur-md border border-white/80 rounded-full transition-all ${pets.length > 1 ? 'cursor-pointer hover:bg-white/80' : 'cursor-default'
+                className={`flex items-center gap-2.5 px-3 md:px-4 py-2 bg-white/60 backdrop-blur-md border border-white/80 rounded-full transition-all ${pets.length > 1 ? 'cursor-pointer hover:bg-white/80' : 'cursor-default'
                   }`}
               >
                 <span className="text-xl">{PET_EMOJIS[currentPet.type] || '🐾'}</span>
-                <span className="font-medium text-gray-900 text-sm">{currentPet.name}</span>
+                <span className="font-medium text-gray-900 text-sm hidden sm:inline">{currentPet.name}</span>
                 {pets.length > 1 && (
                   <ChevronDown size={14} className={`text-gray-500 transition-transform ${showPetMenu ? 'rotate-180' : ''}`} />
                 )}
@@ -284,7 +301,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
                     className="fixed inset-0 z-40"
                     onClick={() => setShowPetMenu(false)}
                   />
-                  <div className="absolute top-full right-0 mt-2 bg-white/90 backdrop-blur-xl rounded-[32px] shadow-xl py-2 min-w-[200px] z-50 border border-white/60">
+                  <div className="absolute top-full right-0 mt-2 bg-white/90 backdrop-blur-xl rounded-[20px] md:rounded-[32px] shadow-xl py-2 min-w-[160px] md:min-w-[200px] z-50 border border-white/60">
                     {pets.map((pet) => (
                       <button
                         key={pet.id}
@@ -311,7 +328,7 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
           {currentUser && (
             <button
               onClick={handleLogout}
-              className="w-[46px] h-[46px] rounded-full bg-white/60 backdrop-blur-md border border-white/80 hover:bg-white/80 flex items-center justify-center transition-all"
+              className="w-[40px] h-[40px] md:w-[46px] md:h-[46px] rounded-full bg-white/60 backdrop-blur-md border border-white/80 hover:bg-white/80 flex items-center justify-center transition-all"
               title={`Выйти (${currentUser.firstName})`}
             >
               {currentUser.photoUrl ? (
@@ -329,6 +346,109 @@ export const Header = ({ showBackButton = false, onBack }: HeaderProps) => {
           )}
         </div>
       </div>
+
+      {/* Mobile Navigation Menu */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden absolute top-full left-0 right-0 bg-white/90 backdrop-blur-xl rounded-[24px] border border-white/60 shadow-xl p-4 flex flex-col gap-2 z-40 animate-fadeInUp">
+          <button
+            onClick={goToToday}
+            className={`text-left px-4 py-3 rounded-xl transition-colors ${view === 'calendar' || view === 'add' || view === 'edit' || view === 'view'
+              ? 'bg-blue-50 text-blue-600 font-medium'
+              : 'text-gray-600 hover:bg-gray-50'
+              }`}
+          >
+            <div className="flex items-center gap-3">
+              <CalendarIcon size={20} />
+              <span>Календарь</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => handleMobileNavClick('analytics')}
+            className={`text-left px-4 py-3 rounded-xl transition-colors ${view === 'analytics'
+              ? 'bg-blue-50 text-blue-600 font-medium'
+              : 'text-gray-600 hover:bg-gray-50'
+              }`}
+          >
+            <div className="flex items-center gap-3">
+              <BarChart3 size={20} />
+              <span>Аналитика</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => handleMobileNavClick('log')}
+            className={`text-left px-4 py-3 rounded-xl transition-colors ${view === 'log'
+              ? 'bg-blue-50 text-blue-600 font-medium'
+              : 'text-gray-600 hover:bg-gray-50'
+              }`}
+          >
+            <div className="flex items-center gap-3">
+              <ClipboardList size={20} />
+              <span>Лог</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => handleMobileNavClick('diagnosis')}
+            className={`text-left px-4 py-3 rounded-xl transition-colors ${view === 'diagnosis'
+              ? 'bg-blue-50 text-blue-600 font-medium'
+              : 'text-gray-600 hover:bg-gray-50'
+              }`}
+          >
+            <div className="flex items-center gap-3">
+              <ClipboardList size={20} />
+              <span>Диагноз</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => handleMobileNavClick('notes')}
+            className={`text-left px-4 py-3 rounded-xl transition-colors ${view === 'notes'
+              ? 'bg-blue-50 text-blue-600 font-medium'
+              : 'text-gray-600 hover:bg-gray-50'
+              }`}
+          >
+            <div className="flex items-center gap-3">
+              <ClipboardList size={20} />
+              <span>Заметки</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => handleMobileNavClick('scheduler')}
+            className={`text-left px-4 py-3 rounded-xl transition-colors ${view === 'scheduler'
+              ? 'bg-blue-50 text-blue-600 font-medium'
+              : 'text-gray-600 hover:bg-gray-50'
+              }`}
+          >
+            <div className="flex items-center gap-3 justify-between w-full">
+              <div className="flex items-center gap-3">
+                <Clock size={20} />
+                <span>Планировщик</span>
+              </div>
+              {overdueCount > 0 && (
+                <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                  {overdueCount}
+                </span>
+              )}
+            </div>
+          </button>
+
+          <button
+            onClick={() => handleMobileNavClick('settings')}
+            className={`text-left px-4 py-3 rounded-xl transition-colors ${view === 'settings' || view === 'history'
+              ? 'bg-blue-50 text-blue-600 font-medium'
+              : 'text-gray-600 hover:bg-gray-50'
+              }`}
+          >
+            <div className="flex items-center gap-3">
+              <Settings size={20} />
+              <span>Настройки</span>
+            </div>
+          </button>
+        </div>
+      )}
     </header>
   );
 };
