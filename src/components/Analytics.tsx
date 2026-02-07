@@ -391,21 +391,49 @@ export const Analytics = () => {
               style={{
                 position: 'absolute',
                 left: `calc(${xPercent}% + 30px)`, // +30px для компенсации левого margin
-                top: `calc(${yPercent}% + 40px - 35px)`, // +40px для top margin, -35px чтобы быть выше точки
+                top: `calc(${yPercent}% + 40px - 50px)`, // +40px для top margin, -50px чтобы быть выше точки
                 transform: 'translateX(-50%)',
                 pointerEvents: 'auto',
                 zIndex: 1000
               }}
             >
+              {/* Pin shape like a map marker */}
               <div
-                className="bg-white rounded-lg shadow-md px-2 py-1 border border-gray-200 hover:shadow-lg transition-shadow"
+                className="relative hover:scale-110 transition-transform cursor-pointer"
                 style={{
-                  fontSize: '18px',
-                  lineHeight: '1'
+                  width: '40px',
+                  height: '50px',
+                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.15))'
                 }}
                 title={point.medications.join(', ')}
               >
-                💊
+                {/* The pin body - circle + triangle */}
+                <div
+                  className="absolute top-0 left-1/2 -translate-x-1/2"
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50% 50% 50% 0',
+                    background: 'white',
+                    border: '2px solid #E5E7EB',
+                    transform: 'translateX(-50%) rotate(-45deg)',
+                    transformOrigin: 'center center'
+                  }}
+                >
+                  {/* Emoji inside the circle */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%) rotate(45deg)',
+                      fontSize: '20px',
+                      lineHeight: '1'
+                    }}
+                  >
+                    💊
+                  </div>
+                </div>
               </div>
             </div>
           );
