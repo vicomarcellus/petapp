@@ -310,7 +310,27 @@ export const Analytics = () => {
     const CustomDot = (props: any) => {
       const { cx, cy, payload } = props;
 
-      // Просто обычная точка - без пина
+      if (payload.medications && payload.medications.length > 0) {
+        return (
+          <g className="animate-fadeIn cursor-pointer hover:scale-110 transition-transform duration-200">
+            {/* The dot on the line */}
+            <circle cx={cx} cy={cy} r={5} stroke="white" strokeWidth={2} fill="#8B5CF6" />
+
+            {/* Emoji centered above the dot - Simple & Clean */}
+            <text
+              x={cx}
+              y={cy - 12}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize="16"
+              style={{ pointerEvents: 'none', filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.1))' }}
+            >
+              💊
+            </text>
+          </g>
+        );
+      }
+
       return (
         <circle cx={cx} cy={cy} r={5} stroke="white" strokeWidth={2} fill="#8B5CF6" />
       );
@@ -321,7 +341,7 @@ export const Analytics = () => {
         <AreaChart data={data} margin={{ top: 40, right: 10, left: -20, bottom: 0 }}>
           <defs>
             <filter id="pinShadow" x="-50%" y="-50%" width="200%" height="200%">
-              <feDropShadow dx="0" dy="1" stdDeviation="2" floodOpacity="0.2"/>
+              <feDropShadow dx="0" dy="1" stdDeviation="2" floodOpacity="0.2" />
             </filter>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
@@ -350,11 +370,11 @@ export const Analytics = () => {
           />
 
           {/* Tooltip with Cursor */}
-          <Tooltip 
-            content={<CustomTooltip />} 
-            cursor={{ 
-              stroke: '#9CA3AF', 
-              strokeWidth: 1, 
+          <Tooltip
+            content={<CustomTooltip />}
+            cursor={{
+              stroke: '#9CA3AF',
+              strokeWidth: 1,
               strokeDasharray: '4 4',
               strokeOpacity: 0.3
             }}
@@ -364,82 +384,7 @@ export const Analytics = () => {
     );
   };
 
-  // HTML-тултипы для лекарств (рендерятся поверх SVG)
-  const MedicationMarkers = () => {
-    if (!chartData || chartData.length === 0) return null;
 
-    // Подготавливаем данные
-    const data = chartData.map(day => ({
-      date: new Date(day.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }),
-      score: day.avgScore,
-      medications: day.medications
-    }));
-
-    return (
-      <>
-        {data.map((point, index) => {
-          if (!point.medications || point.medications.length === 0) return null;
-
-          // Вычисляем позицию в процентах
-          const xPercent = (index / (data.length - 1 || 1)) * 100;
-          // Y позиция на основе score (инвертированная шкала 0-5)
-          const yPercent = ((5 - point.score) / 5) * 100;
-
-          return (
-            <div
-              key={index}
-              style={{
-                position: 'absolute',
-                left: `calc(${xPercent}% + 30px)`, // +30px для компенсации левого margin
-                top: `calc(${yPercent}% + 40px)`, // +40px для top margin
-                transform: 'translate(-50%, -100%)', // Центрируем по X, поднимаем вверх от точки
-                pointerEvents: 'auto' // Разрешаем hover для title
-              }}
-            >
-              {/* Pin shape like a map marker - smaller size */}
-              <div
-                className="relative hover:scale-110 transition-transform cursor-pointer"
-                style={{
-                  width: '28px',
-                  height: '35px',
-                  filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.08))' // Мягче тень
-                }}
-                title={point.medications.join(', ')}
-              >
-                {/* The pin body - circle + triangle */}
-                <div
-                  className="absolute top-0 left-1/2"
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '50% 50% 50% 0',
-                    background: 'white',
-                    border: '1.5px solid #E5E7EB',
-                    transform: 'translateX(-50%) rotate(-45deg)',
-                    transformOrigin: 'center center'
-                  }}
-                >
-                  {/* Emoji inside the circle */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '50%',
-                      left: '50%',
-                      transform: 'translate(-50%, -50%) rotate(45deg)',
-                      fontSize: '14px',
-                      lineHeight: '1'
-                    }}
-                  >
-                    💊
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </>
-    );
-  };
 
   if (loading) {
     return <div className="text-center py-8 text-gray-400">Загрузка...</div>;
@@ -467,11 +412,7 @@ export const Analytics = () => {
       <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6 mb-4 animate-fadeInUp">
         <h2 className="text-xl font-bold mb-4">График состояния</h2>
         <div style={{ position: 'relative' }}>
-          {/* Слой с пинами - под графиком */}
-          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none' }}>
-            <MedicationMarkers />
-          </div>
-          {/* График - поверх пинов */}
+          {/* График */}
           <div style={{ position: 'relative', zIndex: 1 }}>
             {renderChart()}
           </div>
