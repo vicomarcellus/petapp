@@ -312,7 +312,7 @@ export const Analytics = () => {
 
       if (payload.medications && payload.medications.length > 0) {
         return (
-          <g className="animate-fadeIn cursor-pointer filter drop-shadow-sm">
+          <g className="animate-fadeIn cursor-pointer filter drop-shadow-sm" style={{ zIndex: 100 }}>
             {/* The dot on the line */}
             <circle cx={cx} cy={cy} r={5} stroke="white" strokeWidth={2} fill="#8B5CF6" />
 
@@ -324,6 +324,8 @@ export const Analytics = () => {
                  c0,9 -14,18 -14,18 
                  c0,0 -14,-9 -14,-18 z`}
               fill="white"
+              stroke="#E5E7EB"
+              strokeWidth="1"
             />
 
             {/* Emoji centered in the circular part */}
@@ -349,6 +351,11 @@ export const Analytics = () => {
     return (
       <ResponsiveContainer width="100%" height={300}>
         <AreaChart data={data} margin={{ top: 40, right: 10, left: -20, bottom: 0 }}>
+          <defs>
+            <filter id="pinShadow" x="-50%" y="-50%" width="200%" height="200%">
+              <feDropShadow dx="0" dy="1" stdDeviation="2" floodOpacity="0.2"/>
+            </filter>
+          </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
           <XAxis
             dataKey="date"
@@ -362,7 +369,7 @@ export const Analytics = () => {
             stroke="#E5E7EB"
           />
 
-          {/* Layer 1: The Line (rendered behind tooltip cursor) */}
+          {/* Layer 1: The Line */}
           <Area
             type="monotone"
             dataKey="score"
@@ -374,10 +381,14 @@ export const Analytics = () => {
             isAnimationActive={false}
           />
 
-          {/* Tooltip (Cursor is rendered here) */}
-          <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#9CA3AF', strokeWidth: 1, strokeDasharray: '4 4' }} />
+          {/* Layer 2: Tooltip with Cursor (cursor goes behind dots) */}
+          <Tooltip 
+            content={<CustomTooltip />} 
+            cursor={{ stroke: '#9CA3AF', strokeWidth: 1, strokeDasharray: '4 4' }}
+            wrapperStyle={{ zIndex: 1 }}
+          />
 
-          {/* Layer 2: The Dots/Pins (rendered on top of cursor) */}
+          {/* Layer 3: The Dots/Pins (rendered on top of everything) */}
           <Area
             type="monotone"
             dataKey="score"
