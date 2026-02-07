@@ -319,7 +319,7 @@ export const Analytics = () => {
             {/* Emoji centered above the dot - Simple & Clean */}
             <text
               x={cx}
-              y={cy - 12}
+              y={cy - 20}
               textAnchor="middle"
               dominantBaseline="middle"
               fontSize="16"
