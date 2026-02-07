@@ -312,12 +312,17 @@ export const Analytics = () => {
 
       if (payload.medications && payload.medications.length > 0) {
         return (
-          <g className="animate-fadeIn cursor-pointer filter drop-shadow-sm" style={{ zIndex: 100 }}>
+          <g 
+            className="animate-fadeIn cursor-pointer" 
+            style={{ 
+              filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))',
+              isolation: 'isolate'
+            }}
+          >
             {/* The dot on the line */}
             <circle cx={cx} cy={cy} r={5} stroke="white" strokeWidth={2} fill="#8B5CF6" />
 
-            {/* Custom Pin Shape - Shifted Higher */}
-            {/* Tip should be pointing to the dot but from above */}
+            {/* Custom Pin Shape - Shifted Higher with higher paint-order */}
             <path
               d={`M${cx - 14},${cy - 42} 
                  a14,14 0 1,1 28,0 
@@ -326,6 +331,7 @@ export const Analytics = () => {
               fill="white"
               stroke="#E5E7EB"
               strokeWidth="1"
+              style={{ paintOrder: 'fill' }}
             />
 
             {/* Emoji centered in the circular part */}
@@ -335,7 +341,7 @@ export const Analytics = () => {
               textAnchor="middle"
               dominantBaseline="middle"
               fontSize="14"
-              style={{ pointerEvents: 'none' }}
+              style={{ pointerEvents: 'none', paintOrder: 'fill' }}
             >
               💊
             </text>
@@ -381,14 +387,7 @@ export const Analytics = () => {
             isAnimationActive={false}
           />
 
-          {/* Layer 2: Tooltip with Cursor (cursor goes behind dots) */}
-          <Tooltip 
-            content={<CustomTooltip />} 
-            cursor={{ stroke: '#9CA3AF', strokeWidth: 1, strokeDasharray: '4 4' }}
-            wrapperStyle={{ zIndex: 1 }}
-          />
-
-          {/* Layer 3: The Dots/Pins (rendered on top of everything) */}
+          {/* Layer 2: The Dots/Pins FIRST (so they render behind cursor) */}
           <Area
             type="monotone"
             dataKey="score"
@@ -397,6 +396,17 @@ export const Analytics = () => {
             dot={<CustomDot />}
             activeDot={{ r: 7, stroke: "white", strokeWidth: 2, fill: "#8B5CF6" }}
             isAnimationActive={false}
+          />
+
+          {/* Layer 3: Tooltip with Cursor LAST (so cursor renders on top) */}
+          <Tooltip 
+            content={<CustomTooltip />} 
+            cursor={{ 
+              stroke: '#9CA3AF', 
+              strokeWidth: 1, 
+              strokeDasharray: '4 4',
+              strokeOpacity: 0.3
+            }}
           />
         </AreaChart>
       </ResponsiveContainer>
