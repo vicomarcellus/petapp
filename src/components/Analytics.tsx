@@ -312,15 +312,19 @@ export const Analytics = () => {
 
       if (payload.medications && payload.medications.length > 0) {
         return (
-          <text
-            x={cx}
-            y={cy - 10}
-            textAnchor="middle"
-            fontSize="14"
-            className="animate-fadeIn"
-          >
-            💊
-          </text>
+          <g className="animate-fadeIn cursor-pointer hover:scale-110 transition-transform duration-200">
+            {/* Shadow effect using filter or simply a second circle */}
+            <circle cx={cx} cy={cy - 15} r={12} fill="white" stroke="#8B5CF6" strokeWidth={2} />
+            <text
+              x={cx}
+              y={cy - 11}
+              textAnchor="middle"
+              fontSize="14"
+              style={{ pointerEvents: 'none' }}
+            >
+              💊
+            </text>
+          </g>
         );
       }
 
