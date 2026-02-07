@@ -391,31 +391,31 @@ export const Analytics = () => {
               style={{
                 position: 'absolute',
                 left: `calc(${xPercent}% + 30px)`, // +30px для компенсации левого margin
-                top: `calc(${yPercent}% + 40px - 50px)`, // +40px для top margin, -50px чтобы быть выше точки
-                transform: 'translateX(-50%)',
+                top: `calc(${yPercent}% + 40px)`, // +40px для top margin
+                transform: 'translate(-50%, -100%)', // Центрируем по X, поднимаем вверх от точки
                 pointerEvents: 'auto',
-                zIndex: 1000
+                zIndex: 10 // Ниже чем темный тултип (который обычно 50+)
               }}
             >
-              {/* Pin shape like a map marker */}
+              {/* Pin shape like a map marker - smaller size */}
               <div
                 className="relative hover:scale-110 transition-transform cursor-pointer"
                 style={{
-                  width: '40px',
-                  height: '50px',
-                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.15))'
+                  width: '28px',
+                  height: '35px',
+                  filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.08))' // Мягче тень
                 }}
                 title={point.medications.join(', ')}
               >
                 {/* The pin body - circle + triangle */}
                 <div
-                  className="absolute top-0 left-1/2 -translate-x-1/2"
+                  className="absolute top-0 left-1/2"
                   style={{
-                    width: '40px',
-                    height: '40px',
+                    width: '28px',
+                    height: '28px',
                     borderRadius: '50% 50% 50% 0',
                     background: 'white',
-                    border: '2px solid #E5E7EB',
+                    border: '1.5px solid #E5E7EB',
                     transform: 'translateX(-50%) rotate(-45deg)',
                     transformOrigin: 'center center'
                   }}
@@ -427,7 +427,7 @@ export const Analytics = () => {
                       top: '50%',
                       left: '50%',
                       transform: 'translate(-50%, -50%) rotate(45deg)',
-                      fontSize: '20px',
+                      fontSize: '14px',
                       lineHeight: '1'
                     }}
                   >
