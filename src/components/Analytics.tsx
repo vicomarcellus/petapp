@@ -393,8 +393,7 @@ export const Analytics = () => {
                 left: `calc(${xPercent}% + 30px)`, // +30px для компенсации левого margin
                 top: `calc(${yPercent}% + 40px)`, // +40px для top margin
                 transform: 'translate(-50%, -100%)', // Центрируем по X, поднимаем вверх от точки
-                pointerEvents: 'none', // Не блокируем взаимодействие с графиком
-                zIndex: 1 // Очень низкий z-index, под всем
+                pointerEvents: 'auto' // Разрешаем hover для title
               }}
             >
               {/* Pin shape like a map marker - smaller size */}
@@ -468,8 +467,14 @@ export const Analytics = () => {
       <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6 mb-4 animate-fadeInUp">
         <h2 className="text-xl font-bold mb-4">График состояния</h2>
         <div style={{ position: 'relative' }}>
-          <MedicationMarkers />
-          {renderChart()}
+          {/* Слой с пинами - под графиком */}
+          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none' }}>
+            <MedicationMarkers />
+          </div>
+          {/* График - поверх пинов */}
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            {renderChart()}
+          </div>
         </div>
       </div>
 
