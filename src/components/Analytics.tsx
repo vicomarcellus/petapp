@@ -393,8 +393,8 @@ export const Analytics = () => {
                 left: `calc(${xPercent}% + 30px)`, // +30px для компенсации левого margin
                 top: `calc(${yPercent}% + 40px)`, // +40px для top margin
                 transform: 'translate(-50%, -100%)', // Центрируем по X, поднимаем вверх от точки
-                pointerEvents: 'auto',
-                zIndex: 10 // Ниже чем темный тултип (который обычно 50+)
+                pointerEvents: 'none', // Не блокируем взаимодействие с графиком
+                zIndex: 1 // Очень низкий z-index, под всем
               }}
             >
               {/* Pin shape like a map marker - smaller size */}
@@ -468,8 +468,8 @@ export const Analytics = () => {
       <div className="bg-white/60 backdrop-blur-md border border-white/80 rounded-[32px] shadow-sm p-6 mb-4 animate-fadeInUp">
         <h2 className="text-xl font-bold mb-4">График состояния</h2>
         <div style={{ position: 'relative' }}>
-          {renderChart()}
           <MedicationMarkers />
+          {renderChart()}
         </div>
       </div>
 
