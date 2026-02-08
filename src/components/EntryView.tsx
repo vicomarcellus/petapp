@@ -1641,7 +1641,10 @@ export const EntryView = () => {
               />
               {/* Быстрые кнопки */}
               <div className="flex flex-wrap gap-1.5 mt-2">
-                {['25', '50', '75', '100', '150'].map(val => (
+                {(foodUnit === 'ml' 
+                  ? ['0,3', '0,5', '1', '1,5', '2']
+                  : ['25', '50', '75', '100', '150']
+                ).map(val => (
                   <button
                     key={val}
                     type="button"
