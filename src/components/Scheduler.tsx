@@ -874,13 +874,14 @@ export const Scheduler = () => {
             
             {/* Кнопка "Следующее событие" */}
             {!isSelectionMode && (
-              <button
-                onClick={() => openAddModal(true)}
-                className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2 font-medium"
-              >
-                <Plus size={20} />
-                Создать следующее событие
-              </button>
+              <div className="mt-3 flex justify-center">
+                <button
+                  onClick={() => openAddModal(true)}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-all duration-200 text-sm font-medium"
+                >
+                  Следующее событие
+                </button>
+              </div>
             )}
           </div>
         </div>
