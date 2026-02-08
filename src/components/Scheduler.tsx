@@ -67,15 +67,15 @@ export const Scheduler = () => {
         .channel('scheduler_changes')
         .on('postgres_changes', 
           { event: '*', schema: 'public', table: 'medication_entries', filter: `pet_id=eq.${currentPetId}` },
-          () => loadEvents()
+          () => setTimeout(() => loadEvents(), 100)
         )
         .on('postgres_changes', 
           { event: '*', schema: 'public', table: 'feeding_entries', filter: `pet_id=eq.${currentPetId}` },
-          () => loadEvents()
+          () => setTimeout(() => loadEvents(), 100)
         )
         .on('postgres_changes', 
           { event: '*', schema: 'public', table: 'checklist_tasks', filter: `pet_id=eq.${currentPetId}` },
-          () => loadEvents()
+          () => setTimeout(() => loadEvents(), 100)
         )
         .subscribe();
 
@@ -434,7 +434,9 @@ export const Scheduler = () => {
       setFoodAmount('');
       setFoodUnit('g');
       setSchedulerFile(null);
-      loadEvents();
+      
+      // Небольшая задержка для обновления данных в базе
+      setTimeout(() => loadEvents(), 100);
     } catch (error) {
       console.error('Error adding event:', error);
     }
