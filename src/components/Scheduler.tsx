@@ -186,7 +186,9 @@ export const Scheduler = () => {
         scheduled_time: f.scheduled_time!,
         completed: f.completed || false,
         name: f.food_name,
-        amount: `${f.amount} ${f.unit === 'g' ? 'г' : f.unit === 'ml' ? 'мл' : ''}`
+        amount: f.amount 
+          ? `${f.amount} ${f.unit === 'g' ? 'г' : f.unit === 'ml' ? 'мл' : ''}` 
+          : ''
       }));
 
       const taskEvents: ScheduledEvent[] = (taskRes.data || []).map(t => ({
@@ -674,13 +676,6 @@ export const Scheduler = () => {
                 Выбрать
               </button>
               <button
-                onClick={() => openAddModal(true)}
-                className="px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-all duration-200 text-sm font-medium"
-                title="Создать следующее событие на основе интервала"
-              >
-                Следующее
-              </button>
-              <button
                 onClick={() => openAddModal(false)}
                 className="p-3 bg-black text-white rounded-full hover:bg-gray-800 transition-all duration-200 hover:scale-110 active:scale-95"
               >
@@ -942,6 +937,19 @@ export const Scheduler = () => {
       {events.length === 0 && (
         <div className="text-center py-12 text-gray-400">
           Нет запланированных событий
+        </div>
+      )}
+
+      {/* Кнопка "Следующее событие" */}
+      {events.length > 0 && !isSelectionMode && (
+        <div className="mt-6 flex justify-center">
+          <button
+            onClick={() => openAddModal(true)}
+            className="px-6 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
+            title="Создать следующее событие на основе интервала"
+          >
+            Создать следующее событие
+          </button>
         </div>
       )}
 
