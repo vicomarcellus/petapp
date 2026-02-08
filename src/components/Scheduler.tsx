@@ -627,10 +627,14 @@ export const Scheduler = () => {
       }
     } else {
       setFoodName(event.name);
-      const match = event.amount.match(/^(\d+)\s*(г|мл)?$/);
+      // Парсим amount на число (с запятой или точкой) и единицу
+      const match = event.amount.match(/^([0-9.,]+)\s*(г|мл)?$/);
       if (match) {
         setFoodAmount(match[1]);
         setFoodUnit(match[2] === 'г' ? 'g' : match[2] === 'мл' ? 'ml' : 'none');
+      } else {
+        setFoodAmount('');
+        setFoodUnit('g');
       }
     }
 
