@@ -240,6 +240,56 @@ export const Scheduler = () => {
     requestNotificationPermission();
   }, []);
 
+  const openAddModal = (isNext = false) => {
+    const now = new Date();
+    
+    if (isNext) {
+      // Умное событие - анализируем интервал
+      const recentEvents = events
+        .filter(e => !e.completed && (e.type === 'medication' || e.type === 'feeding'))
+        .sort((a, b) => b.scheduled_time - a.scheduled_time)
+        .slice(0, 2);
+
+      if (recentEvents.length >= 2) {
+        const interval = recentEvents[0].scheduled_time - recentEvents[1].scheduled_time;
+        const nextTime = new Date(recentEvents[0].scheduled_time + interval);
+        
+        setEventDate(nextTime.toISOString().split('T')[0]);
+        setEventTime(`${nextTime.getHours().toString().padStart(2, '0')}:${nextTime.getMinutes().toString().padStart(2, '0')}`);
+        
+        // Копируем данные последнего события
+        const lastEvent = recentEvents[0];
+        setEventType(lastEvent.type as 'medication' | 'feeding');
+        if (lastEvent.type === 'medication') {
+          setMedicationName(lastEvent.name);
+          const match = lastEvent.amount.match(/^([0-9.,]+)\s*(мл|мг|г|таб|капс)?$/);
+          if (match) {
+            setMedicationAmount(match[1]);
+            setMedicationUnit((match[2] || 'мл') as 'мл' | 'мг' | 'г' | 'таб' | 'капс');
+          }
+        } else if (lastEvent.type === 'feeding') {
+          setFoodName(lastEvent.name);
+          const match = lastEvent.amount.match(/^(\d+)\s*(г|мл)?$/);
+          if (match) {
+            setFoodAmount(match[1]);
+            setFoodUnit(match[2] === 'г' ? 'g' : match[2] === 'мл' ? 'ml' : 'none');
+          }
+        }
+      } else {
+        // Если недостаточно событий, просто добавляем 30 минут к текущему времени
+        const nextTime = new Date(now.getTime() + 30 * 60000);
+        setEventDate(nextTime.toISOString().split('T')[0]);
+        setEventTime(`${nextTime.getHours().toString().padStart(2, '0')}:${nextTime.getMinutes().toString().padStart(2, '0')}`);
+      }
+    } else {
+      // Обычное событие - текущая дата и время
+      setEventDate(now.toISOString().split('T')[0]);
+      setEventTime(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`);
+    }
+    
+    setShowAddModal(true);
+  };
+
   const handleAddEvent = async () => {
     if (!currentUser || !currentPetId || !eventDate || !eventTime) return;
 
@@ -622,7 +672,14 @@ export const Scheduler = () => {
                 Выбрать
               </button>
               <button
-                onClick={() => setShowAddModal(true)}
+                onClick={() => openAddModal(true)}
+                className="px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-all duration-200 text-sm font-medium"
+                title="Создать следующее событие на основе интервала"
+              >
+                Следующее
+              </button>
+              <button
+                onClick={() => openAddModal(false)}
                 className="p-3 bg-black text-white rounded-full hover:bg-gray-800 transition-all duration-200 hover:scale-110 active:scale-95"
               >
                 <Plus size={20} />
