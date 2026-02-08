@@ -871,6 +871,17 @@ export const Scheduler = () => {
                 </div>
               );
             })}
+            
+            {/* Кнопка "Следующее событие" */}
+            {!isSelectionMode && (
+              <button
+                onClick={() => openAddModal(true)}
+                className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2 font-medium"
+              >
+                <Plus size={20} />
+                Создать следующее событие
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -937,19 +948,6 @@ export const Scheduler = () => {
       {events.length === 0 && (
         <div className="text-center py-12 text-gray-400">
           Нет запланированных событий
-        </div>
-      )}
-
-      {/* Кнопка "Следующее событие" */}
-      {events.length > 0 && !isSelectionMode && (
-        <div className="mt-6 flex justify-center">
-          <button
-            onClick={() => openAddModal(true)}
-            className="px-6 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
-            title="Создать следующее событие на основе интервала"
-          >
-            Создать следующее событие
-          </button>
         </div>
       )}
 
