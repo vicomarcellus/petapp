@@ -767,10 +767,6 @@ export const Settings = () => {
               </select>
             </div>
           </div>
-                <option value="ml">мл</option>
-              </select>
-            </div>
-          </div>
         </div>
 
         <ModalActions
