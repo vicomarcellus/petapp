@@ -1057,7 +1057,7 @@ export const Scheduler = () => {
                   label="Количество"
                   type="text"
                   value={medicationAmount}
-                  onChange={(e) => setMedicationAmount(e.target.value)}
+                  onChange={(e) => setMedicationAmount(e.target.value.replace('.', ','))}
                   placeholder="0,3"
                 />
                 <div>
@@ -1112,7 +1112,7 @@ export const Scheduler = () => {
                   label="Количество"
                   type="text"
                   value={foodAmount}
-                  onChange={(e) => setFoodAmount(e.target.value)}
+                  onChange={(e) => setFoodAmount(e.target.value.replace('.', ','))}
                   placeholder="50"
                 />
                 <div>

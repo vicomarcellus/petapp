@@ -660,7 +660,7 @@ export const Settings = () => {
               label="Количество"
               type="text"
               value={newMedAmount}
-              onChange={(e) => setNewMedAmount(e.target.value)}
+              onChange={(e) => setNewMedAmount(e.target.value.replace('.', ','))}
               placeholder="0,3"
             />
             <div>
@@ -722,7 +722,7 @@ export const Settings = () => {
               label="Количество"
               type="text"
               value={newFoodAmount}
-              onChange={(e) => setNewFoodAmount(e.target.value)}
+              onChange={(e) => setNewFoodAmount(e.target.value.replace('.', ','))}
               placeholder="50"
             />
             <div>

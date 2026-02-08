@@ -201,7 +201,7 @@ export const FeedingForm = ({
           label="Количество"
           type="text"
           value={foodAmount}
-          onChange={(e) => setFoodAmount(e.target.value)}
+          onChange={(e) => setFoodAmount(e.target.value.replace('.', ','))}
           placeholder="50"
           disabled={foodUnit === 'none'}
         />
