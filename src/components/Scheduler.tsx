@@ -203,17 +203,6 @@ export const Scheduler = () => {
       }));
 
       setEvents([...medEvents, ...feedEvents, ...taskEvents].sort((a, b) => a.scheduled_time - b.scheduled_time));
-      
-      // Логирование для отладки
-      console.log('Loaded events:', [...medEvents, ...feedEvents, ...taskEvents]
-        .sort((a, b) => a.scheduled_time - b.scheduled_time)
-        .map(e => ({
-          name: e.name,
-          time: e.time,
-          scheduled_time: e.scheduled_time,
-          date: new Date(e.scheduled_time).toLocaleString('ru-RU')
-        }))
-      );
     } catch (error) {
       console.error('Error loading events:', error);
     } finally {
@@ -345,14 +334,6 @@ export const Scheduler = () => {
             scheduled_time: scheduledTime
           };
 
-          console.log('Updating medication event:', {
-            id: editingEvent.id,
-            eventDate,
-            eventTime,
-            scheduledTime,
-            scheduledTimeDate: new Date(scheduledTime).toLocaleString('ru-RU')
-          });
-
           if (uploadResult) {
             updateData.attachment_url = uploadResult.url;
             updateData.attachment_type = uploadResult.type;
@@ -382,14 +363,6 @@ export const Scheduler = () => {
             unit: foodUnit,
             scheduled_time: scheduledTime
           };
-
-          console.log('Updating feeding event:', {
-            id: editingEvent.id,
-            eventDate,
-            eventTime,
-            scheduledTime,
-            scheduledTimeDate: new Date(scheduledTime).toLocaleString('ru-RU')
-          });
 
           if (uploadResult) {
             updateData.attachment_url = uploadResult.url;
