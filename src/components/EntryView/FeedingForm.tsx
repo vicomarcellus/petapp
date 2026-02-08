@@ -197,14 +197,31 @@ export const FeedingForm = ({
       />
 
       <div className="grid grid-cols-2 gap-3">
-        <Input
-          label="Количество"
-          type="text"
-          value={foodAmount}
-          onChange={(e) => setFoodAmount(e.target.value.replace('.', ','))}
-          placeholder="50"
-          disabled={foodUnit === 'none'}
-        />
+        <div>
+          <Input
+            label="Количество"
+            type="text"
+            value={foodAmount}
+            onChange={(e) => setFoodAmount(e.target.value.replace('.', ','))}
+            placeholder="50"
+            disabled={foodUnit === 'none'}
+          />
+          {/* Быстрые кнопки */}
+          {foodUnit !== 'none' && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {['25', '50', '75', '100', '150'].map(val => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setFoodAmount(val)}
+                  className="px-2.5 py-1 bg-green-50 text-green-600 rounded-lg text-xs font-medium hover:bg-green-100 transition-colors"
+                >
+                  {val}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div>
           <label className="block text-sm font-semibold text-gray-600 mb-2">

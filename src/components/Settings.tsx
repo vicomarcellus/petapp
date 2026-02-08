@@ -656,13 +656,28 @@ export const Settings = () => {
           />
 
           <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Количество"
-              type="text"
-              value={newMedAmount}
-              onChange={(e) => setNewMedAmount(e.target.value.replace('.', ','))}
-              placeholder="0,3"
-            />
+            <div>
+              <Input
+                label="Количество"
+                type="text"
+                value={newMedAmount}
+                onChange={(e) => setNewMedAmount(e.target.value.replace('.', ','))}
+                placeholder="0,3"
+              />
+              {/* Быстрые кнопки */}
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {['0,3', '0,5', '1', '1,5', '2'].map(val => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setNewMedAmount(val)}
+                    className="px-2.5 py-1 bg-purple-50 text-purple-600 rounded-lg text-xs font-medium hover:bg-purple-100 transition-colors"
+                  >
+                    {val}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div>
               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">Единица</label>
               <select
@@ -718,13 +733,28 @@ export const Settings = () => {
           />
 
           <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Количество"
-              type="text"
-              value={newFoodAmount}
-              onChange={(e) => setNewFoodAmount(e.target.value.replace('.', ','))}
-              placeholder="50"
-            />
+            <div>
+              <Input
+                label="Количество"
+                type="text"
+                value={newFoodAmount}
+                onChange={(e) => setNewFoodAmount(e.target.value.replace('.', ','))}
+                placeholder="50"
+              />
+              {/* Быстрые кнопки */}
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {['25', '50', '75', '100', '150'].map(val => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setNewFoodAmount(val)}
+                    className="px-2.5 py-1 bg-green-50 text-green-600 rounded-lg text-xs font-medium hover:bg-green-100 transition-colors"
+                  >
+                    {val}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div>
               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">Единица</label>
               <select
@@ -733,6 +763,10 @@ export const Settings = () => {
                 className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl focus:border-gray-400 focus:bg-white transition-all outline-none text-gray-900 appearance-none cursor-pointer"
               >
                 <option value="g">г</option>
+                <option value="ml">мл</option>
+              </select>
+            </div>
+          </div>
                 <option value="ml">мл</option>
               </select>
             </div>
